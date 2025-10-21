@@ -84,6 +84,47 @@ export default [
     },
   },
 
+  // Source code using CommonJS
+  {
+    files: ['src/**/*.js'],
+    rules: {
+      // Allow CommonJS in source code
+      'unicorn/prefer-module': 'off',
+      'unicorn/filename-case': 'off',
+      'unicorn/no-array-reduce': 'off',
+      // Allow control characters in regex for sanitization logic
+      'no-control-regex': 'off',
+      'no-misleading-character-class': 'off',
+      // Allow optional catch binding
+      'unicorn/prefer-optional-catch-binding': 'off',
+      'unicorn/catch-error-name': 'off',
+      'no-unused-vars': ['error', { 'caughtErrors': 'none' }],
+    },
+  },
+
+  // Test files with Jest globals
+  {
+    files: ['src/tests/**/*.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        test: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+      },
+    },
+    rules: {
+      // Allow CommonJS in tests
+      'unicorn/prefer-module': 'off',
+      'unicorn/filename-case': 'off',
+    },
+  },
+
   // ESLint config file should not be checked for publish-related Node rules
   {
     files: ['eslint.config.mjs'],
