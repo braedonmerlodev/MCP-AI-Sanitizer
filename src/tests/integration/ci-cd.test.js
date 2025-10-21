@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 describe('CI/CD Configuration', () => {
   test('Dockerfile exists and has correct base image', () => {

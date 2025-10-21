@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1761005104326" clover="3.2.0">
+  <project timestamp="1761005104326" name="All files">
+    <metrics statements="8" coveredstatements="8" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2" elements="10" coveredelements="10" complexity="0" loc="8" ncloc="8" packages="1" files="2" classes="2"/>
+    <file name="EscapeNeutralization.js" path="/home/braedonpop/Desktop/projects/capstone/MCP-Securtiy/src/components/SanitizationPipeline/EscapeNeutralization.js">
+      <metrics statements="3" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <line num="13" count="9" type="stmt"/>
+      <line num="14" count="9" type="stmt"/>
+      <line num="18" count="1" type="stmt"/>
+    </file>
+    <file name="SymbolStripping.js" path="/home/braedonpop/Desktop/projects/capstone/MCP-Securtiy/src/components/SanitizationPipeline/SymbolStripping.js">
+      <metrics statements="5" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <line num="13" count="12" type="stmt"/>
+      <line num="16" count="12" type="stmt"/>
+      <line num="18" count="12" type="stmt"/>
+      <line num="19" count="12" type="stmt"/>
+      <line num="23" count="1" type="stmt"/>
+    </file>
+  </project>
+</coverage>
