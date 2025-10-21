@@ -1,6 +1,6 @@
 const express = require('express');
 const Joi = require('joi');
-const ProxySanitizer = require('../components/ProxySanitizer');
+const ProxySanitizer = require('../components/proxy-sanitizer');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();

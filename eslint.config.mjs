@@ -84,6 +84,20 @@ export default [
     },
   },
 
+  // Source code using CommonJS
+  {
+    files: ['src/**/*.js'],
+    rules: {
+      // Allow CommonJS in source code
+      'unicorn/prefer-module': 'off',
+      'unicorn/filename-case': 'off',
+      'unicorn/no-array-reduce': 'off',
+      // Allow control characters in regex for sanitization logic
+      'no-control-regex': 'off',
+      'no-misleading-character-class': 'off',
+    },
+  },
+
   // ESLint config file should not be checked for publish-related Node rules
   {
     files: ['eslint.config.mjs'],

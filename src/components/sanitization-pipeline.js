@@ -23,7 +23,11 @@ class SanitizationPipeline {
    * @returns {string} - The fully sanitized string.
    */
   sanitize(data) {
-    return this.steps.reduce((acc, step) => step.sanitize(acc), data);
+    let result = data;
+    for (const step of this.steps) {
+      result = step.sanitize(result);
+    }
+    return result;
   }
 }
 
