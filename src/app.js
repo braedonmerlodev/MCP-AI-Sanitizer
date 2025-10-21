@@ -26,9 +26,9 @@ app.get('/', (req, res) => {
     endpoints: {
       'POST /api/sanitize': 'Sanitize input data',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
-      'GET /health': 'Health check'
+      'GET /health': 'Health check',
     },
-    documentation: 'See README.md for usage details'
+    documentation: 'See README.md for usage details',
   });
 });
 
