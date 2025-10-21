@@ -3,7 +3,7 @@ const express = require('express');
 const apiRoutes = require('../../routes/api');
 
 // Mock the ProxySanitizer's forwardToLLM method
-jest.mock('../../components/ProxySanitizer', () => {
+jest.mock('../../components/proxy-sanitizer', () => {
   return jest.fn().mockImplementation(() => ({
     sanitize: jest.fn((data) => `sanitized-${data}`),
     handleN8nWebhook: jest.fn((payload) => ({
