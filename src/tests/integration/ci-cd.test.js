@@ -14,6 +14,6 @@ describe('CI/CD Configuration', () => {
     expect(fs.existsSync(workflowPath)).toBe(true);
     const workflowContent = fs.readFileSync(workflowPath, 'utf8');
     expect(workflowContent).toContain('CI/CD Pipeline');
-    expect(workflowContent).toContain('node-version: \'20.11.0\'');
+    expect(workflowContent).toContain('node-version: "20.11.0"');
   });
 });
