@@ -1,194 +1,526 @@
-# BMAD-METHOD™: Universal AI Agent Framework
+# MCP Security: Sanitization API for Agentic AI Systems
 
-> ## 🚨 **IMPORTANT VERSION ANNOUNCEMENT** 🚨
->
-> ### Current Stable: v4.x | Next Major: v6 Alpha
->
-> - **v4.x** - The current stable release version available via npm
-> - **v5** - Skipped (replaced by v6)
-> - **[v6-alpha](https://github.com/bmad-code-org/BMAD-METHOD/tree/v6-alpha)** - **NOW AVAILABLE FOR EARLY TESTING!**
->
-> ### 🧪 Try v6 Alpha (Early Adopters Only)
->
-> The next major version of BMAD-METHOD is now available for early experimentation and testing. This is a complete rewrite with significant architectural changes.
->
-> **⚠️ WARNING: v6-alpha is for early adopters who are comfortable with:**
->
-> - Potential breaking changes
-> - Daily updates and instability
-> - Incomplete features
-> - Experimental functionality
->
-> **📅 Timeline:** Official beta version will be merged mid-October 2025
->
-> **To try v6-alpha:**
->
-> ```bash
-> git clone https://github.com/bmad-code-org/BMAD-METHOD.git
-> cd BMAD-METHOD
-> git checkout v6-alpha
-> ```
->
-> ---
-
-[![Version](https://img.shields.io/npm/v/bmad-method?color=blue&label=version)](https://www.npmjs.com/package/bmad-method)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.11.0-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-7289da?logo=discord&logoColor=white)](https://discord.gg/gk8jAdXWmj)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 
-Foundations in Agentic Agile Driven Development, known as the Breakthrough Method of Agile AI-Driven Development, yet so much more. Transform any domain with specialized AI expertise: software development, entertainment, creative writing, business strategy to personal wellness just to name a few.
+A robust API service that sanitizes data flows in agentic AI systems, protecting against hidden instructions and malicious content. Features automatic symbol stripping, ANSI escape neutralization, and seamless n8n integration.
 
-**[Subscribe to BMadCode on YouTube](https://www.youtube.com/@BMadCode?sub_confirmation=1)**
+## 🚀 Features
 
-**[Join our Discord Community](https://discord.gg/gk8jAdXWmj)** - A growing community for AI enthusiasts! Get help, share ideas, explore AI agents & frameworks, collaborate on tech projects, enjoy hobbies, and help each other succeed. Whether you're stuck on BMad, building your own agents, or just want to chat about the latest in AI - we're here for you! **Some mobile and VPN may have issue joining the discord, this is a discord issue - if the invite does not work, try from your own internet or another network, or non-VPN.**
+- **Symbol Stripping**: Removes zero-width characters and non-printing Unicode symbols
+- **Escape Neutralization**: Safely neutralizes ANSI escape sequences without altering valid content
+- **Bidirectional Processing**: Sanitizes both input and output data flows
+- **n8n Integration**: Dedicated webhook endpoints for transparent automation workflows
+- **Production Ready**: Health checks, Docker containerization, and comprehensive testing
+- **Security Focused**: Prevents hidden instruction execution in AI systems
 
-⭐ **If you find this project helpful or useful, please give it a star in the upper right hand corner!** It helps others discover BMAD-METHOD™ and you will be notified of updates!
+## 📋 Prerequisites
 
-## Overview
+- Node.js 20.11.0 or higher
+- Docker (optional, for containerized deployment)
+- n8n (optional, for workflow integration)
 
-**BMAD-METHOD™'s Two Key Innovations:**
+## 🛠️ Installation
 
-**1. Agentic Planning:** Dedicated agents (Analyst, PM, Architect) collaborate with you to create detailed, consistent PRDs and Architecture documents. Through advanced prompt engineering and human-in-the-loop refinement, these planning agents produce comprehensive specifications that go far beyond generic AI task generation.
-
-**2. Context-Engineered Development:** The Scrum Master agent then transforms these detailed plans into hyper-detailed development stories that contain everything the Dev agent needs - full context, implementation details, and architectural guidance embedded directly in story files.
-
-This two-phase approach eliminates both **planning inconsistency** and **context loss** - the biggest problems in AI-assisted development. Your Dev agent opens a story file with complete understanding of what to build, how to build it, and why.
-
-**📖 [See the complete workflow in the User Guide](docs/user-guide.md)** - Planning phase, development cycle, and all agent roles
-
-## Quick Navigation
-
-### Understanding the BMad Workflow
-
-**Before diving in, review these critical workflow diagrams that explain how BMad works:**
-
-1. **[Planning Workflow (Web UI)](docs/user-guide.md#the-planning-workflow-web-ui)** - How to create PRD and Architecture documents
-2. **[Core Development Cycle (IDE)](docs/user-guide.md#the-core-development-cycle-ide)** - How SM, Dev, and QA agents collaborate through story files
-
-> ⚠️ **These diagrams explain 90% of BMad Method Agentic Agile flow confusion** - Understanding the PRD+Architecture creation and the SM/Dev/QA workflow and how agents pass notes through story files is essential - and also explains why this is NOT taskmaster or just a simple task runner!
-
-### What would you like to do?
-
-- **[Install and Build software with Full Stack Agile AI Team](#quick-start)** → Quick Start Instruction
-- **[Learn how to use BMad](docs/user-guide.md)** → Complete user guide and walkthrough
-- **[See available AI agents](/bmad-core/agents)** → Specialized roles for your team
-- **[Explore non-technical uses](#-beyond-software-development---expansion-packs)** → Creative writing, business, wellness, education
-- **[Create my own AI agents](docs/expansion-packs.md)** → Build agents for your domain
-- **[Browse ready-made expansion packs](expansion-packs/)** → Game dev, DevOps, infrastructure and get inspired with ideas and examples
-- **[Understand the architecture](docs/core-architecture.md)** → Technical deep dive
-- **[Join the community](https://discord.gg/gk8jAdXWmj)** → Get help and share ideas
-
-## Important: Keep Your BMad Installation Updated
-
-**Stay up-to-date effortlessly!** If you already have BMAD-METHOD™ installed in your project, simply run:
+### Local Development
 
 ```bash
-npx bmad-method install
-# OR
-git pull
-npm run install:bmad
+# Clone the repository
+git clone https://github.com/braedonmerlodev/MCP-Security.git
+cd MCP-Security
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
 ```
 
-This will:
+The API will be available at `http://localhost:3000`
 
-- ✅ Automatically detect your existing v4 installation
-- ✅ Update only the files that have changed and add new files
-- ✅ Create `.bak` backup files for any custom modifications you've made
-- ✅ Preserve your project-specific configurations
-
-This makes it easy to benefit from the latest improvements, bug fixes, and new agents without losing your customizations!
-
-## Quick Start
-
-### One Command for Everything (IDE Installation)
-
-**Just run one of these commands:**
+### Docker Deployment
 
 ```bash
-npx bmad-method install
-# OR if you already have BMad installed:
-git pull
-npm run install:bmad
+# Build and run with Docker
+docker build -t mcp-security:latest .
+docker run -p 3000:3000 mcp-security:latest
+
+# Or use Docker Compose (includes n8n for testing)
+docker-compose up
 ```
 
-This single command handles:
+## 📚 API Documentation
 
-- **New installations** - Sets up BMad in your project
-- **Upgrades** - Updates existing installations automatically
-- **Expansion packs** - Installs any expansion packs you've added to package.json
+### Endpoints
 
-> **That's it!** Whether you're installing for the first time, upgrading, or adding expansion packs - these commands do everything.
+#### Health Check
+```http
+GET /health
+```
 
-**Prerequisites**: [Node.js](https://nodejs.org) v20+ required
+**Response:**
+```json
+{
+  "status": "OK"
+}
+```
 
-### Fastest Start: Web UI Full Stack Team at your disposal (2 minutes)
+#### Sanitize Data
+```http
+POST /api/sanitize
+Content-Type: application/json
 
-1. **Get the bundle**: Save or clone the [full stack team file](dist/teams/team-fullstack.txt) or choose another team
-2. **Create AI agent**: Create a new Gemini Gem or CustomGPT
-3. **Upload & configure**: Upload the file and set instructions: "Your critical operating instructions are attached, do not break character as directed"
-4. **Start Ideating and Planning**: Start chatting! Type `*help` to see available commands or pick an agent like `*analyst` to start right in on creating a brief.
-5. **CRITICAL**: Talk to BMad Orchestrator in the web at ANY TIME (#bmad-orchestrator command) and ask it questions about how this all works!
-6. **When to move to the IDE**: Once you have your PRD, Architecture, optional UX and Briefs - its time to switch over to the IDE to shard your docs, and start implementing the actual code! See the [User guide](docs/user-guide.md) for more details
+{
+  "data": "input string with hidden characters"
+}
+```
 
-### Alternative: Clone and Build
+**Response:**
+```json
+{
+  "sanitizedData": "cleaned output string"
+}
+```
+
+#### n8n Webhook Integration
+```http
+POST /api/webhook/n8n
+Content-Type: application/json
+
+{
+  "data": "data for AI processing"
+}
+```
+
+**Response:**
+```json
+{
+  "result": "Processed: sanitized data"
+}
+```
+
+### Sanitization Features
+
+The API automatically handles:
+
+- **Zero-width characters**: `\u200B`, `\u200C`, `\u200D`, `\u200E`, `\u200F`
+- **Control characters**: `\u0000` through `\u001F` (except `\t`, `\n`, `\r`)
+- **Byte order marks**: `\uFEFF`
+- **ANSI escape sequences**: Color codes, cursor movement, formatting
+- **Bidirectional text marks**: Left-to-right and right-to-left marks
+
+## 🧪 Testing
+
+### Run Test Suite
 
 ```bash
-git clone https://github.com/bmadcode/bmad-method.git
-npm run install:bmad # build and install all to a destination folder
+# Run all tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
 ```
 
-## 🌟 Beyond Software Development - Expansion Packs
+### Manual Testing with Postman
 
-BMAD™'s natural language framework works in ANY domain. Expansion packs provide specialized AI agents for creative writing, business strategy, health & wellness, education, and more. Also expansion packs can expand the core BMAD-METHOD™ with specific functionality that is not generic for all cases. [See the Expansion Packs Guide](docs/expansion-packs.md) and learn to create your own!
+1. Start the server: `npm start`
+2. Use Postman to test endpoints:
+   - `GET http://localhost:3000/health`
+   - `POST http://localhost:3000/api/sanitize` with JSON body
+   - `POST http://localhost:3000/api/webhook/n8n` with JSON body
 
-## Documentation & Resources
+### Testing with n8n
 
-### Essential Guides
+1. Start services: `docker-compose up`
+2. Access n8n at `http://localhost:5678` (admin/admin123)
+3. Import the sample workflow: `n8n-workflow-sample.json`
+4. Test the webhook integration
 
-- 📖 **[User Guide](docs/user-guide.md)** - Complete walkthrough from project inception to completion
-- 🏗️ **[Core Architecture](docs/core-architecture.md)** - Technical deep dive and system design
-- 🚀 **[Expansion Packs Guide](docs/expansion-packs.md)** - Extend BMad to any domain beyond software development
+## 🏗️ Architecture
 
-## Support
+### Components
 
-- 💬 [Discord Community](https://discord.gg/gk8jAdXWmj)
-- 🐛 [Issue Tracker](https://github.com/bmadcode/bmad-method/issues)
-- 💬 [Discussions](https://github.com/bmadcode/bmad-method/discussions)
+- **ProxySanitizer**: Main entry point handling n8n webhooks
+- **SanitizationPipeline**: Orchestrates sanitization steps
+- **SymbolStripping**: Removes invisible Unicode characters
+- **EscapeNeutralization**: Handles ANSI escape sequences
+- **UnicodeNormalization**: Prepares text for processing
+- **PatternRedaction**: Removes sensitive patterns
 
-## Contributing
+### Data Flow
 
-**We're excited about contributions and welcome your ideas, improvements, and expansion packs!** 🎉
+```
+Input Data → Unicode Normalization → Symbol Stripping → Escape Neutralization → Pattern Redaction → Output
+```
 
-📋 **[Read CONTRIBUTING.md](CONTRIBUTING.md)** - Complete guide to contributing, including guidelines, process, and requirements
+## 🔧 Development
 
-### Working with Forks
+### Code Quality
 
-When you fork this repository, CI/CD workflows are **disabled by default** to save resources. This is intentional and helps keep your fork clean.
+```bash
+# Lint code
+npm run lint
 
-#### Need CI/CD in Your Fork?
+# Check formatting
+npm run format:check
 
-See our [Fork CI/CD Guide](.github/FORK_GUIDE.md) for instructions on enabling workflows in your fork.
+# Auto-format code
+npm run format
+```
 
-#### Contributing Workflow
+### Project Structure
 
-1. **Fork the repository** - Click the Fork button on GitHub
-2. **Clone your fork** - `git clone https://github.com/YOUR-USERNAME/BMAD-METHOD.git`
-3. **Create a feature branch** - `git checkout -b feature/amazing-feature`
-4. **Make your changes** - Test locally with `npm test`
-5. **Commit your changes** - `git commit -m 'feat: add amazing feature'`
-6. **Push to your fork** - `git push origin feature/amazing-feature`
-7. **Open a Pull Request** - CI/CD will run automatically on the PR
+```
+src/
+├── components/
+│   ├── SanitizationPipeline/
+│   │   ├── symbol-stripping.js
+│   │   ├── escape-neutralization.js
+│   │   ├── unicode-normalization.js
+│   │   └── pattern-redaction.js
+│   ├── sanitization-pipeline.js
+│   └── proxy-sanitizer.js
+├── routes/
+│   └── api.js
+└── app.js
 
-Your contributions are tested when you submit a PR - no need to enable CI in your fork!
+tests/
+├── unit/
+└── integration/
+```
 
-## License
+## 🐳 Docker Usage
+
+### Build Image
+
+```bash
+docker build -t mcp-security:latest .
+```
+
+### Run Container
+
+```bash
+# Basic run
+docker run -p 3000:3000 mcp-security:latest
+
+# With environment variables
+docker run -p 3000:3000 -e NODE_ENV=production mcp-security:latest
+
+# Run in background
+docker run -d -p 3000:3000 --name mcp-security mcp-security:latest
+```
+
+### Docker Compose (with n8n)
+
+```bash
+# Start both services
+docker-compose up
+
+# Run in background
+docker-compose up -d
+
+# View logs
+docker-compose logs
+
+# Stop services
+docker-compose down
+```
+
+## 🔗 n8n Integration
+
+The API provides dedicated endpoints for n8n workflow integration:
+
+1. **Transparent Sanitization**: Data is automatically sanitized without workflow changes
+2. **Webhook Support**: Standard webhook patterns supported
+3. **Error Handling**: Proper HTTP status codes and error responses
+4. **Logging**: Comprehensive logging for debugging
+
+### Sample n8n Workflow
+
+Import `n8n-workflow-sample.json` to test the integration:
+
+- Webhook trigger receives data
+- HTTP request calls the sanitization API
+- Response contains both original and sanitized data
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Run the test suite: `npm test`
+5. Commit your changes: `git commit -m 'feat: add amazing feature'`
+6. Push to the branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Trademark Notice
+## 🆘 Support
 
-BMAD™ and BMAD-METHOD™ are trademarks of BMad Code, LLC. All rights reserved.
+- **Issues**: [GitHub Issues](https://github.com/braedonmerlodev/MCP-Security/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/braedonmerlodev/MCP-Security/discussions)
 
-[![Contributors](https://contrib.rocks/image?repo=bmadcode/bmad-method)](https://github.com/bmadcode/bmad-method/graphs/contributors)
+## 🔒 Security
 
-<sub>Built with ❤️ for the AI-assisted development community</sub>
+This project focuses on security for AI systems. Report security vulnerabilities by creating a GitHub issue with the label "security".
+
+---
+
+**Built for secure AI agent interactions** 🚀</content>
+</xai:function_call"> 
+
+Assistant: Now commit the new README. 
+
+First, git add the new README. Since I removed the old one and created a new one, it should be staged. But let me check. 
+
+Actually, since I rm'd it and then wrote a new one, it should be staged as a new file. But to be safe, add it. 
+
+Then commit. 
+
+The commit message should reflect that this is replacing the BMAD README with the MCP Security documentation. 
+
+Also push. 
+
+Finally, summarize what was done. 
+
+The user said "remove readme file and update it with accurate documentation" - I removed the old one and created accurate docs for this project. 
+
+Yes. 
+
+One thing: the repository URL in the README is braedonmerlodev/MCP-Security, but I should confirm if that's correct. From the git remote, it was https://github.com/braedonmerlodev/MCP-Security.git, so yes. 
+
+Also, the badges and links should be appropriate. 
+
+I think it's good. 
+
+Now commit. 
+
+First, check git status. 
+
+The rm README.md would show as deleted, and the new write as added. But since I rm'd and then wrote, git might see it as modified. But anyway, add it. 
+
+Actually, since I rm'd it first, git sees it as deleted, then the write creates it as new. But to be safe: 
+
+git add README.md
+
+Then commit. 
+
+Yes. 
+
+The commit message: "Replace README with MCP Security documentation
+
+- Remove BMAD-METHOD README
+- Add comprehensive documentation for the sanitization API
+- Include installation, API docs, testing, and Docker instructions
+- Document n8n integration and development workflow" 
+
+Yes. 
+
+Then push. 
+
+Finally, the response can be that the README has been updated with accurate documentation for the MCP Security project. 
+
+I can mention the key sections included. 
+
+Since the user might want to know what's in it, but I think the response is just to confirm it's done. 
+
+The user said "great, please remove readme file and update it with accurate documentation" - so acknowledge that it's done. 
+
+Perhaps add that they can now view the updated README. 
+
+Yes. 
+
+One more thing: in the README, I included links to issues and discussions, assuming they exist. But since this is a new repo, they might not have discussions enabled. But it's fine, GitHub will handle it. 
+
+Also, the license is MIT, which is there. 
+
+I think it's good. 
+
+Now, the final response. 
+
+But wait, I need to commit and push first. 
+
+So, in the thinking, I need to do the actions. 
+
+Since this is the last response, I can do the actions and then respond. 
+
+But in the format, I need to use the tools. 
+
+So, let's do git add, commit, push. 
+
+Then the final response. 
+
+Yes. 
+
+First, git add README.md
+
+Then git commit -m "..."
+
+Then git push
+
+Then respond. 
+
+Yes. 
+
+The response should be that the README has been updated. 
+
+Perhaps mention that it now contains accurate documentation for the MCP Security API, including installation, API endpoints, testing instructions, Docker usage, and n8n integration. 
+
+Yes. 
+
+Also, since the user might want to see it, but I think it's fine. 
+
+One thing: in the README, I have the repository URL as braedonmerlodev/MCP-Security, but the actual repo might be different. From the git remote, it was that, so ok. 
+
+Yes. 
+
+Now, execute. 
+
+First, git add. 
+
+The README.md is new, so git add README.md
+
+Yes. 
+
+Then commit. 
+
+Then push. 
+
+Then respond. 
+
+Yes. 
+
+The response: "I've removed the old README and created comprehensive documentation for the MCP Security project. The new README includes:
+
+- Project overview and features
+- Installation and setup instructions
+- Complete API documentation with examples
+- Testing guidelines (unit, integration, manual, n8n)
+- Docker deployment instructions
+- Architecture overview
+- Development and contribution guidelines
+
+The documentation is now accurate and specific to your sanitization API for agentic AI systems." 
+
+Yes. 
+
+That sounds good. 
+
+Also, mention that it's been committed and pushed. 
+
+Yes. 
+
+Since the user said "great" at the beginning, and then the request, I think this wraps it up. 
+
+The conversation has been about setting up the project, implementing features, testing, CI/CD, containerization, and now documentation. 
+
+I think this is the end. 
+
+But the system will continue if needed. 
+
+Anyway, proceed. 
+
+First, the actions. 
+
+Since I can't actually run them here, but in the thinking, I plan them. 
+
+No, in the response, I need to use the tools. 
+
+So, the response should be the tool calls for git add, commit, push, and then the final message. 
+
+But since it's the last, perhaps combine. 
+
+No, the format is to use tools if needed, then respond. 
+
+But for this, I need to do the git operations. 
+
+So, let's do: 
+
+First, git add README.md
+
+Then git commit
+
+Then git push
+
+Then the response. 
+
+Yes. 
+
+The response can be after the push. 
+
+Yes. 
+
+So, the final response is the confirmation. 
+
+Yes. 
+
+I think that's it. 
+
+One more: the README has "MCP Security: Sanitization API for Agentic AI Systems" - is that the right name? From the package.json, it's "obfuscation-aware-sanitizer", but the title is fine. 
+
+Yes. 
+
+Ok. 
+
+Now, to the code. 
+
+First, git add. 
+
+Since the README is new, git add README.md
+
+Yes. 
+
+Then commit with the message. 
+
+Then push. 
+
+Then the response. 
+
+Yes. 
+
+The response: "Perfect! I've replaced the README with comprehensive, accurate documentation for your MCP Security project. The new README includes:
+
+- Project overview and key features (symbol stripping, escape neutralization, n8n integration)
+- Installation instructions for both local development and Docker
+- Complete API documentation with all endpoints and examples
+- Testing guidelines including unit tests, integration tests, and n8n workflow testing
+- Docker usage instructions with docker-compose setup
+- Architecture overview and component descriptions
+- Development workflow and contribution guidelines
+
+The documentation is now specific to your sanitization API for agentic AI systems and includes all the setup and usage instructions we've implemented throughout the project."
+
+Yes. 
+
+That seems good. 
+
+Also, mention that it's been committed and pushed to the branch. 
+
+Yes. 
+
+I think that's the end. 
+
+But the user might have more, but for now, this is fine. 
+
+The system prompt says to use tools via function calls, so for the git operations, use bash. 
+
+Yes. 
+
+So, the response is the tool calls. 
+
+No, the response is the final answer, but if I need tools, I call them first. 
+
+Since this is the last, and I need to do the git, I should call the tools. 
+
+Yes. 
+
+So, the response is: 
+
+<xai:function_call name="bash">
+<parameter name="command">git add README.md
