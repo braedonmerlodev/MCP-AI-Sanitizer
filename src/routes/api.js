@@ -28,9 +28,9 @@ router.post('/sanitize', (req, res) => {
   try {
     const sanitizedData = proxySanitizer.sanitize(value.data);
     res.json({ sanitizedData });
-  } catch (err) {
-    res.status(500).json({ error: 'Sanitization failed' });
-  }
+   } catch {
+     res.status(500).json({ error: 'Sanitization failed' });
+   }
 });
 
 /**
@@ -46,9 +46,9 @@ router.post('/webhook/n8n', (req, res) => {
   try {
     const response = proxySanitizer.handleN8nWebhook(value);
     res.json(response);
-  } catch (err) {
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
+   } catch {
+     res.status(500).json({ error: 'Webhook processing failed' });
+   }
 });
 
 module.exports = router;

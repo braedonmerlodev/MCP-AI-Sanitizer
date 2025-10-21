@@ -95,6 +95,33 @@ export default [
       // Allow control characters in regex for sanitization logic
       'no-control-regex': 'off',
       'no-misleading-character-class': 'off',
+      // Allow optional catch binding
+      'unicorn/prefer-optional-catch-binding': 'off',
+      'unicorn/catch-error-name': 'off',
+      'no-unused-vars': ['error', { 'caughtErrors': 'none' }],
+    },
+  },
+
+  // Test files with Jest globals
+  {
+    files: ['src/tests/**/*.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        test: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+      },
+    },
+    rules: {
+      // Allow CommonJS in tests
+      'unicorn/prefer-module': 'off',
+      'unicorn/filename-case': 'off',
     },
   },
 
