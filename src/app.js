@@ -14,6 +14,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api', apiRoutes);
@@ -26,6 +27,7 @@ app.get('/', (req, res) => {
     endpoints: {
       'POST /api/sanitize': 'Sanitize input data',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
+      'POST /api/documents/upload': 'Upload PDF documents for processing',
       'GET /health': 'Health check',
     },
     documentation: 'See README.md for usage details',

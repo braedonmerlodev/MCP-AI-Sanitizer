@@ -2,7 +2,9 @@
 
 This sub-epic focuses on implementing robust PDF upload and text extraction capabilities. It establishes the foundation for the document processing pipeline by creating secure file upload endpoints and reliable text extraction using pdf-parse. The goal is to provide a dependable entry point for PDF documents that can be safely processed through the sanitization pipeline.
 
-## Story 4.1 PDF Upload and Validation
+## Story 4.1 PDF Upload and Validation ✅ COMPLETED
+
+**Story File**: [docs/stories/4.1-implement-pdf-upload-and-validation.md](docs/stories/4.1-implement-pdf-upload-and-validation.md)
 
 As a content curator, I want to upload PDF documents through a secure API endpoint, so that documents can be validated and prepared for processing.
 

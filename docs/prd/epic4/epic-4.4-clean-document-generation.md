@@ -2,7 +2,9 @@
 
 This sub-epic focuses on generating clean, validated PDF documents from sanitized Markdown content. It uses PDFKit to create professional-looking documents that maintain the integrity of the original content while clearly indicating sanitization status. The goal is to provide a verified document library that AI agents can trust and humans can easily consume.
 
-## Story 4.4 PDF Generation from Sanitized Content
+## Story 4.4 PDF Generation from Sanitized Content ⏳ PENDING
+
+**Story File**: [docs/stories/4.4-implement-pdf-generation-from-sanitized-content.md](docs/stories/4.4-implement-pdf-generation-from-sanitized-content.md)
 
 As a document manager, I want sanitized Markdown content to be converted into clean, validated PDF documents, so that a verified document library is maintained for secure access.
 

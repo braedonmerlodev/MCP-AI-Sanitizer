@@ -2,7 +2,9 @@
 
 This sub-epic focuses on integrating the Markdown content with the existing sanitization API. It ensures all document content passes through the security pipeline before being considered safe for storage and AI consumption. The goal is to provide automated sanitization that catches malicious content while maintaining processing reliability and performance.
 
-## Story 4.3 Sanitization Pipeline Integration
+## Story 4.3 Sanitization Pipeline Integration ⏳ PENDING
+
+**Story File**: [docs/stories/4.3-implement-sanitization-pipeline-integration.md](docs/stories/4.3-implement-sanitization-pipeline-integration.md)
 
 As a security officer, I want all Markdown content to be automatically sanitized through the existing API, so that malicious content is neutralized before document storage.
 
