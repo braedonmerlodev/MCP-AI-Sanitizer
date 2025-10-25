@@ -2,7 +2,7 @@
 
 This sub-epic focuses on converting raw extracted PDF text into well-structured Markdown format. It preserves document hierarchy, formatting, and readability while preparing content for sanitization. The goal is to transform unstructured PDF text into a standardized format that maintains document integrity and improves AI comprehension.
 
-## Story 4.2 Text to Markdown Conversion ⏳ PENDING
+## Story 4.2 Text to Markdown Conversion ✅ VALIDATED
 
 **Story File**: [docs/stories/4.2-implement-text-to-markdown-conversion.md](docs/stories/4.2-implement-text-to-markdown-conversion.md)
 
