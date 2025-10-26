@@ -106,11 +106,9 @@ function analyzeRequest(req) {
 
   // Check content-type for potential LLM input
   const contentType = req.get('Content-Type');
-  if (contentType) {
-    if (contentType.includes('text/') || contentType.includes('application/json')) {
-      indicators.push(`content-type:${contentType}`);
-      confidence += 0.3;
-    }
+  if (contentType && (contentType.includes('text/') || contentType.includes('application/json'))) {
+    indicators.push(`content-type:${contentType}`);
+    confidence += 0.3;
   }
 
   // Determine final classification
