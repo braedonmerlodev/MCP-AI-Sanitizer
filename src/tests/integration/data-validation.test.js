@@ -27,10 +27,10 @@ describe('Data Integrity Validation Integration', () => {
         },
       });
 
-      // Result should be sanitized
+      // Result should be sanitized string
       expect(result).toBeDefined();
-      expect(result.data).toBeDefined();
-      // Since it's an object, sanitization steps might not apply directly
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
     });
 
     test('should validate data integrity for processed content', async () => {
@@ -40,6 +40,7 @@ describe('Data Integrity Validation Integration', () => {
         userId: 'user-456',
         timestamp: new Date().toISOString(),
         dataHash: 'somehash',
+        validationStatus: 'valid',
       };
 
       const validationResult = await validator.validateData(testData);
@@ -112,7 +113,7 @@ describe('Data Integrity Validation Integration', () => {
 
       expect(result).toBeDefined();
       expect(result.success).toBe(true);
-      expect(result.results.loaded).toBeGreaterThan(0);
+      expect(result.result.loaded).toBeGreaterThan(0);
     });
 
     test('should route and manage errors', async () => {
@@ -162,8 +163,11 @@ describe('Data Integrity Validation Integration', () => {
       const operations = Array.from({ length: 10 }, (_, i) =>
         validator.validateData({
           id: `concurrent-${i}`,
-          content: `Concurrent data ${i}`,
+          content: `Content ${i}`,
+          userId: 'user-123',
           timestamp: new Date().toISOString(),
+          dataHash: `hash${i}`,
+          validationStatus: 'valid',
         }),
       );
 

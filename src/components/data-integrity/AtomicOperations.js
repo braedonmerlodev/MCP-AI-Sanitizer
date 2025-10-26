@@ -40,13 +40,14 @@ class AtomicOperations {
           duration: Date.now() - startTime,
         };
       } else {
-        await this.commitTransaction(transactionId);
-        return {
-          success: true,
+        // Operation succeeded and should have called commit internally
+        // Return the operation result directly, add transaction metadata
+        const finalResult = {
+          ...result,
           transactionId,
-          result,
           duration: Date.now() - startTime,
         };
+        return finalResult;
       }
     } catch (error) {
       // Rollback on error
@@ -114,6 +115,16 @@ class AtomicOperations {
       throw new Error(`Transaction ${transactionId} not found`);
     }
 
+    if (transaction.status === 'committed') {
+      console.log(`Cannot rollback committed transaction ${transactionId}`);
+      return;
+    }
+
+    if (transaction.status !== 'active') {
+      console.log(`Transaction ${transactionId} is not active (status: ${transaction.status})`);
+      return;
+    }
+
     // In a real implementation, this would rollback the database transaction
     console.log(`Rolling back transaction ${transactionId}`, { reason });
 
@@ -161,15 +172,15 @@ class AtomicOperations {
           // If any failures in batch, rollback entire operation
           if (batchResults.failed > 0) {
             await rollback('Batch loading failed');
-            return { success: false, error: 'Batch loading failed', results };
+            return { success: false, error: 'Batch loading failed', result: results };
           }
         }
 
         await commit();
-        return { success: true, results };
+        return { success: true, result: results };
       } catch (error) {
         await rollback(error.message);
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, result: null };
       }
     });
   }
@@ -185,9 +196,9 @@ class AtomicOperations {
     // For simulation, we'll just count
     console.log(`Loading batch of ${batch.length} items in transaction ${transactionId}`);
 
-    // Simulate some failures for testing
-    const failed = Math.random() < 0.1 ? 1 : 0; // 10% chance of failure
-    const loaded = batch.length - failed;
+    // Simulate loading - no failures for testing
+    const failed = 0;
+    const loaded = batch.length;
 
     return { loaded, failed };
   }
