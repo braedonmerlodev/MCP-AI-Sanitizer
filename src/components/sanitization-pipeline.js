@@ -3,6 +3,7 @@ const SymbolStripping = require('./SanitizationPipeline/symbol-stripping.js');
 const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralization.js');
 const PatternRedaction = require('./SanitizationPipeline/pattern-redaction.js');
 const DataIntegrityValidator = require('./DataIntegrityValidator');
+const TrustTokenGenerator = require('./TrustTokenGenerator');
 const winston = require('winston');
 
 // Initialize logger
@@ -28,6 +29,10 @@ class SanitizationPipeline {
     // Initialize data integrity validator
     this.integrityValidator = new DataIntegrityValidator(options.integrityOptions || {});
     this.enableValidation = options.enableValidation !== false;
+
+    // Initialize trust token generator (lazy initialization)
+    this.trustTokenGenerator = null;
+    this.trustTokenOptions = options.trustTokenOptions || {};
   }
 
   /**
@@ -37,10 +42,16 @@ class SanitizationPipeline {
    * @param {string} options.classification - Destination classification ('llm', 'non-llm', 'unclear')
    * @param {boolean} options.skipValidation - Skip integrity validation
    * @param {Object} options.validationOptions - Options for integrity validation
-   * @returns {string|Object} - The sanitized result with validation metadata
+   * @param {boolean} options.generateTrustToken - Generate trust token for sanitized content
+   * @returns {string|Object} - The sanitized result or {sanitizedData, trustToken} if generateTrustToken is true
    */
   async sanitize(data, options = {}) {
-    const { classification = 'unclear', skipValidation = false, validationOptions = {} } = options;
+    const {
+      classification = 'unclear',
+      skipValidation = false,
+      validationOptions = {},
+      generateTrustToken = false,
+    } = options;
 
     // For security, default to full sanitization if classification is unclear
     if (classification === 'non-llm') {
@@ -90,9 +101,13 @@ class SanitizationPipeline {
       }
     }
 
+    // Track applied rules for trust token
+    const appliedRules = [];
+
     // Apply sanitization steps
     for (const step of this.steps) {
       result = step.sanitize(result);
+      appliedRules.push(step.constructor.name);
     }
 
     // Post-validation hook
@@ -110,7 +125,19 @@ class SanitizationPipeline {
       }
     }
 
-    // Return just the sanitized data if validation is disabled
+    // Generate trust token if requested
+    if (generateTrustToken) {
+      if (!this.trustTokenGenerator) {
+        this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
+      }
+      const trustToken = this.trustTokenGenerator.generateToken(result, data, appliedRules);
+      return {
+        sanitizedData: result,
+        trustToken,
+      };
+    }
+
+    // Return just the sanitized data if validation is disabled or trust token not requested
     return result;
   }
 }

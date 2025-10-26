@@ -2,12 +2,25 @@ const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
 
+// Mock pdf-parse for testing
+jest.mock('pdf-parse', () => jest.fn().mockResolvedValue({ text: 'Mock extracted text from PDF' }));
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', apiRoutes);
 
 describe('API Routes', () => {
+  beforeAll(() => {
+    // Set environment variable for trust token secret in tests
+    process.env.TRUST_TOKEN_SECRET = 'test-secret-for-api-tests';
+  });
+
+  afterAll(() => {
+    // Clean up
+    delete process.env.TRUST_TOKEN_SECRET;
+  });
+
   describe('POST /api/sanitize', () => {
     test('should sanitize valid input data', async () => {
       const response = await request(app)
@@ -54,10 +67,15 @@ describe('API Routes', () => {
         .attach('pdf', pdfBuffer, 'test.pdf')
         .expect(200);
 
-      expect(response.body).toHaveProperty('message', 'PDF uploaded successfully');
+      expect(response.body).toHaveProperty('message', 'PDF uploaded and processed successfully');
       expect(response.body).toHaveProperty('fileName', 'test.pdf');
       expect(response.body).toHaveProperty('size');
-      expect(response.body).toHaveProperty('status', 'uploaded');
+      expect(response.body).toHaveProperty('status', 'processed');
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(typeof response.body.sanitizedContent).toBe('string');
+      expect(response.body.trustToken).toHaveProperty('contentHash');
+      expect(response.body.trustToken).toHaveProperty('signature');
     });
 
     test('should reject non-PDF files by extension', async () => {
@@ -113,6 +131,66 @@ describe('API Routes', () => {
       const response = await request(app).post('/api/documents/upload').expect(400);
 
       expect(response.body).toHaveProperty('error', 'No file uploaded');
+    });
+  });
+
+  describe('POST /api/trust-tokens/validate', () => {
+    let validToken;
+
+    beforeAll(() => {
+      // Create a valid token for testing
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator({ secret: process.env.TRUST_TOKEN_SECRET });
+      validToken = generator.generateToken('test content', 'original content', ['rule1']);
+      // Serialize dates for API
+      validToken.timestamp = validToken.timestamp.toISOString();
+      validToken.expiresAt = validToken.expiresAt.toISOString();
+    });
+
+    test('should validate a correct trust token', async () => {
+      const response = await request(app)
+        .post('/api/trust-tokens/validate')
+        .send(validToken)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('valid', true);
+      expect(response.body).toHaveProperty('message', 'Trust token is valid');
+    });
+
+    test('should reject an invalid trust token', async () => {
+      const invalidToken = { ...validToken, signature: 'invalid-signature' };
+
+      const response = await request(app)
+        .post('/api/trust-tokens/validate')
+        .send(invalidToken)
+        .expect(400);
+
+      expect(response.body).toHaveProperty('valid', false);
+      expect(response.body).toHaveProperty('error', 'Invalid token signature');
+    });
+
+    test('should reject an expired trust token', async () => {
+      const expiredToken = {
+        ...validToken,
+        expiresAt: new Date(Date.now() - 1000).toISOString(), // Expired
+      };
+
+      const response = await request(app)
+        .post('/api/trust-tokens/validate')
+        .send(expiredToken)
+        .expect(410);
+
+      expect(response.body).toHaveProperty('valid', false);
+      expect(response.body).toHaveProperty('error', 'Token has expired');
+    });
+
+    test('should return 400 for invalid request body', async () => {
+      const response = await request(app)
+        .post('/api/trust-tokens/validate')
+        .send({ invalid: 'data' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
     });
   });
 });
