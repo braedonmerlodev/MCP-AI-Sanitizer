@@ -6,7 +6,7 @@ describe('CI/CD Configuration', () => {
     const dockerfilePath = path.join(__dirname, '../../../Dockerfile');
     expect(fs.existsSync(dockerfilePath)).toBe(true);
     const dockerfileContent = fs.readFileSync(dockerfilePath, 'utf8');
-    expect(dockerfileContent).toContain('FROM node:20.11.0');
+    expect(dockerfileContent).toContain('FROM node:22-alpine');
   });
 
   test('GitHub Actions workflow exists', () => {
@@ -14,6 +14,6 @@ describe('CI/CD Configuration', () => {
     expect(fs.existsSync(workflowPath)).toBe(true);
     const workflowContent = fs.readFileSync(workflowPath, 'utf8');
     expect(workflowContent).toContain('CI/CD Pipeline');
-    expect(workflowContent).toContain('node-version: "20.11.0"');
+    expect(workflowContent).toContain('node-version: "22"');
   });
 });
