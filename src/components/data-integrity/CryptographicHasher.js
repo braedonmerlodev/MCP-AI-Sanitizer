@@ -1,14 +1,14 @@
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 /**
  * CryptographicHasher manages hash generation and verification for data lineage tracking.
  * Provides SHA-256 hashing with salt support for data integrity.
  */
 class CryptographicHasher {
-  constructor() {
-    this.algorithm = 'sha256';
-    this.encoding = 'hex';
-  }
+  algorithm = 'sha256';
+  encoding = 'hex';
+
+  constructor() {}
 
   /**
    * Generates a hash for the provided data
