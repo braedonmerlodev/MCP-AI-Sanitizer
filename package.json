@@ -4,13 +4,18 @@
   "description": "API for sanitizing data in agentic AI systems",
   "main": "src/app.js",
   "scripts": {
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "lint": "eslint src",
     "start": "node src/app.js",
     "test": "jest",
     "test:integration": "jest src/tests/integration",
-    "test:unit": "jest src/tests/unit",
-    "lint": "eslint src",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "test:unit": "jest src/tests/unit"
+  },
+  "jest": {
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
   },
   "dependencies": {
     "express": "^4.18.2",

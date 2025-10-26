@@ -1,8 +1,5 @@
 const TextToMarkdownConverter = require('../../components/TextToMarkdownConverter');
 
-// Mock pdf-parse
-jest.mock('pdf-parse', () => jest.fn());
-
 const pdfParse = require('pdf-parse');
 
 describe('TextToMarkdownConverter', () => {
