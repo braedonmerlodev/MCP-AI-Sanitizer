@@ -1,4 +1,4 @@
-const crypto = require('node:crypto');
+const crypto = require('crypto');
 
 /**
  * CryptographicHasher manages hash generation and verification for data lineage tracking.
@@ -6,6 +6,8 @@ const crypto = require('node:crypto');
  */
 class CryptographicHasher {
   constructor() {
+    this.algorithm = 'sha256';
+    this.encoding = 'hex';
   }
 
   /**
@@ -123,38 +125,41 @@ class CryptographicHasher {
    */
   verifyDataLineage(currentData, hashReference) {
     try {
-      const currentHashes = this.generateDataHashes(currentData);
+      // For lineage verification, we need to verify against the original data structure
+      // The hashReference should contain hashes for the raw and sanitized data separately
 
-      const rawDataMatches = this.verifyHash(
-        typeof currentData === 'string' ? currentData : JSON.stringify(currentData),
-        hashReference.rawDataHash || hashReference.dataHash,
-      );
+      const dataString =
+        typeof currentData === 'string' ? currentData : JSON.stringify(currentData);
 
-      const sanitizedDataMatches = hashReference.sanitizedDataHash
-        ? this.verifyHash(
-            typeof currentData === 'string' ? currentData : JSON.stringify(currentData),
-            hashReference.sanitizedDataHash,
-          )
-        : true; // If no sanitized hash, skip this check
+      // Determine which hash to verify against based on what's available
+      // If we have sanitizedDataHash, assume currentData is sanitized data
+      // If we only have rawDataHash, assume currentData is raw data
+      let dataMatches = false;
+      if (hashReference.sanitizedDataHash) {
+        dataMatches = this.verifyHash(dataString, hashReference.sanitizedDataHash);
+      } else if (hashReference.rawDataHash) {
+        dataMatches = this.verifyHash(dataString, hashReference.rawDataHash);
+      } else {
+        dataMatches = true; // No hashes to verify against
+      }
 
-      const combinedMatches = hashReference.combinedHash
-        ? this.verifyHash(
-            (hashReference.rawDataHash || hashReference.dataHash) +
-              (hashReference.sanitizedDataHash || hashReference.dataHash),
-            hashReference.combinedHash,
-          )
-        : true;
+      // Verify combined hash by reconstructing the same structure used during creation
+      let combinedMatches = true;
+      if (hashReference.combinedHash) {
+        // The combined hash is hash(rawHash + sanitizedHash)
+        const expectedCombined = this.generateHash(
+          hashReference.rawDataHash + hashReference.sanitizedDataHash,
+        );
+        combinedMatches = expectedCombined === hashReference.combinedHash;
+      }
 
-      const isValid = rawDataMatches && sanitizedDataMatches && combinedMatches;
+      const isValid = dataMatches && combinedMatches;
 
       return {
         isValid,
         details: {
-          rawDataMatches,
-          sanitizedDataMatches,
+          dataMatches,
           combinedMatches,
-          currentHash: currentHashes.dataHash,
-          storedHash: hashReference.rawDataHash || hashReference.dataHash,
           algorithm: hashReference.algorithm || this.algorithm,
         },
       };
@@ -186,8 +191,6 @@ class CryptographicHasher {
     }
     this.algorithm = algorithm;
   }
-  algorithm = 'sha256';
-  encoding = 'hex';
 }
 
 module.exports = CryptographicHasher;
