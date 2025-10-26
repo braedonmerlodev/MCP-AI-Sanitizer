@@ -11,11 +11,22 @@ obfuscation-aware-sanitizer/
 │   │   │   ├── EscapeNeutralization.js
 │   │   │   └── PatternRedaction.js
 │   │   ├── ProvenanceValidator.js
-│   │   └── AuditLogger.js
+│   │   ├── AuditLogger.js
+│   │   ├── DataIntegrityValidator.js
+│   │   └── data-integrity/
+│   │       ├── SchemaValidator.js
+│   │       ├── ReferentialChecker.js
+│   │       ├── CryptographicHasher.js
+│   │       ├── ErrorRouter.js
+│   │       └── AuditLogger.js
 │   ├── middleware/
 │   │   └── destination-tracking.js
 │   ├── models/
-│   │   └── SanitizationEvent.js
+│   │   ├── SanitizationEvent.js
+│   │   ├── ValidationResult.js
+│   │   ├── ErrorQueue.js
+│   │   ├── AuditLog.js
+│   │   └── HashReference.js
 │   ├── routes/
 │   │   └── api.js
 │   ├── utils/
@@ -24,9 +35,11 @@ obfuscation-aware-sanitizer/
 │   │   └── index.js
 │   ├── tests/
 │   │   ├── unit/
-│   │   │   └── middleware/
+│   │   │   ├── middleware/
 │   │   │     └── destination-tracking.test.js
+│   │   │   └── data-integrity.test.js
 │   │   └── integration/
+│   │       └── data-validation.test.js
 │   └── app.js
 ├── infrastructure/
 │   ├── azure-bicep/

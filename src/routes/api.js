@@ -54,7 +54,7 @@ const n8nWebhookSchema = Joi.object({
  * POST /api/sanitize
  * Sanitizes input data.
  */
-router.post('/sanitize', destinationTracking, (req, res) => {
+router.post('/sanitize', destinationTracking, async (req, res) => {
   const { error, value } = sanitizeSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
@@ -62,7 +62,7 @@ router.post('/sanitize', destinationTracking, (req, res) => {
 
   try {
     const options = { classification: req.destinationTracking.classification };
-    const sanitizedData = proxySanitizer.sanitize(value.data, options);
+    const sanitizedData = await proxySanitizer.sanitize(value.data, options);
     res.json({ sanitizedData });
   } catch {
     res.status(500).json({ error: 'Sanitization failed' });
@@ -73,7 +73,7 @@ router.post('/sanitize', destinationTracking, (req, res) => {
  * POST /api/webhook/n8n
  * Handles n8n webhook requests with automatic sanitization.
  */
-router.post('/webhook/n8n', destinationTracking, (req, res) => {
+router.post('/webhook/n8n', destinationTracking, async (req, res) => {
   const { error, value } = n8nWebhookSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
@@ -81,7 +81,7 @@ router.post('/webhook/n8n', destinationTracking, (req, res) => {
 
   try {
     const options = { classification: req.destinationTracking.classification };
-    const response = proxySanitizer.handleN8nWebhook(value, options);
+    const response = await proxySanitizer.handleN8nWebhook(value, options);
     res.json(response);
   } catch {
     res.status(500).json({ error: 'Webhook processing failed' });

@@ -24,9 +24,9 @@ class ProxySanitizer {
    * @param {string} options.classification - Destination classification
    * @returns {string} - The sanitized data.
    */
-  sanitize(data, options = {}) {
+  async sanitize(data, options = {}) {
     logger.info('Starting sanitization process', { classification: options.classification });
-    const sanitized = this.pipeline.sanitize(data, options);
+    const sanitized = await this.pipeline.sanitize(data, options);
     logger.info('Sanitization completed', { wasSanitized: options.classification !== 'non-llm' });
     return sanitized;
   }
@@ -38,15 +38,15 @@ class ProxySanitizer {
    * @param {string} options.classification - Destination classification
    * @returns {object} - The response to send back to n8n.
    */
-  handleN8nWebhook(payload, options = {}) {
+  async handleN8nWebhook(payload, options = {}) {
     logger.info('Received n8n webhook', { payload, classification: options.classification });
     // Assume payload has a 'data' field
     const inputData = payload.data;
-    const sanitizedData = this.sanitize(inputData, options);
+    const sanitizedData = await this.sanitize(inputData, options);
     // Forward to LLMs/MCP - for now, mock response
     const llmResponse = this.forwardToLLM(sanitizedData);
     // Apply output sanitization - assuming output is also LLM-bound, use same options
-    const outputSanitized = this.sanitize(llmResponse, options);
+    const outputSanitized = await this.sanitize(llmResponse, options);
     logger.info('n8n webhook processed');
     return { result: outputSanitized };
   }
