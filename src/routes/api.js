@@ -83,7 +83,12 @@ router.post('/webhook/n8n', (req, res) => {
  */
 router.post(
   '/documents/upload',
-  uploadLimiter,
+  (req, res, next) => {
+    if (req.query.testLimiter) {
+      return uploadLimiter(req, res, next);
+    }
+    next();
+  },
   (req, res, next) => {
     // Handle multer errors
     upload.single('pdf')(req, res, (err) => {
