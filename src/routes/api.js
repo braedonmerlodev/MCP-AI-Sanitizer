@@ -3,6 +3,7 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
+const pdfParse = require('pdf-parse');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const destinationTracking = require('../middleware/destination-tracking');
 
@@ -48,6 +49,16 @@ const sanitizeSchema = Joi.object({
 const n8nWebhookSchema = Joi.object({
   data: Joi.string().required(),
   // Add other n8n payload fields as needed
+});
+
+const trustTokenValidateSchema = Joi.object({
+  contentHash: Joi.string().required(),
+  originalHash: Joi.string().required(),
+  sanitizationVersion: Joi.string().required(),
+  rulesApplied: Joi.array().items(Joi.string()).required(),
+  timestamp: Joi.string().required(),
+  expiresAt: Joi.string().required(),
+  signature: Joi.string().required(),
 });
 
 /**
@@ -126,12 +137,37 @@ router.post(
         return res.status(400).json({ error: 'Invalid file type. Only PDF files are allowed.' });
       }
 
-      // File is valid, return success response
+      // Extract text from PDF
+      let extractedText;
+      try {
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text;
+      } catch (pdfError) {
+        logger.error('PDF text extraction failed', { error: pdfError.message });
+        return res.status(400).json({ error: 'Failed to extract text from PDF' });
+      }
+
+      // Sanitize extracted text and generate trust token
+      let sanitizationResult;
+      try {
+        const options = {
+          classification: 'llm', // Force LLM classification for PDF content processing
+          generateTrustToken: true,
+        };
+        sanitizationResult = await proxySanitizer.sanitize(extractedText, options);
+      } catch (sanitizeError) {
+        logger.error('Text sanitization failed', { error: sanitizeError.message });
+        return res.status(500).json({ error: 'Failed to sanitize extracted text' });
+      }
+
+      // Return enhanced response
       res.json({
-        message: 'PDF uploaded successfully',
+        message: 'PDF uploaded and processed successfully',
         fileName: file.originalname,
         size: file.size,
-        status: 'uploaded',
+        status: 'processed',
+        sanitizedContent: sanitizationResult.sanitizedData,
+        trustToken: sanitizationResult.trustToken,
       });
     } catch (error) {
       logger.error('Upload error', { error: error.message });
@@ -139,5 +175,40 @@ router.post(
     }
   },
 );
+
+/**
+ * POST /api/trust-tokens/validate
+ * Validates a trust token for authenticity and expiration
+ */
+router.post('/trust-tokens/validate', async (req, res) => {
+  const { error, value } = trustTokenValidateSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+
+  try {
+    // Import TrustTokenGenerator for validation
+    const TrustTokenGenerator = require('../components/TrustTokenGenerator');
+    const generator = new TrustTokenGenerator();
+
+    const validation = generator.validateToken(value);
+
+    if (validation.isValid) {
+      res.json({
+        valid: true,
+        message: 'Trust token is valid',
+      });
+    } else {
+      const statusCode = validation.error === 'Token has expired' ? 410 : 400;
+      res.status(statusCode).json({
+        valid: false,
+        error: validation.error,
+      });
+    }
+  } catch (error) {
+    logger.error('Token validation error', { error: error.message });
+    res.status(500).json({ error: 'Token validation failed' });
+  }
+});
 
 module.exports = router;

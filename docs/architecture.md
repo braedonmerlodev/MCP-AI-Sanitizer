@@ -84,12 +84,131 @@ paths:
                 properties:
                   sanitizedData:
                     type: string
-  /health:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: OK
+   /health:
+     get:
+       summary: Health check
+       responses:
+         '200':
+           description: OK
+   /documents/upload:
+     post:
+       summary: Upload and process PDF documents with sanitization and trust token generation
+       requestBody:
+         required: true
+         content:
+           multipart/form-data:
+             schema:
+               type: object
+               properties:
+                 pdf:
+                   type: string
+                   format: binary
+                   description: PDF file to upload and process
+       responses:
+         '200':
+           description: PDF processed successfully
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   message:
+                     type: string
+                   fileName:
+                     type: string
+                   size:
+                     type: integer
+                   status:
+                     type: string
+                   sanitizedContent:
+                     type: string
+                     description: Sanitized text extracted from PDF
+                   trustToken:
+                     type: object
+                     description: Cryptographic trust token for content verification
+                     properties:
+                       contentHash:
+                         type: string
+                       originalHash:
+                         type: string
+                       sanitizationVersion:
+                         type: string
+                       rulesApplied:
+                         type: array
+                         items:
+                           type: string
+                       timestamp:
+                         type: string
+                         format: date-time
+                       expiresAt:
+                         type: string
+                         format: date-time
+                       signature:
+                         type: string
+         '400':
+           description: Invalid file or processing error
+   /trust-tokens/validate:
+     post:
+       summary: Validate a trust token for authenticity and expiration
+       requestBody:
+         required: true
+         content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 contentHash:
+                   type: string
+                 originalHash:
+                   type: string
+                 sanitizationVersion:
+                   type: string
+                 rulesApplied:
+                   type: array
+                   items:
+                     type: string
+                 timestamp:
+                   type: string
+                   format: date-time
+                 expiresAt:
+                   type: string
+                   format: date-time
+                 signature:
+                   type: string
+       responses:
+         '200':
+           description: Token is valid
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   valid:
+                     type: boolean
+                   message:
+                     type: string
+         '400':
+           description: Invalid token
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   valid:
+                     type: boolean
+                   error:
+                     type: string
+         '410':
+           description: Token has expired
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   valid:
+                     type: boolean
+                   error:
+                     type: string
 ```
 
 ## External APIs
