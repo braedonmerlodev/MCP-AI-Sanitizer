@@ -74,7 +74,7 @@ describe('Destination Tracking Middleware', () => {
 
       expect(mockReq.destinationTracking).toEqual({
         classification: 'non-llm',
-        confidence: 0.6,
+        confidence: 0.8,
         indicators: ['header:X-Destination=file'],
         fallbackReason: null,
       });

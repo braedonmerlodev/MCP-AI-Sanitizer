@@ -34,17 +34,19 @@ class ProxySanitizer {
   /**
    * Handles n8n webhook requests.
    * @param {object} payload - The webhook payload from n8n.
+   * @param {Object} options - Sanitization options
+   * @param {string} options.classification - Destination classification
    * @returns {object} - The response to send back to n8n.
    */
-  handleN8nWebhook(payload) {
-    logger.info('Received n8n webhook', { payload });
+  handleN8nWebhook(payload, options = {}) {
+    logger.info('Received n8n webhook', { payload, classification: options.classification });
     // Assume payload has a 'data' field
     const inputData = payload.data;
-    const sanitizedData = this.sanitize(inputData);
+    const sanitizedData = this.sanitize(inputData, options);
     // Forward to LLMs/MCP - for now, mock response
     const llmResponse = this.forwardToLLM(sanitizedData);
-    // Apply output sanitization
-    const outputSanitized = this.sanitize(llmResponse);
+    // Apply output sanitization - assuming output is also LLM-bound, use same options
+    const outputSanitized = this.sanitize(llmResponse, options);
     logger.info('n8n webhook processed');
     return { result: outputSanitized };
   }
