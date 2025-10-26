@@ -1,6 +1,6 @@
 # REST API Spec
 
-```yaml
+````yaml
 openapi: 3.0.0
 info:
   title: Obfuscation-Aware Sanitizer Agent API
@@ -32,13 +32,54 @@ paths:
                 properties:
                   sanitizedData:
                     type: string
-   /health:
-     get:
-       summary: Health check
-       responses:
-         '200':
-           description: OK
-   /webhook/n8n:
+  /documents/upload:
+    post:
+      summary: Upload PDF documents for processing and sanitization
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                pdf:
+                  type: string
+                  format: binary
+                  description: PDF file to upload
+      responses:
+        '200':
+          description: PDF uploaded and processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  fileName:
+                    type: string
+                  size:
+                    type: integer
+                  status:
+                    type: string
+                  trustToken:
+                    type: object
+                    description: Cryptographic trust token for sanitized content
+        '400':
+          description: Invalid file or validation error
+        '413':
+          description: File too large
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /webhook/n8n:
      post:
        summary: Handle n8n webhook with automatic sanitization
        requestBody:
@@ -75,7 +116,7 @@ paths:
 {
   "data": "User input text that may contain obfuscated content"
 }
-```
+````
 
 ### Response Format
 
@@ -91,4 +132,7 @@ paths:
 2. Send POST request to `/api/webhook/n8n` with payload containing user data
 3. The API automatically sanitizes input, forwards to LLM, sanitizes output
 4. n8n receives the result and continues the workflow
+
+```
+
 ```
