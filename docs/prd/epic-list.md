@@ -13,3 +13,7 @@ Epic 4: Verified PDF Data Ingestion Pipeline - Create a comprehensive PDF proces
 - **Epic 4.3:** Content Sanitization Integration - Integrate with existing /api/sanitize endpoint
 - **Epic 4.4:** Clean Document Generation - Generate validated PDFs using PDFKit
 - **Epic 4.5:** Agent Validation and Access Control - Implement strict agent access controls
+
+Epic 5: LLM-Input-Only Sanitization - Implement selective sanitization for MCP traffic destined for LLM consumption, with trust token system for efficient content reuse.
+
+Epic 6: Verified PDF Data Ingestion Pipeline - Create comprehensive PDF processing system with text extraction, Markdown conversion, sanitization integration, clean PDF generation, and strict AI agent validation controls.
