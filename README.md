@@ -1,6 +1,6 @@
 # MCP Security: Sanitization API for Agentic AI Systems
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.11.0-brightgreen)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
 
@@ -19,7 +19,7 @@ A robust API service that sanitizes data flows in agentic AI systems, protecting
 
 ## 📋 Prerequisites
 
-- Node.js 20.11.0 or higher
+- Node.js 22.0.0 or higher
 - Docker (optional, for containerized deployment)
 - n8n (optional, for workflow integration)
 
@@ -48,9 +48,14 @@ The API will be available at `http://localhost:3000`
 docker build -t mcp-security:latest .
 docker run -p 3000:3000 mcp-security:latest
 
+# Check health status
+curl http://localhost:3000/health
+
 # Or use Docker Compose (includes n8n for testing)
 docker-compose up
 ```
+
+The Docker container includes a healthcheck that verifies the API is responding correctly.
 
 ## 📚 API Documentation
 
