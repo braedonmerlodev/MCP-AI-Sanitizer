@@ -3,9 +3,13 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const ProxySanitizer = require('../components/proxy-sanitizer');
+const TextToMarkdownConverter = require('../components/TextToMarkdownConverter');
+const SanitizationPipeline = require('../components/sanitization-pipeline');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
+const textToMarkdownConverter = new TextToMarkdownConverter();
+const sanitizationPipeline = new SanitizationPipeline();
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for processing
@@ -79,7 +83,7 @@ router.post('/webhook/n8n', (req, res) => {
 
 /**
  * POST /api/documents/upload
- * Uploads and validates PDF documents.
+ * Uploads and validates PDF documents. Optionally converts to Markdown.
  */
 router.post(
   '/documents/upload',
@@ -112,6 +116,7 @@ router.post(
       }
 
       const file = req.file;
+      const convertToMarkdown = req.query.convert === 'markdown';
 
       // Additional validation using magic bytes (PDF files start with %PDF-)
       const buffer = file.buffer;
@@ -119,13 +124,24 @@ router.post(
         return res.status(400).json({ error: 'Invalid file type. Only PDF files are allowed.' });
       }
 
-      // File is valid, return success response
-      res.json({
+      let response = {
         message: 'PDF uploaded successfully',
         fileName: file.originalname,
         size: file.size,
         status: 'uploaded',
-      });
+      };
+
+      if (convertToMarkdown) {
+        // Extract text and convert to Markdown
+        const { text, metadata } = await textToMarkdownConverter.extractText(buffer);
+        const sanitizedText = sanitizationPipeline.sanitize(text);
+        const markdown = textToMarkdownConverter.convertTextToMarkdown(sanitizedText, metadata);
+
+        response.markdown = markdown;
+        response.message = 'PDF uploaded and converted to Markdown successfully';
+      }
+
+      res.json(response);
     } catch (error) {
       console.error('Upload error:', error);
       res.status(500).json({ error: 'File upload failed' });
