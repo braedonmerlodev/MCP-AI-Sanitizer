@@ -1,0 +1,45 @@
+schema: 1
+story: '4.1'
+story_title: 'Implement PDF Upload and Validation'
+gate: WAIVED
+status_reason: 'Team accepted QA concerns; progress tracking enhancement deferred to future iteration'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-10-25T00:00:00Z'
+
+top_issues: []
+waiver:
+  active: true
+  reason: 'Progress tracking enhancement documented in docs/enhancements/ for future implementation'
+  approver: 'Team Lead'
+  approved_date: '2025-10-25T00:00:00Z'
+
+quality_score: 85
+
+evidence:
+  tests_reviewed: 7
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 5, 6, 7]
+    ac_gaps: [4]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Memory storage prevents disk persistence, multi-layer validation'
+  performance:
+    status: CONCERNS
+    notes: 'Memory usage for large PDF files could impact performance'
+  reliability:
+    status: PASS
+    notes: 'Comprehensive error handling for all failure scenarios'
+  maintainability:
+    status: PASS
+    notes: 'Clean code structure, good separation of concerns'
+
+recommendations:
+  immediate:
+    - action: 'Implement upload progress tracking for AC4'
+      refs: ['src/routes/api.js']
+  future:
+    - action: 'Add test for rate limiting (AC6)'
+      refs: ['src/tests/unit/api.test.js']

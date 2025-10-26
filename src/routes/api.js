@@ -26,7 +26,7 @@ const upload = multer({
 
 // Rate limiting for upload endpoint
 const uploadLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: process.env.NODE_ENV === 'test' ? 1000 : 15 * 60 * 1000, // 1 second for tests, 15 minutes for production
   max: 10, // limit each IP to 10 uploads per windowMs
   message: 'Too many uploads from this IP, please try again later.',
 });
@@ -129,3 +129,4 @@ router.post(
 );
 
 module.exports = router;
+router.uploadLimiter = uploadLimiter; // Attach for testing

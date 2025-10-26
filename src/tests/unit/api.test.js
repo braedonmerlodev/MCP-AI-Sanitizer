@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
+const { uploadLimiter } = require('../../routes/api');
 
 const app = express();
 app.use(express.json());
@@ -113,6 +114,29 @@ describe('API Routes', () => {
       const response = await request(app).post('/api/documents/upload').expect(400);
 
       expect(response.body).toHaveProperty('error', 'No file uploaded');
+    });
+
+    test('should enforce rate limiting after 10 uploads', async () => {
+      // Create a mock PDF buffer (starts with %PDF-)
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      // Make 10 successful uploads to hit the rate limit
+      for (let i = 0; i < 10; i++) {
+        await request(app)
+          .post('/api/documents/upload')
+          .attach('pdf', pdfBuffer, `test${i}.pdf`)
+          .expect(200);
+      }
+
+      // 11th request should be rate limited (429 Too Many Requests)
+      const response = await request(app)
+        .post('/api/documents/upload')
+        .attach('pdf', pdfBuffer, 'test11.pdf')
+        .expect(429);
+
+      expect(response.text).toBe('Too many uploads from this IP, please try again later.');
     });
   });
 });
