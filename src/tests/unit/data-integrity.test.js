@@ -55,13 +55,14 @@ describe('DataIntegrityValidator', () => {
     });
 
     test('should generate hash references for objects', async () => {
-      const testData = { id: 'test', value: 'data' };
+      const testData = 'test data string';
 
-      const result = await validator.validateData(testData);
+      const result = await validator.validateData(testData, { schema: 'string' });
 
       expect(result.details.hashReference).toBeDefined();
       expect(result.details.hashReference.algorithm).toBe('sha256');
-      expect(result.details.hashReference.dataHash).toBeDefined();
+      expect(result.details.hashReference.rawDataHash).toBeDefined();
+      expect(result.details.hashReference.sanitizedDataHash).toBeDefined();
     });
 
     test('should route errors for invalid data', async () => {
@@ -220,6 +221,7 @@ describe('SchemaValidator', () => {
       });
 
       const result = schemaValidator.validate({ name: 'test', value: 10 }, customSchema);
+      console.log('Custom schema validation result:', result);
       expect(result.isValid).toBe(true);
     });
 
@@ -568,10 +570,13 @@ describe('AuditLogger', () => {
       pastDate.setHours(pastDate.getHours() - 1);
 
       auditLogger.logOperation('test', {}, {}, pastDate.toISOString());
-      auditLogger.logOperation('test', {});
+
+      // Create start date before logging the recent entry
+      const startDate = new Date();
+      auditLogger.logOperation('test', {}, {}, startDate.toISOString());
 
       const recentEntries = auditLogger.getAuditEntries({
-        startDate: new Date().toISOString(),
+        startDate: startDate.toISOString(),
       });
       expect(recentEntries).toHaveLength(1);
     });

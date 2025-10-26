@@ -46,7 +46,7 @@ class SchemaValidator {
             details: { schema, data },
           };
         }
-      } else if (schema.isJoi) {
+      } else if (Joi.isSchema(schema)) {
         joiSchema = schema;
       } else {
         return {
@@ -122,7 +122,7 @@ class SchemaValidator {
    * @param {Object} schema - Joi schema object
    */
   addSchema(name, schema) {
-    if (!schema.isJoi) {
+    if (!Joi.isSchema(schema)) {
       throw new Error('Schema must be a Joi schema object');
     }
     this.schemas[name] = schema;

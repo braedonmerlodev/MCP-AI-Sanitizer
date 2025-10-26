@@ -42,11 +42,12 @@ class AuditLogger {
    * @param {string} operation - Operation type (validate, hash, access, etc.)
    * @param {Object} details - Operation details
    * @param {Object} context - Additional context (user, session, etc.)
+   * @param {string} timestamp - Optional ISO timestamp, defaults to now
    */
-  logOperation(operation, details, context = {}) {
+  logOperation(operation, details, context = {}, timestamp = null) {
     const auditEntry = {
       id: this.generateAuditId(),
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp || new Date().toISOString(),
       operation,
       details,
       context: {
