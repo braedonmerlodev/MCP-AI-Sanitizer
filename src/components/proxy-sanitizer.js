@@ -20,12 +20,14 @@ class ProxySanitizer {
   /**
    * Sanitizes input data.
    * @param {string} data - The input data to sanitize.
+   * @param {Object} options - Sanitization options
+   * @param {string} options.classification - Destination classification
    * @returns {string} - The sanitized data.
    */
-  sanitize(data) {
-    logger.info('Starting sanitization process');
-    const sanitized = this.pipeline.sanitize(data);
-    logger.info('Sanitization completed');
+  sanitize(data, options = {}) {
+    logger.info('Starting sanitization process', { classification: options.classification });
+    const sanitized = this.pipeline.sanitize(data, options);
+    logger.info('Sanitization completed', { wasSanitized: options.classification !== 'non-llm' });
     return sanitized;
   }
 

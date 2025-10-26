@@ -20,9 +20,20 @@ class SanitizationPipeline {
   /**
    * Sanitizes the input data by running it through all pipeline steps.
    * @param {string} data - The input string to sanitize.
-   * @returns {string} - The fully sanitized string.
+   * @param {Object} options - Sanitization options
+   * @param {string} options.classification - Destination classification ('llm', 'non-llm', 'unclear')
+   * @returns {string} - The sanitized string (or original if not LLM-bound).
    */
-  sanitize(data) {
+  sanitize(data, options = {}) {
+    const { classification = 'unclear' } = options;
+
+    // For security, default to full sanitization if classification is unclear
+    if (classification === 'non-llm') {
+      // Skip sanitization for non-LLM traffic
+      return data;
+    }
+
+    // Apply full sanitization for LLM-bound or unclear traffic
     let result = data;
     for (const step of this.steps) {
       result = step.sanitize(result);
