@@ -1,5 +1,5 @@
-const fs = require('fs').promises;
-const path = require('path');
+const fs = require('node:fs').promises;
+const path = require('node:path');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 
 /**
@@ -60,7 +60,7 @@ class TrustToken {
 
     // Use contentHash as ID for deduplication, fallback to generated ID
     const id =
-      token.contentHash || `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      token.contentHash || `token-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
     // Add to cache (allow expired tokens to be saved, they'll be filtered on load)
     this.cache.set(id, token);

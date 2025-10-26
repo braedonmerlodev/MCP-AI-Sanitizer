@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 /**
  * TrustTokenGenerator handles the creation and validation of cryptographic trust tokens

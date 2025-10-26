@@ -1,7 +1,7 @@
 const TrustToken = require('../../models/TrustToken');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
-const fs = require('fs').promises;
-const path = require('path');
+const fs = require('node:fs').promises;
+const path = require('node:path');
 
 describe('TrustToken Model', () => {
   let model;
