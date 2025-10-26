@@ -2,10 +2,19 @@ const express = require('express');
 const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
+const winston = require('winston');
 const ProxySanitizer = require('../components/proxy-sanitizer');
+const destinationTracking = require('../middleware/destination-tracking');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
+
+// Initialize logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [new winston.transports.Console()],
+});
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for processing
@@ -83,6 +92,7 @@ router.post('/webhook/n8n', (req, res) => {
  */
 router.post(
   '/documents/upload',
+  destinationTracking,
   uploadLimiter,
   (req, res, next) => {
     // Handle multer errors
@@ -122,7 +132,7 @@ router.post(
         status: 'uploaded',
       });
     } catch (error) {
-      console.error('Upload error:', error);
+      logger.error('Upload error', { error: error.message });
       res.status(500).json({ error: 'File upload failed' });
     }
   },

@@ -12,6 +12,8 @@ obfuscation-aware-sanitizer/
 │   │   │   └── PatternRedaction.js
 │   │   ├── ProvenanceValidator.js
 │   │   └── AuditLogger.js
+│   ├── middleware/
+│   │   └── destination-tracking.js
 │   ├── models/
 │   │   └── SanitizationEvent.js
 │   ├── routes/
@@ -22,6 +24,8 @@ obfuscation-aware-sanitizer/
 │   │   └── index.js
 │   ├── tests/
 │   │   ├── unit/
+│   │   │   └── middleware/
+│   │   │     └── destination-tracking.test.js
 │   │   └── integration/
 │   └── app.js
 ├── infrastructure/
