@@ -1,7 +1,6 @@
 const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
-const { uploadLimiter } = require('../../routes/api');
 
 const app = express();
 app.use(express.json());
