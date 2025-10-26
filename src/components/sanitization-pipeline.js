@@ -2,6 +2,14 @@ const UnicodeNormalization = require('./SanitizationPipeline/unicode-normalizati
 const SymbolStripping = require('./SanitizationPipeline/symbol-stripping.js');
 const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralization.js');
 const PatternRedaction = require('./SanitizationPipeline/pattern-redaction.js');
+const winston = require('winston');
+
+// Initialize logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [new winston.transports.Console()],
+});
 
 /**
  * SanitizationPipeline orchestrates the sanitization steps.
@@ -30,10 +38,15 @@ class SanitizationPipeline {
     // For security, default to full sanitization if classification is unclear
     if (classification === 'non-llm') {
       // Skip sanitization for non-LLM traffic
+      logger.info('Sanitization bypassed for non-LLM traffic', {
+        classification,
+        dataLength: data.length,
+      });
       return data;
     }
 
     // Apply full sanitization for LLM-bound or unclear traffic
+    logger.info('Applying full sanitization pipeline', { classification, dataLength: data.length });
     let result = data;
     for (const step of this.steps) {
       result = step.sanitize(result);

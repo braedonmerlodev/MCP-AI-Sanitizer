@@ -84,7 +84,7 @@ function analyzeRequest(req) {
       destinationHeader.toLowerCase() === 'tool'
     ) {
       indicators.push(`header:X-Destination=${destinationHeader}`);
-      confidence -= 0.6; // Negative for non-LLM
+      confidence -= 0.8; // Strong negative for non-LLM
     }
   }
 
