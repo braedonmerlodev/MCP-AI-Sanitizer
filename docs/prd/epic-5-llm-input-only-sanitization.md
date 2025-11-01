@@ -61,7 +61,7 @@ interface SanitizationTrustToken {
 **API Evolution:**
 
 - Enhanced `/api/documents/upload` endpoint returns sanitized content + trust token
-- New `/api/documents/{id}/validate` endpoint for trust token validation
+- Integration with `/trust-tokens/validate` endpoint for trust token validation
 
 **Cache Strategy:**
 

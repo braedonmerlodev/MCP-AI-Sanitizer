@@ -164,6 +164,85 @@ describe('API Routes', () => {
     });
   });
 
+  describe('POST /api/documents/generate-pdf', () => {
+    let validTrustToken;
+
+    beforeAll(() => {
+      // Create a valid trust token for testing
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator({ secret: process.env.TRUST_TOKEN_SECRET });
+      validTrustToken = generator.generateToken('test content', 'original content', ['rule1']);
+      // Serialize dates for API
+      validTrustToken.timestamp = validTrustToken.timestamp.toISOString();
+      validTrustToken.expiresAt = validTrustToken.expiresAt.toISOString();
+    });
+
+    test('should generate PDF from sanitized content with trust token', async () => {
+      const requestData = {
+        data: '# Test Document\n\nThis is sanitized content.',
+        trustToken: validTrustToken,
+        metadata: {
+          title: 'Test PDF',
+          author: 'Test Author',
+        },
+      };
+
+      const response = await request(app)
+        .post('/api/documents/generate-pdf')
+        .send(requestData)
+        .expect(200);
+
+      expect(response.headers['content-type']).toBe('application/pdf');
+      expect(response.headers['content-disposition']).toContain('attachment');
+      expect(response.headers['x-trust-token-status']).toBe('embedded');
+      expect(response.headers['x-pdf-validation']).toBe('high');
+
+      // Verify PDF content
+      const pdfBuffer = Buffer.from(response.body);
+      expect(pdfBuffer.length).toBeGreaterThan(0);
+      expect(pdfBuffer.slice(0, 4).toString()).toBe('%PDF');
+    });
+
+    test('should reject requests without trust token', async () => {
+      const requestData = {
+        data: 'test content without trust token',
+      };
+
+      const response = await request(app)
+        .post('/api/documents/generate-pdf')
+        .send(requestData)
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('Trust token is required');
+    });
+
+    test('should reject invalid input data', async () => {
+      const response = await request(app)
+        .post('/api/documents/generate-pdf')
+        .send({ invalid: 'data' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should handle empty content', async () => {
+      const requestData = {
+        data: '',
+        trustToken: validTrustToken,
+      };
+
+      const response = await request(app)
+        .post('/api/documents/generate-pdf')
+        .send(requestData)
+        .expect(200);
+
+      expect(response.headers['content-type']).toBe('application/pdf');
+      const pdfBuffer = Buffer.from(response.body);
+      expect(pdfBuffer.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('POST /api/trust-tokens/validate', () => {
     let validToken;
 
