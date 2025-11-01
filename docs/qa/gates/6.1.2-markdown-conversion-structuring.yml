@@ -1,0 +1,49 @@
+# Quality Gate for Story 6.1.2: Markdown Conversion and Structuring
+schema: 1
+story: '6.1.2'
+story_title: 'Markdown Conversion and Structuring'
+gate: CONCERNS
+status_reason: 'Missing integration tests, incomplete AC implementation (bold/italic, validation), no performance benchmarks'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-01T00:00:00Z'
+
+top_issues:
+  - severity: medium
+    issue: 'No integration tests for full PDF processing flow'
+    suggested_owner: dev
+  - severity: low
+    issue: 'Bold/italic formatting not implemented (AC 3)'
+    suggested_owner: dev
+  - severity: low
+    issue: 'No Markdown syntax validation (AC 10)'
+    suggested_owner: dev
+  - severity: low
+    issue: 'No performance benchmarks for large documents (AC 11)'
+    suggested_owner: dev
+  - severity: low
+    issue: 'Test coverage reporting shows 0% despite tests present'
+    suggested_owner: dev
+waiver: { active: false }
+
+quality_score: 70
+
+evidence:
+  tests_reviewed: 9
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 4, 5, 6, 7, 8, 9, 12]
+    ac_gaps: [3, 10, 11]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Text processing only, no security risks'
+  performance:
+    status: CONCERNS
+    notes: 'No performance measurements, potential impact on large documents'
+  reliability:
+    status: PASS
+    notes: 'Good error handling with fallback to plain text'
+  maintainability:
+    status: PASS
+    notes: 'Well-structured code with clear methods and documentation'
