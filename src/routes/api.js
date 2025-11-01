@@ -6,11 +6,13 @@ const winston = require('winston');
 const pdfParse = require('pdf-parse');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
+const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
+const pdfGenerator = new PDFGenerator();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -46,6 +48,12 @@ const uploadLimiter = rateLimit({
 // Validation schemas
 const sanitizeSchema = Joi.object({
   data: Joi.string().required(),
+});
+
+const pdfGenerationSchema = Joi.object({
+  data: Joi.string().required(),
+  trustToken: Joi.object().required(),
+  metadata: Joi.object().optional(),
 });
 
 const n8nWebhookSchema = Joi.object({
@@ -202,6 +210,55 @@ router.post(
     }
   },
 );
+
+/**
+ * POST /api/documents/generate-pdf
+ * Generates a clean PDF from sanitized content with embedded trust token
+ */
+router.post('/documents/generate-pdf', async (req, res) => {
+  const { error, value } = pdfGenerationSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+
+  try {
+    const { data: sanitizedContent, trustToken, metadata } = value;
+
+    if (!trustToken) {
+      return res.status(400).json({ error: 'Trust token is required for PDF generation' });
+    }
+
+    logger.info('Starting PDF generation from sanitized content', {
+      contentLength: sanitizedContent.length,
+      hasTrustToken: !!trustToken,
+    });
+
+    // Generate PDF with embedded trust token
+    const pdfBuffer = await pdfGenerator.generatePDF(sanitizedContent, trustToken, metadata || {});
+
+    // Validate PDF quality
+    const validation = pdfGenerator.validatePDF(pdfBuffer);
+    if (!validation.isValid) {
+      logger.error('PDF validation failed', { validation });
+      return res.status(500).json({ error: 'Generated PDF failed validation' });
+    }
+
+    logger.info('PDF generation completed successfully', {
+      pdfSize: pdfBuffer.length,
+      validation: validation.quality,
+    });
+
+    // Return PDF with appropriate headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="sanitized-document.pdf"');
+    res.setHeader('X-Trust-Token-Status', 'embedded');
+    res.setHeader('X-PDF-Validation', validation.quality);
+    res.send(pdfBuffer);
+  } catch (error) {
+    logger.error('PDF generation error', { error: error.message });
+    res.status(500).json({ error: 'PDF generation failed' });
+  }
+});
 
 /**
  * POST /api/trust-tokens/validate
