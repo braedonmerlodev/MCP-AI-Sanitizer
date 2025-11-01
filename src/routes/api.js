@@ -5,10 +5,12 @@ const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const pdfParse = require('pdf-parse');
 const ProxySanitizer = require('../components/proxy-sanitizer');
+const MarkdownConverter = require('../components/MarkdownConverter');
 const destinationTracking = require('../middleware/destination-tracking');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
+const markdownConverter = new MarkdownConverter();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -137,24 +139,48 @@ router.post(
         return res.status(400).json({ error: 'Invalid file type. Only PDF files are allowed.' });
       }
 
-      // Extract text from PDF
-      let extractedText;
+      // Extract text and metadata from PDF
+      let extractedText, metadata;
       try {
         const pdfData = await pdfParse(buffer);
         extractedText = pdfData.text;
+
+        // Extract comprehensive metadata
+        metadata = {
+          pages: pdfData.numpages,
+          title: pdfData.info?.Title || null,
+          author: pdfData.info?.Author || null,
+          subject: pdfData.info?.Subject || null,
+          creator: pdfData.info?.Creator || null,
+          producer: pdfData.info?.Producer || null,
+          creationDate: pdfData.info?.CreationDate || null,
+          modificationDate: pdfData.info?.ModDate || null,
+          encoding: 'utf8', // pdf-parse extracts text as UTF-8
+        };
       } catch (pdfError) {
         logger.error('PDF text extraction failed', { error: pdfError.message });
         return res.status(400).json({ error: 'Failed to extract text from PDF' });
       }
 
-      // Sanitize extracted text and generate trust token
+      // Convert extracted text to Markdown format
+      let markdownText;
+      try {
+        markdownText = markdownConverter.convert(extractedText);
+      } catch (convertError) {
+        logger.warn('Markdown conversion failed, using plain text', {
+          error: convertError.message,
+        });
+        markdownText = extractedText; // Fallback to plain text
+      }
+
+      // Sanitize converted text and generate trust token
       let sanitizationResult;
       try {
         const options = {
           classification: 'llm', // Force LLM classification for PDF content processing
           generateTrustToken: true,
         };
-        sanitizationResult = await proxySanitizer.sanitize(extractedText, options);
+        sanitizationResult = await proxySanitizer.sanitize(markdownText, options);
       } catch (sanitizeError) {
         logger.error('Text sanitization failed', { error: sanitizeError.message });
         return res.status(500).json({ error: 'Failed to sanitize extracted text' });
@@ -165,6 +191,7 @@ router.post(
         message: 'PDF uploaded and processed successfully',
         fileName: file.originalname,
         size: file.size,
+        metadata: metadata,
         status: 'processed',
         sanitizedContent: sanitizationResult.sanitizedData,
         trustToken: sanitizationResult.trustToken,
