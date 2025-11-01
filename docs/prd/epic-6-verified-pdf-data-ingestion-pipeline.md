@@ -65,17 +65,25 @@ Create a comprehensive PDF processing and sanitization system that ensures AI ag
 - Validate trust tokens for all document access
 - Audit logging of validation attempts
 
-## Stories
+## Sub-Epics
 
-1. **PDF Text Extraction Enhancement:** Extend the upload system to fully extract text from PDFs using pdf-parse, handling various formats and capturing metadata.
+This epic has been broken down into three focused sub-epics for better manageability:
 
-2. **Markdown Conversion and Structuring:** Convert extracted PDF text to structured Markdown format, preserving document hierarchy and formatting.
+- **Epic 6.1: PDF Ingestion and Processing** - Text extraction and Markdown conversion
+- **Epic 6.2: Sanitization and Clean Generation** - Pipeline integration and PDF generation
+- **Epic 6.3: Validation and Access Control** - Trust token validation and access management
 
-3. **Sanitization Pipeline Integration:** Integrate the Markdown content with the /api/sanitize endpoint, applying trust token generation.
+## Original Stories (Now Distributed)
 
-4. **Clean PDF Generation:** Use PDFKit to generate validated, clean PDFs from sanitized content with embedded trust tokens.
+1. **PDF Text Extraction Enhancement:** → Moved to Epic 6.1
 
-5. **Agent Validation and Access Control:** Implement strict validation controls ensuring AI agents only access fully verified and sanitized documents.
+2. **Markdown Conversion and Structuring:** → Moved to Epic 6.1
+
+3. **Sanitization Pipeline Integration:** → Moved to Epic 6.2
+
+4. **Clean PDF Generation:** → Moved to Epic 6.2
+
+5. **Agent Validation and Access Control:** → Moved to Epic 6.3
 
 ## Compatibility Requirements
 

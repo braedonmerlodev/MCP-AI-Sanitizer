@@ -3,7 +3,32 @@ const express = require('express');
 const apiRoutes = require('../../routes/api');
 
 // Mock pdf-parse for testing
-jest.mock('pdf-parse', () => jest.fn().mockResolvedValue({ text: 'Mock extracted text from PDF' }));
+jest.mock('pdf-parse', () =>
+  jest.fn().mockResolvedValue({
+    text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+    numpages: 5,
+    info: {
+      Title: 'Test PDF Document',
+      Author: 'Test Author',
+      Subject: 'Test Subject',
+      Creator: 'Test Creator',
+      Producer: 'Test Producer',
+      CreationDate: 'D:20231101120000',
+      ModDate: 'D:20231101120000',
+    },
+  }),
+);
+
+// Mock MarkdownConverter for testing
+jest.mock('../../components/MarkdownConverter', () => {
+  return jest.fn().mockImplementation(() => ({
+    convert: jest
+      .fn()
+      .mockReturnValue(
+        '# Test Document\n\nThis is a test PDF document.\n\n## Section 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+      ),
+  }));
+});
 
 const app = express();
 app.use(express.json());
@@ -70,6 +95,11 @@ describe('API Routes', () => {
       expect(response.body).toHaveProperty('message', 'PDF uploaded and processed successfully');
       expect(response.body).toHaveProperty('fileName', 'test.pdf');
       expect(response.body).toHaveProperty('size');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('pages', 5);
+      expect(response.body.metadata).toHaveProperty('title', 'Test PDF Document');
+      expect(response.body.metadata).toHaveProperty('author', 'Test Author');
+      expect(response.body.metadata).toHaveProperty('encoding', 'utf8');
       expect(response.body).toHaveProperty('status', 'processed');
       expect(response.body).toHaveProperty('sanitizedContent');
       expect(response.body).toHaveProperty('trustToken');

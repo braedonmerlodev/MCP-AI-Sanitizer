@@ -17,3 +17,11 @@ Epic 4: Verified PDF Data Ingestion Pipeline - Create a comprehensive PDF proces
 Epic 5: LLM-Input-Only Sanitization - Implement selective sanitization for MCP traffic destined for LLM consumption, with trust token system for efficient content reuse.
 
 Epic 6: Verified PDF Data Ingestion Pipeline - Create comprehensive PDF processing system with text extraction, Markdown conversion, sanitization integration, clean PDF generation, and strict AI agent validation controls.
+
+- **Epic 6.1:** PDF Ingestion and Processing - Text extraction and Markdown conversion
+- **Epic 6.2:** Sanitization and Clean Generation - Pipeline integration and PDF generation
+- **Epic 6.3:** Validation and Access Control - Trust token validation and access management
+
+Epic 7: API Standardization and Health Monitoring - Establish complete API consistency and monitoring capabilities across all endpoints.
+
+Epic 8: Selective MCP Traffic Sanitization - Implement intelligent bidirectional sanitization for all MCP traffic with performance optimization through destination-aware processing.
