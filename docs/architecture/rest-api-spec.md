@@ -73,13 +73,75 @@ paths:
           description: Rate limit exceeded
         '500':
           description: Internal server error
-  /health:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: OK
-  /webhook/n8n:
+   /health:
+     get:
+       summary: Health check
+       responses:
+         '200':
+           description: OK
+   /trust-tokens/validate:
+     post:
+       summary: Validate a trust token for authenticity and expiration
+       requestBody:
+         required: true
+         content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 contentHash:
+                   type: string
+                   description: Hash of the sanitized content
+                 originalHash:
+                   type: string
+                   description: Hash of the original content
+                 sanitizationVersion:
+                   type: string
+                   description: Version of sanitization rules applied
+                 rulesApplied:
+                   type: array
+                   items:
+                     type: string
+                   description: List of sanitization rules applied
+                 timestamp:
+                   type: string
+                   description: Timestamp when token was created
+                 expiresAt:
+                   type: string
+                   description: Expiration timestamp
+                 signature:
+                   type: string
+                   description: Cryptographic signature
+       responses:
+         '200':
+           description: Token is valid
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   valid:
+                     type: boolean
+                     example: true
+                   message:
+                     type: string
+                     example: "Trust token is valid"
+         '400':
+           description: Invalid token data or expired token
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   valid:
+                     type: boolean
+                     example: false
+                   error:
+                     type: string
+                     example: "Token has expired"
+         '500':
+           description: Internal server error
+   /webhook/n8n:
      post:
        summary: Handle n8n webhook with automatic sanitization
        requestBody:
