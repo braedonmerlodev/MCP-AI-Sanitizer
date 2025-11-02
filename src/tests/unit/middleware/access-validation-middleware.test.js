@@ -85,7 +85,7 @@ describe('AccessValidationMiddleware', () => {
         sanitizationVersion: '1.0',
         rulesApplied: ['rule1'],
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
         signature: 'sig123',
       };
       mockReq.headers['x-trust-token'] = JSON.stringify(validToken);

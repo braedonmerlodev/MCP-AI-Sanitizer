@@ -27,7 +27,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
     // Expired token (set expiration to past)
     expiredToken = { ...validToken };
-    expiredToken.expiresAt = new Date(Date.now() - 3600000).toISOString(); // 1 hour ago
+    expiredToken.expiresAt = new Date(Date.now() - 3_600_000).toISOString(); // 1 hour ago
     // Recalculate signature for expired token
     const signaturePayload = {
       contentHash: expiredToken.contentHash,
@@ -37,7 +37,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
       timestamp: expiredToken.timestamp,
       expiresAt: expiredToken.expiresAt,
     };
-    expiredToken.signature = require('crypto')
+    expiredToken.signature = require('node:crypto')
       .createHmac('sha256', process.env.TRUST_TOKEN_SECRET)
       .update(JSON.stringify(signaturePayload))
       .digest('hex');
