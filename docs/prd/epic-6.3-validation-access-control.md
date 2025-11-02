@@ -10,7 +10,7 @@ Implement strict validation controls and access management to ensure AI agents c
 
 - **Current relevant functionality:** Basic API authentication, trust token validation endpoint in development
 - **Technology stack:** Node.js, Express.js, existing auth framework
-- **Integration points:** `/trust-tokens/validate` endpoint, AI agent access patterns
+- **Integration points:** `/api/trust-tokens/validate` endpoint, AI agent access patterns
 
 ### Enhancement Details
 
