@@ -224,7 +224,7 @@ describe('Access Audit Logging Integration', () => {
         { resourceId: 'doc1', accessGranted: true, level: 'strict', context: { ip: '3.3.3.3' } },
       ];
 
-      testData.forEach((data, index) => {
+      for (const data of testData) {
         if (data.trustToken) {
           auditLogger.logValidationAttempt(data.trustToken, data.result, data.context);
         } else {
@@ -235,7 +235,7 @@ describe('Access Audit Logging Integration', () => {
             data.context,
           );
         }
-      });
+      }
 
       expect(auditLogger.auditTrail).toHaveLength(3);
 
