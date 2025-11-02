@@ -1,8 +1,11 @@
+const crypto = require('node:crypto');
+
 /**
  * AuditLog model represents comprehensive audit entries for data integrity operations.
+ * Provides tamper-proof audit records with cryptographic verification.
  */
 class AuditLog {
-  constructor(data = {}) {
+  constructor(data = {}, options = {}) {
     this.id = data.id || this.generateId();
     this.timestamp = data.timestamp || new Date().toISOString();
     this.userId = data.userId;
@@ -13,6 +16,11 @@ class AuditLog {
     this.userAgent = data.userAgent;
     this.sessionId = data.sessionId;
     this.createdAt = data.createdAt || new Date().toISOString();
+
+    // Tamper-proofing with HMAC signature
+    this.secret =
+      options.secret || process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production';
+    this.signature = data.signature || this.generateSignature();
   }
 
   /**
@@ -28,7 +36,13 @@ class AuditLog {
    * @returns {boolean} - True if security-critical
    */
   isSecurityCritical() {
-    const criticalActions = ['raw_data_access', 'cryptographic_operation', 'validation_failure'];
+    const criticalActions = [
+      'raw_data_access',
+      'cryptographic_operation',
+      'validation_failure',
+      'trust_token_validation_failed',
+      'access_denied',
+    ];
     return criticalActions.includes(this.action);
   }
 
@@ -68,16 +82,52 @@ class AuditLog {
       userAgent: this.userAgent,
       sessionId: this.sessionId,
       createdAt: this.createdAt,
+      signature: this.signature,
     };
+  }
+
+  /**
+   * Generates HMAC signature for tamper-proofing
+   * @returns {string} - HMAC signature
+   */
+  generateSignature() {
+    const payload = {
+      id: this.id,
+      timestamp: this.timestamp,
+      userId: this.userId,
+      action: this.action,
+      resourceId: this.resourceId,
+      details: this.details,
+      ipAddress: this.ipAddress,
+      userAgent: this.userAgent,
+      sessionId: this.sessionId,
+      createdAt: this.createdAt,
+    };
+
+    const payloadString = JSON.stringify(payload);
+    return crypto.createHmac('sha256', this.secret).update(payloadString).digest('hex');
+  }
+
+  /**
+   * Verifies the HMAC signature for tamper-proofing
+   * @returns {boolean} - True if signature is valid
+   */
+  verifySignature() {
+    const expectedSignature = this.generateSignature();
+    return crypto.timingSafeEqual(
+      Buffer.from(this.signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex'),
+    );
   }
 
   /**
    * Creates AuditLog from plain object
    * @param {Object} obj - Plain object
+   * @param {Object} options - Options including secret
    * @returns {AuditLog} - AuditLog instance
    */
-  static fromObject(obj) {
-    return new AuditLog(obj);
+  static fromObject(obj, options = {}) {
+    return new AuditLog(obj, options);
   }
 }
 
