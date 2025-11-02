@@ -10,12 +10,16 @@ const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
+const AdminOverrideController = require('../controllers/AdminOverrideController');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();
-const accessControlEnforcer = new AccessControlEnforcer();
+const accessControlEnforcer = new AccessControlEnforcer({
+  adminOverrideController,
+});
+const adminOverrideController = new AdminOverrideController();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -72,6 +76,11 @@ const trustTokenValidateSchema = Joi.object({
   timestamp: Joi.string().required(),
   expiresAt: Joi.string().required(),
   signature: Joi.string().required(),
+});
+
+const adminOverrideActivateSchema = Joi.object({
+  duration: Joi.number().integer().min(60000).max(3600000).optional(), // 1min to 1hr in ms
+  justification: Joi.string().min(10).max(500).required(),
 });
 
 /**
@@ -313,6 +322,37 @@ router.post('/trust-tokens/validate', async (req, res) => {
     logger.error('Token validation error', { error: error.message });
     res.status(500).json({ error: 'Token validation failed' });
   }
+});
+
+/**
+ * POST /api/admin/override/activate
+ * Activates admin override for emergency access
+ */
+router.post('/admin/override/activate', (req, res) => {
+  const { error, value } = adminOverrideActivateSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+
+  // Override original body with validated value
+  req.body = value;
+  adminOverrideController.activateOverride(req, res);
+});
+
+/**
+ * DELETE /api/admin/override/:overrideId
+ * Deactivates a specific admin override
+ */
+router.delete('/admin/override/:overrideId', (req, res) => {
+  adminOverrideController.deactivateOverride(req, res);
+});
+
+/**
+ * GET /api/admin/override/status
+ * Gets current admin override status
+ */
+router.get('/admin/override/status', (req, res) => {
+  adminOverrideController.getOverrideStatus(req, res);
 });
 
 module.exports = router;
