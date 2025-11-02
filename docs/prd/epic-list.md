@@ -25,3 +25,5 @@ Epic 6: Verified PDF Data Ingestion Pipeline - Create comprehensive PDF processi
 Epic 7: API Standardization and Health Monitoring - Establish complete API consistency and monitoring capabilities across all endpoints.
 
 Epic 8: Selective MCP Traffic Sanitization - Implement intelligent bidirectional sanitization for all MCP traffic with performance optimization through destination-aware processing.
+
+Epic 9: Risk Assessment Audit Trail & HITL Enablement - Implement comprehensive audit logging and data enablement for future agentic AI risk assessment capabilities, with robust logging for High-Level Risk cases and HITL escalation decisions.
