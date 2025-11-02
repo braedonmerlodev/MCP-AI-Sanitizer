@@ -14,6 +14,7 @@
 
 const winston = require('winston');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
+const AuditLoggerAccess = require('../components/AuditLoggerAccess');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -24,6 +25,11 @@ const logger = winston.createLogger({
 
 // Initialize TrustTokenGenerator
 const trustTokenGenerator = new TrustTokenGenerator();
+
+// Initialize Audit Logger for Access Events
+const auditLoggerAccess = new AuditLoggerAccess({
+  secret: process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production',
+});
 
 /**
  * Middleware function to validate trust tokens for AI agent access
@@ -42,6 +48,19 @@ function accessValidationMiddleware(req, res, next) {
         path: req.path,
         ip: req.ip,
       });
+
+      // Log missing token attempt
+      auditLoggerAccess.logValidationAttempt(
+        {},
+        { isValid: false, error: 'Trust token required' },
+        {
+          method: req.method,
+          path: req.path,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      );
+
       return res.status(403).json({
         error: 'Trust token required',
         message: 'Access denied: Trust token is required for AI agent document access',
@@ -58,14 +77,33 @@ function accessValidationMiddleware(req, res, next) {
         path: req.path,
         error: parseError.message,
       });
+
+      // Log invalid format attempt
+      auditLoggerAccess.logValidationAttempt(
+        {},
+        { isValid: false, error: 'Invalid trust token format' },
+        {
+          method: req.method,
+          path: req.path,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      );
+
       return res.status(403).json({
         error: 'Invalid trust token format',
         message: 'Trust token must be valid JSON',
       });
     }
 
-    // Validate token
+    // Validate token with timing
+    const validationStart = process.hrtime.bigint();
     const validation = trustTokenGenerator.validateToken(trustToken);
+    const validationEnd = process.hrtime.bigint();
+    const validationTime = Number(validationEnd - validationStart) / 1e6; // Convert to milliseconds
+
+    // Add timing to validation result
+    validation.validationTime = validationTime;
 
     if (!validation.isValid) {
       logger.warn('Invalid trust token', {
@@ -73,6 +111,15 @@ function accessValidationMiddleware(req, res, next) {
         path: req.path,
         error: validation.error,
       });
+
+      // Log failed validation attempt
+      auditLoggerAccess.logValidationAttempt(trustToken, validation, {
+        method: req.method,
+        path: req.path,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
       return res.status(403).json({
         error: 'Invalid trust token',
         message: validation.error,
@@ -89,6 +136,14 @@ function accessValidationMiddleware(req, res, next) {
       contentHash: trustToken.contentHash,
     });
 
+    // Log successful validation attempt
+    auditLoggerAccess.logValidationAttempt(trustToken, validation, {
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
     next();
   } catch (error) {
     logger.error('Trust token validation error', {
@@ -96,6 +151,15 @@ function accessValidationMiddleware(req, res, next) {
       method: req.method,
       path: req.path,
     });
+
+    // Log validation error
+    auditLoggerAccess.logValidationError(error, {
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
     return res.status(500).json({
       error: 'Validation service error',
       message: 'An error occurred during trust token validation',
