@@ -74,7 +74,7 @@ describe('AdminOverrideController', () => {
     beforeEach(() => {
       mockReq.body = {
         justification: 'Emergency system maintenance required',
-        duration: 900000, // 15 minutes
+        duration: 900_000, // 15 minutes
       };
     });
 
@@ -123,7 +123,7 @@ describe('AdminOverrideController', () => {
       controller.activateOverride(mockReq, mockRes);
 
       const response = mockRes.json.mock.calls[0][0];
-      expect(response.duration).toBe(900000); // 15 minutes default
+      expect(response.duration).toBe(900_000); // 15 minutes default
     });
 
     it('should enforce concurrent override limit', () => {

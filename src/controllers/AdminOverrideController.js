@@ -136,7 +136,7 @@ class AdminOverrideController {
       const overrideDuration = duration
         ? Math.min(duration, this.maxDuration)
         : this.defaultDuration;
-      if (overrideDuration < 60000) {
+      if (overrideDuration < 60_000) {
         // Minimum 1 minute
         return res.status(400).json({
           error: 'Invalid duration',
@@ -145,7 +145,7 @@ class AdminOverrideController {
       }
 
       // Generate override ID
-      const overrideId = `override_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const overrideId = `override_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const startTime = new Date();
       const endTime = new Date(startTime.getTime() + overrideDuration);
 
@@ -315,13 +315,13 @@ class AdminOverrideController {
       // Clean expired overrides
       this._cleanExpiredOverrides();
 
-      const overrides = Array.from(this.activeOverrides.entries()).map(([id, data]) => ({
+      const overrides = [...this.activeOverrides.entries()].map(([id, data]) => ({
         id,
         adminId: data.adminId,
         startTime: data.startTime,
         endTime: data.endTime,
         justification: data.justification,
-        timeRemaining: Math.max(0, data.endTime - new Date()),
+        timeRemaining: Math.max(0, data.endTime.getTime() - Date.now()),
       }));
 
       res.json({
@@ -412,7 +412,9 @@ class AdminOverrideController {
       }
     }
 
-    expiredIds.forEach((id) => this.activeOverrides.delete(id));
+    for (const id of expiredIds) {
+      this.activeOverrides.delete(id);
+    }
   }
 }
 

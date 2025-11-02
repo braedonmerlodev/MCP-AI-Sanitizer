@@ -417,7 +417,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
           .set('x-admin-id', adminIdHeader)
           .send({
             justification: 'Emergency system maintenance required for critical security patch',
-            duration: 900000, // 15 minutes
+            duration: 900_000, // 15 minutes
           });
 
         expect(response.status).toBe(200);
@@ -427,7 +427,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
         expect(response.body.justification).toBe(
           'Emergency system maintenance required for critical security patch',
         );
-        expect(response.body.duration).toBe(900000);
+        expect(response.body.duration).toBe(900_000);
       });
 
       test('should reject activation without admin auth', async () => {
@@ -462,7 +462,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
           });
 
         expect(response.status).toBe(200);
-        expect(response.body.duration).toBe(900000); // 15 minutes default
+        expect(response.body.duration).toBe(900_000); // 15 minutes default
       });
     });
 
@@ -572,7 +572,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
           .set('x-admin-id', adminIdHeader)
           .send({
             justification: 'Test invalid duration',
-            duration: 30000, // 30 seconds - below minimum
+            duration: 30_000, // 30 seconds - below minimum
           });
 
         expect(response.status).toBe(400);

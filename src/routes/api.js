@@ -79,7 +79,7 @@ const trustTokenValidateSchema = Joi.object({
 });
 
 const adminOverrideActivateSchema = Joi.object({
-  duration: Joi.number().integer().min(60000).max(3600000).optional(), // 1min to 1hr in ms
+  duration: Joi.number().integer().min(60_000).max(3_600_000).optional(), // 1min to 1hr in ms
   justification: Joi.string().min(10).max(500).required(),
 });
 
