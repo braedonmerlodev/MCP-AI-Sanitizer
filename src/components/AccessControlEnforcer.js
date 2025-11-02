@@ -8,6 +8,7 @@ const winston = require('winston');
  * - Configurable validation levels for different security contexts
  * - Integrates with existing permission system
  * - Provides clear error messages for access denial
+ * - Supports admin override for emergency scenarios
  */
 
 class AccessControlEnforcer {
@@ -43,6 +44,9 @@ class AccessControlEnforcer {
     };
 
     this.defaultLevel = options.defaultLevel || 'strict';
+
+    // Admin override controller reference (set externally)
+    this.adminOverrideController = options.adminOverrideController || null;
   }
 
   /**
@@ -58,6 +62,30 @@ class AccessControlEnforcer {
         allowed: false,
         error: `Invalid validation level: ${level}`,
         code: 'INVALID_LEVEL',
+      };
+    }
+
+    // Check for active admin override first
+    if (this.adminOverrideController && this.adminOverrideController.isOverrideActive()) {
+      const activeOverride = this.adminOverrideController.getActiveOverride();
+      this.logger.warn('Access granted via admin override', {
+        method: req.method,
+        path: req.path,
+        level,
+        overrideId: activeOverride.id,
+        adminId: activeOverride.adminId,
+        justification: activeOverride.justification,
+      });
+
+      return {
+        allowed: true,
+        error: null,
+        code: 'ADMIN_OVERRIDE',
+        override: {
+          id: activeOverride.id,
+          adminId: activeOverride.adminId,
+          justification: activeOverride.justification,
+        },
       };
     }
 

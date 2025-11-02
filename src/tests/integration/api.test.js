@@ -404,4 +404,203 @@ describe('API Integration Tests - Access Validation Middleware', () => {
       }
     });
   });
+
+  describe('Admin Override API Tests', () => {
+    const adminAuthHeader = 'test-admin-secret';
+    const adminIdHeader = 'test-admin-user';
+
+    describe('POST /api/admin/override/activate', () => {
+      test('should activate admin override with valid credentials', async () => {
+        const response = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Emergency system maintenance required for critical security patch',
+            duration: 900_000, // 15 minutes
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Admin override activated successfully');
+        expect(response.body).toHaveProperty('overrideId');
+        expect(response.body.adminId).toBe(adminIdHeader);
+        expect(response.body.justification).toBe(
+          'Emergency system maintenance required for critical security patch',
+        );
+        expect(response.body.duration).toBe(900_000);
+      });
+
+      test('should reject activation without admin auth', async () => {
+        const response = await request(app).post('/api/admin/override/activate').send({
+          justification: 'Test justification',
+        });
+
+        expect(response.status).toBe(401);
+        expect(response.body.error).toBe('Authentication failed');
+      });
+
+      test('should reject activation with invalid justification', async () => {
+        const response = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'short',
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Justification required');
+      });
+
+      test('should use default duration when not specified', async () => {
+        const response = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Test default duration',
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.duration).toBe(900_000); // 15 minutes default
+      });
+    });
+
+    describe('DELETE /api/admin/override/:overrideId', () => {
+      let overrideId;
+
+      beforeEach(async () => {
+        // Activate an override for testing deactivation
+        const activateResponse = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Test deactivation',
+          });
+
+        overrideId = activateResponse.body.overrideId;
+      });
+
+      test('should deactivate active override', async () => {
+        const response = await request(app)
+          .delete(`/api/admin/override/${overrideId}`)
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Admin override deactivated successfully');
+        expect(response.body.overrideId).toBe(overrideId);
+      });
+
+      test('should reject deactivation without auth', async () => {
+        const response = await request(app).delete(`/api/admin/override/${overrideId}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.error).toBe('Authentication failed');
+      });
+    });
+
+    describe('GET /api/admin/override/status', () => {
+      test('should return override status', async () => {
+        const response = await request(app)
+          .get('/api/admin/override/status')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('activeOverrides');
+        expect(response.body).toHaveProperty('maxConcurrent');
+        expect(response.body).toHaveProperty('overrides');
+        expect(Array.isArray(response.body.overrides)).toBe(true);
+      });
+
+      test('should reject status request without auth', async () => {
+        const response = await request(app).get('/api/admin/override/status');
+
+        expect(response.status).toBe(401);
+        expect(response.body.error).toBe('Authentication failed');
+      });
+    });
+
+    describe('Override Integration with Access Control', () => {
+      let overrideId;
+
+      beforeEach(async () => {
+        // Activate override
+        const activateResponse = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Integration test override',
+          });
+
+        overrideId = activateResponse.body.overrideId;
+      });
+
+      afterEach(async () => {
+        // Clean up override
+        if (overrideId) {
+          await request(app)
+            .delete(`/api/admin/override/${overrideId}`)
+            .set('x-admin-auth', adminAuthHeader)
+            .set('x-admin-id', adminIdHeader);
+        }
+      });
+
+      test('should allow access to protected endpoint when override is active', async () => {
+        // This test verifies that the override bypasses access control
+        // Since the override is active, access should be granted even without valid trust token
+        const response = await request(app).post('/api/documents/generate-pdf').send({
+          data: 'Test content',
+          trustToken: {}, // Invalid token
+        });
+
+        // With override active, this should succeed (access granted via override)
+        // Note: This assumes the override integration is working
+        // In a real scenario, we'd check the response more specifically
+        expect(response.status).not.toBe(403); // Should not be access denied
+      });
+    });
+
+    describe('Security Tests - Override Abuse Prevention', () => {
+      test('should reject override activation with invalid duration', async () => {
+        const response = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Test invalid duration',
+            duration: 30_000, // 30 seconds - below minimum
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Invalid duration');
+      });
+
+      test('should limit concurrent overrides', async () => {
+        // First override
+        await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'First override',
+          });
+
+        // Second override should be rejected (assuming maxConcurrent = 1)
+        const response = await request(app)
+          .post('/api/admin/override/activate')
+          .set('x-admin-auth', adminAuthHeader)
+          .set('x-admin-id', adminIdHeader)
+          .send({
+            justification: 'Second override - should fail',
+          });
+
+        expect(response.status).toBe(429);
+        expect(response.body.error).toBe('Concurrent override limit exceeded');
+      });
+    });
+  });
 });
