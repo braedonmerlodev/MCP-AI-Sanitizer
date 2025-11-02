@@ -22,6 +22,35 @@ Implement intelligent sanitization that processes all MCP traffic bidirectionall
 
 - **How it integrates:** Builds upon Epic 2's bidirectional sanitization pipeline by adding intelligent destination-aware processing. Maintains full bidirectional sanitization while optimizing performance for different risk levels of MCP traffic.
 
+#### Intelligent Routing Based on Risk Levels
+
+The system implements intelligent destination-aware processing that assesses tools and applies risk-based sanitization levels:
+
+**Risk Assessment for Tools**
+
+**High-Risk Destinations (Full Sanitization Applied):**
+
+- **LLM interactions:** All traffic to/from language models
+- **External tool calls:** Any MCP traffic involving external tools or APIs
+
+**Low-Risk Operations (Optimized Processing):**
+
+- Internal file operations
+- Local tool calls within the same system
+- Non-LLM data processing
+
+**How Tool Assessment Works**
+
+The system will:
+
+1. **Analyze MCP traffic destinations** to determine if the target is an external tool
+2. **Apply risk-based sanitization levels:**
+   - External tools → Full bidirectional sanitization pipeline
+   - Internal operations → Optimized processing (potentially bypassed or lightweight validation)
+3. **Maintain security** by defaulting to full sanitization when destination risk is unclear
+
+This approach ensures that potentially untrusted external tools receive the same comprehensive protection as LLM interactions, while optimizing performance for trusted internal operations. The bidirectional nature is preserved - both request and response flows through external tools get fully sanitized.
+
 - **Success criteria:**
   - Bidirectional sanitization maintained for all MCP traffic
   - Performance optimization through selective processing
@@ -37,6 +66,15 @@ Implement intelligent sanitization that processes all MCP traffic bidirectionall
 
 3. **Integrate Trust Token System:** Implement cryptographic tokens for validated sanitized content.
 
+## Testing Strategy
+
+- **Unit Tests:** Destination detection logic, risk assessment algorithms, trust token generation/validation
+- **Integration Tests:** End-to-end MCP traffic flows with selective processing, pipeline modifications
+- **Performance Tests:** Latency measurements for different traffic types, throughput validation
+- **Security Tests:** Threat neutralization rate validation, regression testing for existing sanitization
+- **Load Tests:** High-throughput scenarios with mixed traffic types
+- **Rollback Tests:** Feature flag functionality, automatic and manual rollback procedures
+
 ## Compatibility Requirements
 
 - [x] Existing APIs remain unchanged (selective logic is internal)
@@ -48,14 +86,26 @@ Implement intelligent sanitization that processes all MCP traffic bidirectionall
 
 - **Primary Risk:** Selective processing could miss security threats in low-risk traffic
 - **Mitigation:** Conservative defaults, comprehensive testing, monitoring
-- **Rollback Plan:** Disable selective logic, revert to full sanitization
+- **Secondary Risks:**
+  - Misclassification of destination risk levels
+  - Performance regression from selective logic overhead
+  - Trust token system vulnerabilities
+- **Rollback Plan:**
+  - **Feature Flags:** Implement feature flags to disable selective logic at runtime
+  - **Monitoring Triggers:** Automatic rollback if security metrics degrade (threat detection rate drops below 90%)
+  - **Manual Override:** Administrative command to revert to full sanitization
+  - **Gradual Rollback:** Ability to disable selective processing per traffic type
+  - **Data Preservation:** Trust tokens remain valid during rollback period
 
 ## Definition of Done
 
 - [ ] All stories completed with acceptance criteria met
 - [ ] Bidirectional MCP traffic sanitization working correctly
-- [ ] Performance improvements measured and validated
-- [ ] Trust token system fully integrated
-- [ ] Security maintained across all MCP traffic types
-- [ ] Documentation updated with selective processing logic
+- [ ] Performance improvements measured and validated (target: <100ms latency maintained)
+- [ ] Trust token system fully integrated and tested
+- [ ] Security maintained across all MCP traffic types (≥90% threat neutralization rate)
+- [ ] Documentation updated with selective processing logic and integration guide
 - [ ] No regression in existing sanitization functionality
+- [ ] Integration testing completed for pipeline modifications
+- [ ] Monitoring and alerting implemented for selective processing metrics
+- [ ] Rollback procedures tested and documented
