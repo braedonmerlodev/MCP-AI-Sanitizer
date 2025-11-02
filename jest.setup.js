@@ -1,5 +1,8 @@
 // Jest setup file to provide browser APIs needed by pdf-parse
 
+// Set up environment variables for tests
+process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-jest-tests';
+
 // Provide DOMMatrix polyfill if not available
 if (typeof global.DOMMatrix === 'undefined') {
   // Simple DOMMatrix polyfill for pdf-parse

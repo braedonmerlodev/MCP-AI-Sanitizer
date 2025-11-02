@@ -8,6 +8,7 @@ const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
+const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
@@ -115,6 +116,7 @@ router.post('/webhook/n8n', destinationTracking, async (req, res) => {
  */
 router.post(
   '/documents/upload',
+  accessValidationMiddleware,
   destinationTracking,
   uploadLimiter,
   (req, res, next) => {
@@ -215,7 +217,7 @@ router.post(
  * POST /api/documents/generate-pdf
  * Generates a clean PDF from sanitized content with embedded trust token
  */
-router.post('/documents/generate-pdf', async (req, res) => {
+router.post('/documents/generate-pdf', accessValidationMiddleware, async (req, res) => {
   const { error, value } = pdfGenerationSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
