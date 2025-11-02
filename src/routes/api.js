@@ -9,11 +9,13 @@ const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
+const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 
 const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();
+const accessControlEnforcer = new AccessControlEnforcer();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -218,6 +220,22 @@ router.post(
  * Generates a clean PDF from sanitized content with embedded trust token
  */
 router.post('/documents/generate-pdf', accessValidationMiddleware, async (req, res) => {
+  // Enforce access control
+  const accessResult = accessControlEnforcer.enforce(req, 'strict');
+  if (!accessResult.allowed) {
+    logger.warn('Access denied for PDF generation', {
+      reason: accessResult.error,
+      code: accessResult.code,
+      method: req.method,
+      path: req.path,
+    });
+    return res.status(403).json({
+      error: 'Access denied',
+      message: accessResult.error,
+      code: accessResult.code,
+    });
+  }
+
   const { error, value } = pdfGenerationSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
