@@ -36,7 +36,10 @@ app.get('/', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Error handling
