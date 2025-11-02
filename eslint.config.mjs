@@ -98,7 +98,7 @@ export default [
       // Allow optional catch binding
       'unicorn/prefer-optional-catch-binding': 'off',
       'unicorn/catch-error-name': 'off',
-      'no-unused-vars': ['error', { 'caughtErrors': 'none' }],
+      'no-unused-vars': ['error', { caughtErrors: 'none' }],
     },
   },
 
@@ -122,6 +122,8 @@ export default [
       // Allow CommonJS in tests
       'unicorn/prefer-module': 'off',
       'unicorn/filename-case': 'off',
+      // Allow relative requires in tests that ESLint can't resolve
+      'n/no-missing-require': 'off',
     },
   },
 
