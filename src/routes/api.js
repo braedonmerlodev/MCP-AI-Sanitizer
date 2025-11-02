@@ -16,10 +16,10 @@ const router = express.Router();
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();
+const adminOverrideController = new AdminOverrideController();
 const accessControlEnforcer = new AccessControlEnforcer({
   adminOverrideController,
 });
-const adminOverrideController = new AdminOverrideController();
 
 // Initialize logger
 const logger = winston.createLogger({
