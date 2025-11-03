@@ -9,10 +9,15 @@ const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
+const responseValidationMiddleware = require('../middleware/response-validation');
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
 
 const router = express.Router();
+
+// Response validation middleware (non-blocking)
+router.use(responseValidationMiddleware);
+
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();

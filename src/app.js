@@ -1,6 +1,8 @@
+require('dotenv').config();
 const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
+const responseValidationMiddleware = require('./middleware/response-validation');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -15,6 +17,9 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Response validation middleware (non-blocking)
+app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
