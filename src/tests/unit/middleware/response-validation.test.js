@@ -17,7 +17,6 @@ jest.mock('winston', () => ({
 }));
 
 const responseValidationMiddleware = require('../../../middleware/response-validation');
-const winston = require('winston');
 
 describe('Response Validation Middleware', () => {
   let mockReq;
