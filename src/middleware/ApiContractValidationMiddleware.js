@@ -9,7 +9,6 @@
  * @returns {Function} Express middleware function
  */
 
-const Joi = require('joi');
 const winston = require('winston');
 
 // Initialize logger
