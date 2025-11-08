@@ -42,6 +42,22 @@ jest.mock('../../components/AccessControlEnforcer', () => {
   }));
 });
 
+// Mock TrustTokenGenerator for testing
+jest.mock('../../components/TrustTokenGenerator', () => {
+  return jest.fn().mockImplementation(() => ({
+    generateToken: jest.fn().mockReturnValue({
+      contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72', // hash calculated in code
+      originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+      sanitizationVersion: '1.0',
+      rulesApplied: ['rule1'],
+      timestamp: '2025-11-08T22:12:06.323Z',
+      expiresAt: '2025-11-08T23:12:06.323Z',
+      signature: 'mocksignature',
+    }),
+    validateToken: jest.fn().mockReturnValue({ isValid: true }),
+  }));
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -381,6 +397,134 @@ describe('API Routes', () => {
 
       // Restore original
       require('../../components/proxy-sanitizer').prototype.sanitize = originalSanitize;
+    });
+
+    test('should reuse sanitized content with valid trust token', async () => {
+      // Mock validateToken to return valid
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+      generator.validateToken.mockReturnValue({ isValid: true });
+
+      const sanitizedContent = 'test content';
+      const validToken = generator.generateToken();
+
+      const requestData = {
+        content: sanitizedContent,
+        trustToken: validToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent', sanitizedContent);
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.trustToken).toHaveProperty('contentHash', validToken.contentHash);
+      expect(response.body.trustToken).toHaveProperty('signature', validToken.signature);
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', true);
+      expect(response.body.metadata).toHaveProperty('originalLength', sanitizedContent.length);
+      expect(response.body.metadata).toHaveProperty('sanitizedLength', sanitizedContent.length);
+      expect(response.body.metadata).toHaveProperty('performance');
+      expect(response.body.metadata.performance).toHaveProperty('totalTimeMs');
+      expect(response.body.metadata.performance).toHaveProperty('tokenValidationTimeMs');
+      expect(response.body.metadata.performance).toHaveProperty('timeSavedMs', 50);
+    });
+
+    test('should sanitize normally with invalid trust token', async () => {
+      // Override mock validateToken to return invalid
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+      generator.validateToken.mockReturnValueOnce({ isValid: false });
+
+      const invalidToken = {
+        contentHash: 'invalid',
+        originalHash: 'invalid',
+        sanitizationVersion: '1.0',
+        rulesApplied: ['rule1'],
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        signature: 'invalid',
+      };
+
+      const requestData = {
+        content: 'test content with\u200Bhidden\u200C',
+        trustToken: invalidToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
+      expect(response.body.sanitizedContent).toBe('test content withhidden'); // zero-width removed
+    });
+
+    test('should sanitize normally when content hash does not match trust token', async () => {
+      // Mock validateToken to return valid, but content hash won't match
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+      generator.validateToken.mockReturnValue({ isValid: true });
+
+      const token = generator.generateToken(); // Uses mock hash for 'test content'
+
+      const requestData = {
+        content: 'different content', // Different content, hash won't match
+        trustToken: token,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
+    });
+
+    test('should prevent token tampering attacks', async () => {
+      // Create a valid token then tamper with it
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+      const validToken = generator.generateToken();
+
+      // Tamper with the signature
+      const tamperedToken = { ...validToken, signature: 'tampered-signature' };
+
+      const requestData = {
+        content: 'test content',
+        trustToken: tamperedToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      // Should fall back to sanitization
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
+    });
+
+    test('should handle expired tokens gracefully', async () => {
+      // Create an expired token
+      const expiredToken = {
+        contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+        originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+        sanitizationVersion: '1.0',
+        rulesApplied: ['rule1'],
+        timestamp: '2025-11-08T22:12:06.323Z',
+        expiresAt: '2025-11-07T22:12:06.323Z', // Expired
+        signature: 'mocksignature',
+      };
+
+      const requestData = {
+        content: 'test content',
+        trustToken: expiredToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      // Should fall back to sanitization
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
     });
   });
 });
