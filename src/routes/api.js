@@ -14,6 +14,8 @@ const responseValidationMiddleware = require('../middleware/response-validation'
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
+const AuditLog = require('../models/AuditLog');
+const ErrorQueue = require('../models/ErrorQueue');
 
 const router = express.Router();
 
@@ -173,16 +175,52 @@ router.post(
               },
             };
 
+            // Create comprehensive audit log for successful reuse
+            const auditLog = new AuditLog({
+              userId: req.user?.id || 'anonymous',
+              action: 'trust_token_reuse_successful',
+              resourceId: value.trustToken.contentHash,
+              details: {
+                contentHash,
+                tokenValidationTimeMs: tokenValidationTime,
+                totalTimeMs: totalTime,
+                timeSavedMs: 50,
+                originalLength: value.content.length,
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent'),
+                sessionId: req.session?.id,
+              },
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent'),
+              sessionId: req.session?.id,
+            });
+
             logger.info('Trust token reuse successful', {
               contentHash,
               timestamp: metadata.timestamp,
               performance: metadata.performance,
+              auditLogId: auditLog.id,
             });
 
-            // Update global reuse statistics (simple in-memory for now)
-            if (!global.reuseStats) global.reuseStats = { hits: 0, totalRequests: 0 };
+            // Update global reuse statistics with enhanced metrics
+            if (!global.reuseStats) {
+              global.reuseStats = {
+                hits: 0,
+                totalRequests: 0,
+                validationSuccessRate: 1.0,
+                averageValidationTimeMs: 0,
+                totalTimeSavedMs: 0,
+                lastUpdated: new Date().toISOString(),
+              };
+            }
             global.reuseStats.hits++;
             global.reuseStats.totalRequests++;
+            global.reuseStats.validationSuccessRate =
+              global.reuseStats.hits / global.reuseStats.totalRequests;
+            global.reuseStats.averageValidationTimeMs =
+              (global.reuseStats.averageValidationTimeMs + tokenValidationTime) / 2;
+            global.reuseStats.totalTimeSavedMs += 50;
+            global.reuseStats.lastUpdated = new Date().toISOString();
 
             return res.json({
               sanitizedContent: value.content,
@@ -190,15 +228,60 @@ router.post(
               metadata,
             });
           } else {
+            // Content hash mismatch - log as security event
+            const auditLog = new AuditLog({
+              userId: req.user?.id || 'anonymous',
+              action: 'trust_token_validation_failed',
+              resourceId: value.trustToken.contentHash,
+              details: {
+                error: 'content_hash_mismatch',
+                providedHash: contentHash,
+                tokenHash: value.trustToken.contentHash,
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent'),
+                sessionId: req.session?.id,
+              },
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent'),
+              sessionId: req.session?.id,
+            });
+
             logger.warn('Trust token content hash mismatch', {
               providedHash: contentHash,
               tokenHash: value.trustToken.contentHash,
+              auditLogId: auditLog.id,
             });
+
+            // Update failure statistics
+            if (!global.reuseStats) global.reuseStats = { validationFailures: 0 };
+            global.reuseStats.validationFailures = (global.reuseStats.validationFailures || 0) + 1;
           }
         } else {
+          // Token validation failed
+          const auditLog = new AuditLog({
+            userId: req.user?.id || 'anonymous',
+            action: 'trust_token_validation_failed',
+            resourceId: value.trustToken?.contentHash || 'unknown',
+            details: {
+              error: validation.error,
+              tokenValidationTimeMs: tokenValidationTime,
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent'),
+              sessionId: req.session?.id,
+            },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent'),
+            sessionId: req.session?.id,
+          });
+
           logger.warn('Invalid trust token provided', {
             error: validation.error,
+            auditLogId: auditLog.id,
           });
+
+          // Update failure statistics
+          if (!global.reuseStats) global.reuseStats = { validationFailures: 0 };
+          global.reuseStats.validationFailures = (global.reuseStats.validationFailures || 0) + 1;
         }
       }
 
@@ -221,9 +304,50 @@ router.post(
         },
       };
 
-      // Update global reuse statistics
-      if (!global.reuseStats) global.reuseStats = { hits: 0, totalRequests: 0 };
+      // Create audit log for sanitization operation
+      const auditLog = new AuditLog({
+        userId: req.user?.id || 'anonymous',
+        action: 'content_sanitization_completed',
+        resourceId: result.trustToken?.contentHash || 'unknown',
+        details: {
+          originalLength: value.content.length,
+          sanitizedLength: result.sanitizedData.length,
+          totalTimeMs: totalTime,
+          classification: value.classification || req.destinationTracking.classification,
+          trustTokenGenerated: !!result.trustToken,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          sessionId: req.session?.id,
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        sessionId: req.session?.id,
+      });
+
+      logger.info('Content sanitization completed', {
+        contentHash: result.trustToken?.contentHash,
+        totalTimeMs: totalTime,
+        auditLogId: auditLog.id,
+      });
+
+      // Update global reuse statistics with enhanced tracking
+      if (!global.reuseStats) {
+        global.reuseStats = {
+          hits: 0,
+          totalRequests: 0,
+          validationSuccessRate: 1.0,
+          averageValidationTimeMs: 0,
+          totalTimeSavedMs: 0,
+          sanitizationCount: 0,
+          averageSanitizationTimeMs: 0,
+          lastUpdated: new Date().toISOString(),
+        };
+      }
       global.reuseStats.totalRequests++;
+      global.reuseStats.sanitizationCount = (global.reuseStats.sanitizationCount || 0) + 1;
+      global.reuseStats.averageSanitizationTimeMs =
+        (global.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
+      global.reuseStats.lastUpdated = new Date().toISOString();
 
       res.json({
         sanitizedContent: result.sanitizedData,
@@ -488,6 +612,101 @@ router.delete('/admin/override/:overrideId', (req, res) => {
  */
 router.get('/admin/override/status', (req, res) => {
   adminOverrideController.getOverrideStatus(req, res);
+});
+
+/**
+ * GET /api/monitoring/reuse-stats
+ * Gets comprehensive reuse mechanism statistics and metrics
+ */
+router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => {
+  // Enforce access control - monitoring data requires strict access
+  const accessResult = accessControlEnforcer.enforce(req, 'strict');
+  if (!accessResult.allowed) {
+    logger.warn('Access denied for reuse statistics', {
+      reason: accessResult.error,
+      code: accessResult.code,
+      method: req.method,
+      path: req.path,
+    });
+    return res.status(403).json({
+      error: 'Access denied',
+      message: accessResult.error,
+      code: accessResult.code,
+    });
+  }
+
+  // Initialize stats if not exists
+  if (!global.reuseStats) {
+    global.reuseStats = {
+      hits: 0,
+      totalRequests: 0,
+      validationSuccessRate: 1.0,
+      averageValidationTimeMs: 0,
+      totalTimeSavedMs: 0,
+      sanitizationCount: 0,
+      averageSanitizationTimeMs: 0,
+      validationFailures: 0,
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  const stats = global.reuseStats;
+
+  // Calculate additional metrics
+  const cacheHitRate = stats.totalRequests > 0 ? (stats.hits / stats.totalRequests) * 100 : 0;
+  const failureRate =
+    stats.totalRequests > 0 ? ((stats.validationFailures || 0) / stats.totalRequests) * 100 : 0;
+  const averageTimeSavedPerRequest = stats.hits > 0 ? stats.totalTimeSavedMs / stats.hits : 0;
+
+  const monitoringData = {
+    timestamp: new Date().toISOString(),
+    summary: {
+      totalRequests: stats.totalRequests,
+      cacheHits: stats.hits,
+      cacheMisses: stats.totalRequests - stats.hits,
+      sanitizationOperations: stats.sanitizationCount || 0,
+      validationFailures: stats.validationFailures || 0,
+    },
+    performance: {
+      cacheHitRate: `${cacheHitRate.toFixed(2)}%`,
+      failureRate: `${failureRate.toFixed(2)}%`,
+      averageValidationTimeMs: stats.averageValidationTimeMs.toFixed(2),
+      averageSanitizationTimeMs: stats.averageSanitizationTimeMs.toFixed(2),
+      averageTimeSavedPerRequestMs: averageTimeSavedPerRequest.toFixed(2),
+      totalTimeSavedMs: stats.totalTimeSavedMs,
+    },
+    health: {
+      validationSuccessRate: `${((stats.validationSuccessRate || 1.0) * 100).toFixed(2)}%`,
+      lastUpdated: stats.lastUpdated,
+      status: cacheHitRate > 50 ? 'healthy' : cacheHitRate > 20 ? 'warning' : 'critical',
+    },
+    raw: stats,
+  };
+
+  // Create audit log for monitoring access
+  const auditLog = new AuditLog({
+    userId: req.user?.id || 'anonymous',
+    action: 'reuse_statistics_accessed',
+    resourceId: 'reuse-monitoring',
+    details: {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      sessionId: req.session?.id,
+      cacheHitRate,
+      totalRequests: stats.totalRequests,
+    },
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent'),
+    sessionId: req.session?.id,
+  });
+
+  logger.info('Reuse statistics accessed', {
+    cacheHitRate: `${cacheHitRate.toFixed(2)}%`,
+    totalRequests: stats.totalRequests,
+    auditLogId: auditLog.id,
+  });
+
+  res.json(monitoringData);
 });
 
 module.exports = router;

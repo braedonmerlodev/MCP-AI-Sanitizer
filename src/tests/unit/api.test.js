@@ -479,5 +479,52 @@ describe('API Routes', () => {
       expect(response.body).toHaveProperty('metadata');
       expect(response.body.metadata).toHaveProperty('reused', false);
     });
+
+    test('should prevent token tampering attacks', async () => {
+      // Create a valid token then tamper with it
+      const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+      const validToken = generator.generateToken();
+
+      // Tamper with the signature
+      const tamperedToken = { ...validToken, signature: 'tampered-signature' };
+
+      const requestData = {
+        content: 'test content',
+        trustToken: tamperedToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      // Should fall back to sanitization
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
+    });
+
+    test('should handle expired tokens gracefully', async () => {
+      // Create an expired token
+      const expiredToken = {
+        contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+        originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+        sanitizationVersion: '1.0',
+        rulesApplied: ['rule1'],
+        timestamp: '2025-11-08T22:12:06.323Z',
+        expiresAt: '2025-11-07T22:12:06.323Z', // Expired
+        signature: 'mocksignature',
+      };
+
+      const requestData = {
+        content: 'test content',
+        trustToken: expiredToken,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      // Should fall back to sanitization
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('reused', false);
+    });
   });
 });
