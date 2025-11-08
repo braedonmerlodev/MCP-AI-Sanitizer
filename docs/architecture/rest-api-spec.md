@@ -64,6 +64,32 @@ paths:
                    trustToken:
                      type: object
                      description: Cryptographic trust token for verification
+                     properties:
+                       contentHash:
+                         type: string
+                         description: SHA-256 hash of sanitized content
+                       originalHash:
+                         type: string
+                         description: SHA-256 hash of original content
+                       sanitizationVersion:
+                         type: string
+                         description: Version of sanitization rules applied
+                       rulesApplied:
+                         type: array
+                         items:
+                           type: string
+                         description: List of sanitization rules applied
+                       timestamp:
+                         type: string
+                         format: date-time
+                         description: Token creation timestamp
+                       expiresAt:
+                         type: string
+                         format: date-time
+                         description: Token expiration timestamp
+                       signature:
+                         type: string
+                         description: HMAC-SHA256 signature for verification
                    metadata:
                      type: object
                      properties:
