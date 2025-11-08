@@ -14,13 +14,13 @@ Correct inconsistent API endpoint references across existing epics to ensure doc
 
 ### Enhancement Details
 
-- **What's being added/changed:** Correct API path references from `/trust-tokens/validate` to `/api/trust-tokens/validate`
+- **What's being added/changed:** Correct API path references from `/trust-tokens/validate` to `/api/trust-tokens/validate` in affected epics
 - **How it integrates:** Updates documentation to match implemented API paths
 - **Success criteria:** All epic documents use correct API endpoint paths
 
 ## Stories
 
-1. **Correct Trust Token API References:** Update epic-5 and epic-6.3 to use correct `/api/trust-tokens/validate` endpoint path.
+1. **Correct Trust Token API References:** Update epic-7 and epic-12 to use correct `/api/trust-tokens/validate` endpoint path.
 
 ## Compatibility Requirements
 
@@ -36,7 +36,7 @@ Correct inconsistent API endpoint references across existing epics to ensure doc
 
 ## Definition of Done
 
-- [ ] All epic documents use correct API endpoint paths
+- [x] Epic-7 and epic-12 documents use correct `/api/trust-tokens/validate` endpoint path
 - [ ] API documentation is consistent with implementation
 - [ ] No inconsistent references remain</content>
       <parameter name="filePath">docs/prd/epic-10-api-documentation-corrections.md

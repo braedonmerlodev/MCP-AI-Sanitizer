@@ -147,7 +147,7 @@ paths:
                          type: string
          '400':
            description: Invalid file or processing error
-   /trust-tokens/validate:
+    /api/trust-tokens/validate:
      post:
        summary: Validate a trust token for authenticity and expiration
        requestBody:
