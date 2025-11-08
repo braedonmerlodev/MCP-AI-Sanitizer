@@ -3,6 +3,8 @@ const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
 const responseValidationMiddleware = require('./middleware/response-validation');
+const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
+const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -40,12 +42,16 @@ app.get('/', (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-  });
-});
+app.get(
+  '/health',
+  apiContractValidationMiddleware(requestSchemas['/health'], responseSchemas['/health']),
+  (req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+    });
+  },
+);
 
 // Error handling
 app.use((err, req, res) => {

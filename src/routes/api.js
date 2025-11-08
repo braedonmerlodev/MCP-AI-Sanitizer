@@ -11,6 +11,8 @@ const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
 const responseValidationMiddleware = require('../middleware/response-validation');
+const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
+const { requestSchemas, responseSchemas } = require('../schemas/api-contract-schemas');
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
@@ -361,20 +363,28 @@ router.post(
  * POST /api/webhook/n8n
  * Handles n8n webhook requests with automatic sanitization.
  */
-router.post('/webhook/n8n', destinationTracking, async (req, res) => {
-  const { error, value } = n8nWebhookSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ error: error.details[0].message });
-  }
+router.post(
+  '/webhook/n8n',
+  apiContractValidationMiddleware(
+    requestSchemas['/api/webhook/n8n'],
+    responseSchemas['/api/webhook/n8n'],
+  ),
+  destinationTracking,
+  async (req, res) => {
+    const { error, value } = n8nWebhookSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
-  try {
-    const options = { classification: req.destinationTracking.classification };
-    const response = await proxySanitizer.handleN8nWebhook(value, options);
-    res.json(response);
-  } catch {
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
-});
+    try {
+      const options = { classification: req.destinationTracking.classification };
+      const response = await proxySanitizer.handleN8nWebhook(value, options);
+      res.json(response);
+    } catch {
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  },
+);
 
 /**
  * POST /api/documents/upload
@@ -382,6 +392,10 @@ router.post('/webhook/n8n', destinationTracking, async (req, res) => {
  */
 router.post(
   '/documents/upload',
+  apiContractValidationMiddleware(
+    requestSchemas['/api/documents/upload'],
+    responseSchemas['/api/documents/upload'],
+  ),
   accessValidationMiddleware,
   destinationTracking,
   uploadLimiter,
@@ -548,36 +562,43 @@ router.post('/documents/generate-pdf', accessValidationMiddleware, async (req, r
  * POST /api/trust-tokens/validate
  * Validates a trust token for authenticity and expiration
  */
-router.post('/trust-tokens/validate', async (req, res) => {
-  const { error, value } = trustTokenValidateSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ error: error.details[0].message });
-  }
-
-  try {
-    // Import TrustTokenGenerator for validation
-    const TrustTokenGenerator = require('../components/TrustTokenGenerator');
-    const generator = new TrustTokenGenerator();
-
-    const validation = generator.validateToken(value);
-
-    if (validation.isValid) {
-      res.json({
-        valid: true,
-        message: 'Trust token is valid',
-      });
-    } else {
-      const statusCode = validation.error === 'Token has expired' ? 410 : 400;
-      res.status(statusCode).json({
-        valid: false,
-        error: validation.error,
-      });
+router.post(
+  '/trust-tokens/validate',
+  apiContractValidationMiddleware(
+    requestSchemas['/api/trust-tokens/validate'],
+    responseSchemas['/api/trust-tokens/validate'],
+  ),
+  async (req, res) => {
+    const { error, value } = trustTokenValidateSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
     }
-  } catch (error) {
-    logger.error('Token validation error', { error: error.message });
-    res.status(500).json({ error: 'Token validation failed' });
-  }
-});
+
+    try {
+      // Import TrustTokenGenerator for validation
+      const TrustTokenGenerator = require('../components/TrustTokenGenerator');
+      const generator = new TrustTokenGenerator();
+
+      const validation = generator.validateToken(value);
+
+      if (validation.isValid) {
+        res.json({
+          valid: true,
+          message: 'Trust token is valid',
+        });
+      } else {
+        const statusCode = validation.error === 'Token has expired' ? 410 : 400;
+        res.status(statusCode).json({
+          valid: false,
+          error: validation.error,
+        });
+      }
+    } catch (error) {
+      logger.error('Token validation error', { error: error.message });
+      res.status(500).json({ error: 'Token validation failed' });
+    }
+  },
+);
 
 /**
  * POST /api/admin/override/activate
