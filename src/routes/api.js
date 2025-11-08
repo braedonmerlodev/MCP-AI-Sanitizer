@@ -4,6 +4,7 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const pdfParse = require('pdf-parse');
+const crypto = require('crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
@@ -12,6 +13,7 @@ const accessValidationMiddleware = require('../middleware/AccessValidationMiddle
 const responseValidationMiddleware = require('../middleware/response-validation');
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
+const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 
 const router = express.Router();
 
@@ -93,6 +95,7 @@ const trustTokenValidateSchema = Joi.object({
 const sanitizeJsonSchema = Joi.object({
   content: Joi.string().required(),
   classification: Joi.string().optional(),
+  trustToken: Joi.object().optional(),
 });
 
 const adminOverrideActivateSchema = Joi.object({
@@ -122,6 +125,7 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
 /**
  * POST /api/sanitize/json
  * Sanitizes JSON content and returns sanitized data with trust token.
+ * Supports reuse via trust token validation.
  */
 router.post(
   '/sanitize/json',
@@ -129,23 +133,97 @@ router.post(
   accessValidationMiddleware,
   destinationTracking,
   async (req, res) => {
+    const startTime = process.hrtime.bigint();
     const { error, value } = sanitizeJsonSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
 
+    let reused = false;
+    let tokenValidationTime = 0;
+
     try {
+      // Check for trust token reuse
+      if (value.trustToken) {
+        const tokenStartTime = process.hrtime.bigint();
+        const trustTokenGenerator = new TrustTokenGenerator();
+        const validation = trustTokenGenerator.validateToken(value.trustToken);
+        tokenValidationTime = Number(process.hrtime.bigint() - tokenStartTime) / 1e6; // ms
+
+        if (validation.isValid) {
+          // Verify content hash matches (content is already sanitized)
+          const contentHash = require('crypto')
+            .createHash('sha256')
+            .update(value.content)
+            .digest('hex');
+          if (contentHash === value.trustToken.contentHash) {
+            // Reuse: return cached result
+            reused = true;
+            const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
+
+            const metadata = {
+              originalLength: value.content.length,
+              sanitizedLength: value.content.length, // Same as content is already sanitized
+              timestamp: new Date().toISOString(),
+              reused: true,
+              performance: {
+                totalTimeMs: totalTime,
+                tokenValidationTimeMs: tokenValidationTime,
+                timeSavedMs: 50, // Estimated time saved vs full sanitization
+              },
+            };
+
+            logger.info('Trust token reuse successful', {
+              contentHash,
+              timestamp: metadata.timestamp,
+              performance: metadata.performance,
+            });
+
+            // Update global reuse statistics (simple in-memory for now)
+            if (!global.reuseStats) global.reuseStats = { hits: 0, totalRequests: 0 };
+            global.reuseStats.hits++;
+            global.reuseStats.totalRequests++;
+
+            return res.json({
+              sanitizedContent: value.content,
+              trustToken: value.trustToken,
+              metadata,
+            });
+          } else {
+            logger.warn('Trust token content hash mismatch', {
+              providedHash: contentHash,
+              tokenHash: value.trustToken.contentHash,
+            });
+          }
+        } else {
+          logger.warn('Invalid trust token provided', {
+            error: validation.error,
+          });
+        }
+      }
+
+      // Normal sanitization path
       const options = {
         classification: value.classification || req.destinationTracking.classification,
         generateTrustToken: true,
       };
       const result = await proxySanitizer.sanitize(value.content, options);
 
+      const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
       const metadata = {
         originalLength: value.content.length,
         sanitizedLength: result.sanitizedData.length,
         timestamp: new Date().toISOString(),
+        reused: false,
+        performance: {
+          totalTimeMs: totalTime,
+          tokenValidationTimeMs: tokenValidationTime,
+        },
       };
+
+      // Update global reuse statistics
+      if (!global.reuseStats) global.reuseStats = { hits: 0, totalRequests: 0 };
+      global.reuseStats.totalRequests++;
 
       res.json({
         sanitizedContent: result.sanitizedData,
