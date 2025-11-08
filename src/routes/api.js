@@ -57,6 +57,13 @@ const uploadLimiter = rateLimit({
   message: 'Too many uploads from this IP, please try again later.',
 });
 
+// Rate limiting for sanitization endpoints
+const sanitizeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 sanitization requests per windowMs
+  message: 'Too many sanitization requests from this IP, please try again later.',
+});
+
 // Validation schemas
 const sanitizeSchema = Joi.object({
   data: Joi.string().required(),
@@ -116,35 +123,41 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
  * POST /api/sanitize/json
  * Sanitizes JSON content and returns sanitized data with trust token.
  */
-router.post('/sanitize/json', destinationTracking, async (req, res) => {
-  const { error, value } = sanitizeJsonSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ error: error.details[0].message });
-  }
+router.post(
+  '/sanitize/json',
+  sanitizeLimiter,
+  accessValidationMiddleware,
+  destinationTracking,
+  async (req, res) => {
+    const { error, value } = sanitizeJsonSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
-  try {
-    const options = {
-      classification: value.classification || req.destinationTracking.classification,
-      generateTrustToken: true,
-    };
-    const result = await proxySanitizer.sanitize(value.content, options);
+    try {
+      const options = {
+        classification: value.classification || req.destinationTracking.classification,
+        generateTrustToken: true,
+      };
+      const result = await proxySanitizer.sanitize(value.content, options);
 
-    const metadata = {
-      originalLength: value.content.length,
-      sanitizedLength: result.sanitizedData.length,
-      timestamp: new Date().toISOString(),
-    };
+      const metadata = {
+        originalLength: value.content.length,
+        sanitizedLength: result.sanitizedData.length,
+        timestamp: new Date().toISOString(),
+      };
 
-    res.json({
-      sanitizedContent: result.sanitizedData,
-      trustToken: result.trustToken,
-      metadata,
-    });
-  } catch (err) {
-    logger.error('JSON sanitization error', { error: err.message });
-    res.status(500).json({ error: 'Sanitization failed' });
-  }
-});
+      res.json({
+        sanitizedContent: result.sanitizedData,
+        trustToken: result.trustToken,
+        metadata,
+      });
+    } catch (err) {
+      logger.error('JSON sanitization error', { error: err.message });
+      res.status(500).json({ error: 'Sanitization failed' });
+    }
+  },
+);
 
 /**
  * POST /api/webhook/n8n
