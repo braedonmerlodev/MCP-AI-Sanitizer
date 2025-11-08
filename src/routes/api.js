@@ -83,6 +83,11 @@ const trustTokenValidateSchema = Joi.object({
   signature: Joi.string().required(),
 });
 
+const sanitizeJsonSchema = Joi.object({
+  content: Joi.string().required(),
+  classification: Joi.string().optional(),
+});
+
 const adminOverrideActivateSchema = Joi.object({
   duration: Joi.number().integer().min(60_000).max(3_600_000).optional(), // 1min to 1hr in ms
   justification: Joi.string().min(10).max(500).required(),
@@ -103,6 +108,40 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
     const sanitizedData = await proxySanitizer.sanitize(value.data, options);
     res.json({ sanitizedData });
   } catch {
+    res.status(500).json({ error: 'Sanitization failed' });
+  }
+});
+
+/**
+ * POST /api/sanitize/json
+ * Sanitizes JSON content and returns sanitized data with trust token.
+ */
+router.post('/sanitize/json', destinationTracking, async (req, res) => {
+  const { error, value } = sanitizeJsonSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+
+  try {
+    const options = {
+      classification: value.classification || req.destinationTracking.classification,
+      generateTrustToken: true,
+    };
+    const result = await proxySanitizer.sanitize(value.content, options);
+
+    const metadata = {
+      originalLength: value.content.length,
+      sanitizedLength: result.sanitizedData.length,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.json({
+      sanitizedContent: result.sanitizedData,
+      trustToken: result.trustToken,
+      metadata,
+    });
+  } catch (err) {
+    logger.error('JSON sanitization error', { error: err.message });
     res.status(500).json({ error: 'Sanitization failed' });
   }
 });
