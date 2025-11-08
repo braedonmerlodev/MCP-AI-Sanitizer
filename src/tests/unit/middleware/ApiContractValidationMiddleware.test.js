@@ -1,19 +1,14 @@
-/**
- * Unit tests for ApiContractValidationMiddleware
- */
-
-const apiContractValidationMiddleware = require('../../../middleware/ApiContractValidationMiddleware');
-const Joi = require('joi');
-
 // Mock winston logger
+const mockLogger = {
+  level: 'debug',
+  warn: jest.fn(),
+  debug: jest.fn(),
+  info: jest.fn(),
+  error: jest.fn(),
+};
+
 jest.mock('winston', () => ({
-  createLogger: jest.fn(() => ({
-    level: 'debug',
-    warn: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
-  })),
+  createLogger: jest.fn(() => mockLogger),
   format: {
     json: jest.fn(),
   },
@@ -22,8 +17,12 @@ jest.mock('winston', () => ({
   },
 }));
 
-const winston = require('winston');
-const mockLogger = winston.createLogger();
+/**
+ * Unit tests for ApiContractValidationMiddleware
+ */
+
+const apiContractValidationMiddleware = require('../../../middleware/ApiContractValidationMiddleware');
+const Joi = require('joi');
 
 // Spy on logger methods
 const warnSpy = jest.spyOn(mockLogger, 'warn');
@@ -205,6 +204,192 @@ describe('ApiContractValidationMiddleware', () => {
           errors: expect.any(Array),
         }),
       );
+    });
+  });
+
+  describe('Edge Cases in Schema Validation', () => {
+    it('should handle empty request body', () => {
+      const requestSchema = Joi.object({
+        name: Joi.string().required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = {};
+
+      middleware(req, res, next);
+
+      expect(warnSpy).toHaveBeenCalledWith('Request validation failed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should handle null values in request', () => {
+      const requestSchema = Joi.object({
+        name: Joi.string().allow(null).required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { name: null };
+
+      middleware(req, res, next);
+
+      expect(infoSpy).toHaveBeenCalledWith('Request validation passed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should validate arrays correctly', () => {
+      const requestSchema = Joi.object({
+        items: Joi.array().items(Joi.string()).required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { items: ['a', 'b', 'c'] };
+
+      middleware(req, res, next);
+
+      expect(infoSpy).toHaveBeenCalledWith('Request validation passed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should fail validation for invalid array', () => {
+      const requestSchema = Joi.object({
+        items: Joi.array().items(Joi.string()).required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { items: [1, 2, 3] };
+
+      middleware(req, res, next);
+
+      expect(warnSpy).toHaveBeenCalledWith('Request validation failed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should validate nested objects', () => {
+      const requestSchema = Joi.object({
+        user: Joi.object({
+          name: Joi.string().required(),
+          age: Joi.number().integer().min(0),
+        }).required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { user: { name: 'John', age: 25 } };
+
+      middleware(req, res, next);
+
+      expect(infoSpy).toHaveBeenCalledWith('Request validation passed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should fail nested object validation', () => {
+      const requestSchema = Joi.object({
+        user: Joi.object({
+          name: Joi.string().required(),
+          age: Joi.number().integer().min(0),
+        }).required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { user: { name: '', age: -5 } };
+
+      middleware(req, res, next);
+
+      expect(warnSpy).toHaveBeenCalledWith('Request validation failed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Logging Scenarios', () => {
+    it('should log detailed errors for multiple validation failures', () => {
+      const requestSchema = Joi.object({
+        name: Joi.string().required(),
+        email: Joi.string().email().required(),
+        age: Joi.number().integer().min(18),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { name: '', email: 'invalid', age: 15 };
+
+      middleware(req, res, next);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Request validation failed',
+        expect.objectContaining({
+          errors: expect.any(Array),
+        }),
+      );
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should log response validation errors with context', () => {
+      const responseSchema = Joi.object({
+        status: Joi.string().valid('success', 'error').required(),
+      });
+
+      middleware = apiContractValidationMiddleware(null, responseSchema);
+      middleware(req, res, next);
+
+      res.json({ status: 'unknown' });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Response validation failed',
+        expect.objectContaining({
+          endpoint: '/test',
+          method: 'POST',
+          errors: expect.any(Array),
+        }),
+      );
+    });
+  });
+
+  describe('Various Request/Response Formats', () => {
+    it('should handle GET requests without body', () => {
+      const requestSchema = Joi.object({
+        query: Joi.string().required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.method = 'GET';
+      req.body = {}; // GET might not have body, but assuming query params are in body for test
+
+      middleware(req, res, next);
+
+      expect(warnSpy).toHaveBeenCalledWith('Request validation failed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should handle PUT requests', () => {
+      const requestSchema = Joi.object({
+        data: Joi.string().required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.method = 'PUT';
+      req.body = { data: 'updated' };
+
+      middleware(req, res, next);
+
+      expect(infoSpy).toHaveBeenCalledWith('Request validation passed', expect.any(Object));
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should validate response with array', () => {
+      const responseSchema = Joi.array().items(
+        Joi.object({
+          id: Joi.number().required(),
+          name: Joi.string().required(),
+        }),
+      );
+
+      middleware = apiContractValidationMiddleware(null, responseSchema);
+      middleware(req, res, next);
+
+      res.json([
+        { id: 1, name: 'Item1' },
+        { id: 2, name: 'Item2' },
+      ]);
+
+      expect(infoSpy).toHaveBeenCalledWith('Response validation passed', expect.any(Object));
     });
   });
 });
