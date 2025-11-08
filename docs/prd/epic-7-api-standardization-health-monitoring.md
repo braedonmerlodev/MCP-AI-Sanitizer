@@ -22,7 +22,7 @@ Establish complete API consistency and monitoring capabilities to ensure all end
 
 1. **Implement Health Check Endpoint:** Add the /health endpoint for system monitoring and uptime verification.
 
-2. **Standardize Trust Token Validation API:** Ensure all epics reference the correct /trust-tokens/validate endpoint path.
+2. **Standardize Trust Token Validation API:** Ensure all epics reference the correct /api/trust-tokens/validate endpoint path.
 
 3. **Add API Contract Validation:** Implement validation to ensure API responses match documented contracts.
 

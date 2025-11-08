@@ -79,7 +79,7 @@ paths:
        responses:
          '200':
            description: OK
-   /trust-tokens/validate:
+    /api/trust-tokens/validate:
      post:
        summary: Validate a trust token for authenticity and expiration
        requestBody:
