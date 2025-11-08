@@ -100,6 +100,140 @@ The following existing components can be directly reused for this epic:
 - Trust token validation success/failure metrics
 - Integration with existing logging and monitoring stack
 
+## Database Setup and Migration
+
+**Database Selection:**
+
+- Use existing database system (MongoDB/PostgreSQL) as configured in the application
+- Trust tokens stored in existing audit/data collection tables
+- No new database required - leverage existing data integrity logging infrastructure
+
+**Schema Requirements:**
+
+- Trust tokens stored as JSON objects in existing audit log tables
+- No schema changes required - tokens stored as metadata in sanitization audit records
+- Backward compatibility maintained with existing audit log structure
+
+**Migration Strategy:**
+
+- No database migration required - trust tokens are additive metadata
+- Existing audit logging infrastructure handles token storage automatically
+- Rollback: Tokens can be filtered out of audit logs if needed
+
+**Data Retention:**
+
+- Trust tokens follow existing audit log retention policies
+- Configurable token expiration (default: 24 hours) prevents long-term storage bloat
+- Automatic cleanup of expired tokens via existing log rotation procedures
+
+## Infrastructure Services Setup
+
+**HTTPS Termination:**
+
+- Configure load balancer/reverse proxy for SSL termination
+- Ensure secure transmission of trust tokens in JSON responses
+- Certificate management follows existing infrastructure patterns
+- HSTS headers applied to API responses
+
+**Monitoring Integration:**
+
+- Add `/api/sanitize/json` endpoint to existing monitoring dashboards
+- Configure alerts for: response time >100ms, error rate >5%, token validation failures
+- Integrate with existing APM tools (DataDog, New Relic, or custom monitoring)
+- Log aggregation includes trust token generation metrics
+
+**Load Balancing:**
+
+- Ensure new endpoint is included in load balancer configuration
+- Session affinity not required (stateless endpoint)
+- Health check endpoints updated to include new API validation
+
+**Security Headers:**
+
+- Apply existing security headers (CSP, X-Frame-Options, etc.) to new endpoint
+- CORS configuration for programmatic API consumers
+- Rate limiting applied using existing middleware
+
+## Testing Infrastructure
+
+**Mock Services:**
+
+- Trust token validation service for testing token reuse scenarios
+- Sanitization pipeline mocks for performance testing
+- Database connection mocks for isolated unit testing
+- External API mocks for integration testing
+
+**Test Data Requirements:**
+
+- Sample input data with various sanitization scenarios (Unicode, symbols, escapes)
+- Pre-generated trust tokens for validation testing
+- Performance test datasets (various sizes: 1KB, 10KB, 100KB)
+- Edge cases: empty content, malformed requests, expired tokens
+
+**Testing Environments:**
+
+- Unit tests: Isolated component testing with mocks
+- Integration tests: Full pipeline testing with real dependencies
+- Performance tests: Load testing with 100+ concurrent requests
+- Security tests: Token validation, input sanitization verification
+
+**Test Automation:**
+
+- CI/CD pipeline includes automated test execution
+- Performance regression testing against <100ms benchmark
+- Security scanning for new API endpoint
+- Coverage reporting with minimum 80% code coverage requirement
+
+## API Documentation Specifications
+
+**Endpoint Documentation:**
+
+```
+POST /api/sanitize/json
+Content-Type: application/json
+
+Request Body:
+{
+  "content": "string (required) - Text content to sanitize",
+  "classification": "string (optional) - 'llm', 'non-llm', or 'unclear'. Default: 'llm'"
+}
+
+Response (200 OK):
+{
+  "sanitizedContent": "string - Processed and sanitized content",
+  "trustToken": {
+    "contentHash": "string - SHA-256 hash of sanitized content",
+    "originalHash": "string - SHA-256 hash of original content",
+    "sanitizationVersion": "string - Version of sanitization rules",
+    "rulesApplied": ["string"] - Array of applied sanitization rules",
+    "timestamp": "string - ISO 8601 timestamp",
+    "expiresAt": "string - ISO 8601 expiration timestamp",
+    "signature": "string - HMAC-SHA256 signature"
+  },
+  "metadata": {
+    "originalLength": "number - Original content length",
+    "sanitizedLength": "number - Sanitized content length",
+    "classification": "string - Classification used",
+    "timestamp": "string - Processing timestamp"
+  }
+}
+```
+
+**Error Scenarios:**
+
+- **400 Bad Request**: Invalid request format or missing required fields
+- **500 Internal Server Error**: Sanitization pipeline failure or trust token generation error
+
+**Rate Limiting:**
+
+- Follows existing API rate limiting policies
+- Trust token validation may have separate limits
+
+**Authentication:**
+
+- Inherits existing API authentication requirements
+- Trust tokens provide additional verification layer
+
 ## Stories
 
 List focused stories that complete the epic:
@@ -127,7 +261,10 @@ List focused stories that complete the epic:
 - [ ] All stories completed with acceptance criteria met
 - [ ] Existing functionality verified through comprehensive regression testing
 - [ ] Integration points working correctly
-- [ ] API documentation created and developer setup instructions provided
+- [ ] API documentation created with detailed specifications and error scenarios
+- [ ] Database setup and migration procedures validated
+- [ ] Infrastructure services (HTTPS, monitoring) configured and tested
+- [ ] Testing infrastructure with mock services implemented
 - [ ] Performance benchmarks met (<100ms latency, 100+ RPS support)
 - [ ] Feature flag implemented and tested for safe deployment
 - [ ] Monitoring and alerting configured for new endpoint
@@ -156,8 +293,11 @@ List focused stories that complete the epic:
 - [x] Stories are properly scoped with explicit requirements
 - [x] Success criteria are measurable (<100ms, 100+ RPS)
 - [x] Dependencies are identified and reusable components listed
-- [x] Deployment strategy defined
-- [x] API documentation requirements included
+- [x] Deployment strategy defined with CI/CD and rollback procedures
+- [x] Database setup and migration procedures documented
+- [x] Infrastructure services setup completed
+- [x] Testing infrastructure with mock services specified
+- [x] API documentation specifications detailed
 
 ## Story Manager Handoff
 
