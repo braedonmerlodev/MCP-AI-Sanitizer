@@ -30,6 +30,18 @@ jest.mock('../../components/MarkdownConverter', () => {
   }));
 });
 
+// Mock access validation middleware for testing
+jest.mock('../../middleware/AccessValidationMiddleware', () => {
+  return jest.fn((req, res, next) => next());
+});
+
+// Mock access control enforcer for testing
+jest.mock('../../components/AccessControlEnforcer', () => {
+  return jest.fn().mockImplementation(() => ({
+    enforce: jest.fn().mockReturnValue({ allowed: true }),
+  }));
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
