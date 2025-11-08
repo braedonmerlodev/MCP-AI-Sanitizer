@@ -140,8 +140,14 @@ describe('Reuse Mechanisms Security Tests', () => {
       const similarContent1 = JSON.stringify({ data: 'test1' });
       const similarContent2 = JSON.stringify({ data: 'test2' });
 
-      const hash1 = require('node:crypto').createHash('sha256').update(similarContent1).digest('hex');
-      const hash2 = require('node:crypto').createHash('sha256').update(similarContent2).digest('hex');
+      const hash1 = require('node:crypto')
+        .createHash('sha256')
+        .update(similarContent1)
+        .digest('hex');
+      const hash2 = require('node:crypto')
+        .createHash('sha256')
+        .update(similarContent2)
+        .digest('hex');
 
       expect(hash1).not.toBe(hash2);
 

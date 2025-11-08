@@ -61,7 +61,10 @@ describe('Reuse Mechanisms Integration Tests', () => {
 
   describe('Content Hash Verification', () => {
     test('should correctly compute content hashes', () => {
-      const computedHash = require('node:crypto').createHash('sha256').update(testContent).digest('hex');
+      const computedHash = require('node:crypto')
+        .createHash('sha256')
+        .update(testContent)
+        .digest('hex');
 
       expect(computedHash).toBe(validTrustToken.contentHash);
       expect(computedHash).toMatch(/^[a-f0-9]{64}$/);
