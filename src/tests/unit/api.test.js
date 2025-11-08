@@ -302,4 +302,73 @@ describe('API Routes', () => {
       expect(response.body).toHaveProperty('error');
     });
   });
+
+  describe('POST /api/sanitize/json', () => {
+    test('should sanitize valid JSON content and return trust token', async () => {
+      const requestData = {
+        content: 'Test content with\u200Bhidden\u200Cchars', // zero-width chars
+        classification: 'test',
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.sanitizedContent).toBe('Test content withhiddenchars'); // zero-width removed
+      expect(response.body.trustToken).toHaveProperty('contentHash');
+      expect(response.body.trustToken).toHaveProperty('signature');
+      expect(response.body.metadata).toHaveProperty('originalLength', requestData.content.length);
+      expect(response.body.metadata).toHaveProperty('sanitizedLength');
+      expect(response.body.metadata).toHaveProperty('timestamp');
+    });
+
+    test('should sanitize content without optional classification', async () => {
+      const requestData = {
+        content: 'Test content',
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body).toHaveProperty('metadata');
+    });
+
+    test('should return 400 for missing content field', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({ classification: 'test' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should return 400 for invalid request format', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({ invalid: 'data' })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should handle sanitization errors gracefully', async () => {
+      // Mock sanitization failure
+      const originalSanitize = require('../../components/proxy-sanitizer').prototype.sanitize;
+      require('../../components/proxy-sanitizer').prototype.sanitize = jest
+        .fn()
+        .mockRejectedValue(new Error('Sanitization failed'));
+
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({ content: 'test content' })
+        .expect(500);
+
+      expect(response.body).toHaveProperty('error', 'Sanitization failed');
+
+      // Restore original
+      require('../../components/proxy-sanitizer').prototype.sanitize = originalSanitize;
+    });
+  });
 });

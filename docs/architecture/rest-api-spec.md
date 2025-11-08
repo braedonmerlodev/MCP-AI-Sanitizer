@@ -10,28 +10,74 @@ servers:
   - url: https://api.example.com
     description: Production server
 paths:
-  /sanitize:
-    post:
-      summary: Sanitize input data
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                data:
-                  type: string
-      responses:
-        '200':
-          description: Sanitized data
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  sanitizedData:
-                    type: string
+   /sanitize:
+     post:
+       summary: Sanitize input data
+       requestBody:
+         required: true
+         content:
+           application/json:
+             schema:
+               type: object
+               properties:
+                 data:
+                   type: string
+       responses:
+         '200':
+           description: Sanitized data
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   sanitizedData:
+                     type: string
+   /api/sanitize/json:
+     post:
+       summary: Sanitize JSON content with trust token generation
+       requestBody:
+         required: true
+         content:
+           application/json:
+             schema:
+               type: object
+               required:
+                 - content
+               properties:
+                 content:
+                   type: string
+                   description: The content to be sanitized
+                 classification:
+                   type: string
+                   description: Optional classification for sanitization rules
+       responses:
+         '200':
+           description: Successfully sanitized content
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   sanitizedContent:
+                     type: string
+                     description: The sanitized content
+                   trustToken:
+                     type: object
+                     description: Cryptographic trust token for verification
+                   metadata:
+                     type: object
+                     properties:
+                       originalLength:
+                         type: integer
+                       sanitizedLength:
+                         type: integer
+                       timestamp:
+                         type: string
+                         format: date-time
+         '400':
+           description: Invalid request - missing or invalid content field
+         '500':
+           description: Internal server error during sanitization
   /documents/upload:
     post:
       summary: Upload PDF documents for processing and sanitization

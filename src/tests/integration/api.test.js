@@ -403,6 +403,36 @@ describe('API Integration Tests - Access Validation Middleware', () => {
         expect(response.body.error).toBe('Invalid trust token');
       }
     });
+
+    test('/api/sanitize/json should respond in less than 100ms average', async () => {
+      const iterations = 50;
+      const times = [];
+
+      for (let i = 0; i < iterations; i++) {
+        const start = process.hrtime.bigint();
+        await request(app)
+          .post('/api/sanitize/json')
+          .set('x-trust-token', JSON.stringify(validToken))
+          .send({
+            content: 'Test content for performance measurement ' + i,
+            classification: 'test',
+          });
+        const end = process.hrtime.bigint();
+        const durationMs = Number(end - start) / 1_000_000; // Convert to milliseconds
+        times.push(durationMs);
+      }
+
+      const averageTime = times.reduce((a, b) => a + b, 0) / times.length;
+      const maxTime = Math.max(...times);
+
+      console.log(
+        `/api/sanitize/json performance: Average ${averageTime.toFixed(2)}ms, Max ${maxTime.toFixed(2)}ms`,
+      );
+
+      // Story 11.1 requirement: <100ms average response time
+      expect(averageTime).toBeLessThan(100);
+      expect(maxTime).toBeLessThan(200); // Allow some buffer
+    });
   });
 
   describe('Admin Override API Tests', () => {
