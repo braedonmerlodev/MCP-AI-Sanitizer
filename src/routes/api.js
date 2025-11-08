@@ -4,7 +4,7 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const pdfParse = require('pdf-parse');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
@@ -15,7 +15,6 @@ const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLog = require('../models/AuditLog');
-const ErrorQueue = require('../models/ErrorQueue');
 
 const router = express.Router();
 
@@ -141,7 +140,6 @@ router.post(
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    let reused = false;
     let tokenValidationTime = 0;
 
     try {
@@ -154,13 +152,9 @@ router.post(
 
         if (validation.isValid) {
           // Verify content hash matches (content is already sanitized)
-          const contentHash = require('crypto')
-            .createHash('sha256')
-            .update(value.content)
-            .digest('hex');
+          const contentHash = crypto.createHash('sha256').update(value.content).digest('hex');
           if (contentHash === value.trustToken.contentHash) {
             // Reuse: return cached result
-            reused = true;
             const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
 
             const metadata = {
@@ -203,24 +197,24 @@ router.post(
             });
 
             // Update global reuse statistics with enhanced metrics
-            if (!global.reuseStats) {
-              global.reuseStats = {
+            if (!globalThis.reuseStats) {
+              globalThis.reuseStats = {
                 hits: 0,
                 totalRequests: 0,
-                validationSuccessRate: 1.0,
+                validationSuccessRate: 1,
                 averageValidationTimeMs: 0,
                 totalTimeSavedMs: 0,
                 lastUpdated: new Date().toISOString(),
               };
             }
-            global.reuseStats.hits++;
-            global.reuseStats.totalRequests++;
-            global.reuseStats.validationSuccessRate =
-              global.reuseStats.hits / global.reuseStats.totalRequests;
-            global.reuseStats.averageValidationTimeMs =
-              (global.reuseStats.averageValidationTimeMs + tokenValidationTime) / 2;
-            global.reuseStats.totalTimeSavedMs += 50;
-            global.reuseStats.lastUpdated = new Date().toISOString();
+            globalThis.reuseStats.hits++;
+            globalThis.reuseStats.totalRequests++;
+            globalThis.reuseStats.validationSuccessRate =
+              globalThis.reuseStats.hits / globalThis.reuseStats.totalRequests;
+            globalThis.reuseStats.averageValidationTimeMs =
+              (globalThis.reuseStats.averageValidationTimeMs + tokenValidationTime) / 2;
+            globalThis.reuseStats.totalTimeSavedMs += 50;
+            globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
             return res.json({
               sanitizedContent: value.content,
@@ -253,8 +247,9 @@ router.post(
             });
 
             // Update failure statistics
-            if (!global.reuseStats) global.reuseStats = { validationFailures: 0 };
-            global.reuseStats.validationFailures = (global.reuseStats.validationFailures || 0) + 1;
+            if (!globalThis.reuseStats) globalThis.reuseStats = { validationFailures: 0 };
+            globalThis.reuseStats.validationFailures =
+              (globalThis.reuseStats.validationFailures || 0) + 1;
           }
         } else {
           // Token validation failed
@@ -280,8 +275,9 @@ router.post(
           });
 
           // Update failure statistics
-          if (!global.reuseStats) global.reuseStats = { validationFailures: 0 };
-          global.reuseStats.validationFailures = (global.reuseStats.validationFailures || 0) + 1;
+          if (!globalThis.reuseStats) globalThis.reuseStats = { validationFailures: 0 };
+          globalThis.reuseStats.validationFailures =
+            (globalThis.reuseStats.validationFailures || 0) + 1;
         }
       }
 
@@ -331,11 +327,11 @@ router.post(
       });
 
       // Update global reuse statistics with enhanced tracking
-      if (!global.reuseStats) {
-        global.reuseStats = {
+      if (!globalThis.reuseStats) {
+        globalThis.reuseStats = {
           hits: 0,
           totalRequests: 0,
-          validationSuccessRate: 1.0,
+          validationSuccessRate: 1,
           averageValidationTimeMs: 0,
           totalTimeSavedMs: 0,
           sanitizationCount: 0,
@@ -343,11 +339,11 @@ router.post(
           lastUpdated: new Date().toISOString(),
         };
       }
-      global.reuseStats.totalRequests++;
-      global.reuseStats.sanitizationCount = (global.reuseStats.sanitizationCount || 0) + 1;
-      global.reuseStats.averageSanitizationTimeMs =
-        (global.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
-      global.reuseStats.lastUpdated = new Date().toISOString();
+      globalThis.reuseStats.totalRequests++;
+      globalThis.reuseStats.sanitizationCount = (globalThis.reuseStats.sanitizationCount || 0) + 1;
+      globalThis.reuseStats.averageSanitizationTimeMs =
+        (globalThis.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
+      globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
       res.json({
         sanitizedContent: result.sanitizedData,
@@ -636,11 +632,11 @@ router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => 
   }
 
   // Initialize stats if not exists
-  if (!global.reuseStats) {
-    global.reuseStats = {
+  if (!globalThis.reuseStats) {
+    globalThis.reuseStats = {
       hits: 0,
       totalRequests: 0,
-      validationSuccessRate: 1.0,
+      validationSuccessRate: 1,
       averageValidationTimeMs: 0,
       totalTimeSavedMs: 0,
       sanitizationCount: 0,
@@ -650,7 +646,7 @@ router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => 
     };
   }
 
-  const stats = global.reuseStats;
+  const stats = globalThis.reuseStats;
 
   // Calculate additional metrics
   const cacheHitRate = stats.totalRequests > 0 ? (stats.hits / stats.totalRequests) * 100 : 0;
@@ -676,7 +672,7 @@ router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => 
       totalTimeSavedMs: stats.totalTimeSavedMs,
     },
     health: {
-      validationSuccessRate: `${((stats.validationSuccessRate || 1.0) * 100).toFixed(2)}%`,
+      validationSuccessRate: `${((stats.validationSuccessRate || 1) * 100).toFixed(2)}%`,
       lastUpdated: stats.lastUpdated,
       status: cacheHitRate > 50 ? 'healthy' : cacheHitRate > 20 ? 'warning' : 'critical',
     },

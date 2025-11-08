@@ -25,12 +25,12 @@ describe('Reuse Mechanisms Integration Tests', () => {
 
   beforeEach(() => {
     // Reset global stats before each test
-    global.reuseStats = null;
+    globalThis.reuseStats = null;
   });
 
   afterEach(() => {
     // Clean up global state
-    global.reuseStats = null;
+    globalThis.reuseStats = null;
   });
 
   describe('Trust Token Generation and Validation', () => {
@@ -61,7 +61,7 @@ describe('Reuse Mechanisms Integration Tests', () => {
 
   describe('Content Hash Verification', () => {
     test('should correctly compute content hashes', () => {
-      const computedHash = require('crypto').createHash('sha256').update(testContent).digest('hex');
+      const computedHash = require('node:crypto').createHash('sha256').update(testContent).digest('hex');
 
       expect(computedHash).toBe(validTrustToken.contentHash);
       expect(computedHash).toMatch(/^[a-f0-9]{64}$/);
@@ -69,7 +69,7 @@ describe('Reuse Mechanisms Integration Tests', () => {
 
     test('should detect content modifications', () => {
       const modifiedContent = JSON.stringify({ modified: 'content' });
-      const modifiedHash = require('crypto')
+      const modifiedHash = require('node:crypto')
         .createHash('sha256')
         .update(modifiedContent)
         .digest('hex');
@@ -123,43 +123,43 @@ describe('Reuse Mechanisms Integration Tests', () => {
   describe('Statistics and Metrics Tracking', () => {
     test('should initialize and update reuse statistics', () => {
       // Test initial state
-      expect(global.reuseStats).toBeNull();
+      expect(globalThis.reuseStats).toBeNull();
 
       // Simulate successful reuse
-      if (!global.reuseStats) {
-        global.reuseStats = {
+      if (!globalThis.reuseStats) {
+        globalThis.reuseStats = {
           hits: 0,
           totalRequests: 0,
-          validationSuccessRate: 1.0,
+          validationSuccessRate: 1,
           averageValidationTimeMs: 0,
           totalTimeSavedMs: 0,
           lastUpdated: new Date().toISOString(),
         };
       }
 
-      global.reuseStats.hits++;
-      global.reuseStats.totalRequests++;
-      global.reuseStats.totalTimeSavedMs += 50;
+      globalThis.reuseStats.hits++;
+      globalThis.reuseStats.totalRequests++;
+      globalThis.reuseStats.totalTimeSavedMs += 50;
 
-      expect(global.reuseStats.hits).toBe(1);
-      expect(global.reuseStats.totalRequests).toBe(1);
-      expect(global.reuseStats.totalTimeSavedMs).toBe(50);
+      expect(globalThis.reuseStats.hits).toBe(1);
+      expect(globalThis.reuseStats.totalRequests).toBe(1);
+      expect(globalThis.reuseStats.totalTimeSavedMs).toBe(50);
     });
 
     test('should calculate performance metrics', () => {
-      global.reuseStats = {
+      globalThis.reuseStats = {
         hits: 8,
         totalRequests: 10,
         validationFailures: 1,
         totalTimeSavedMs: 400,
       };
 
-      const cacheHitRate = (global.reuseStats.hits / global.reuseStats.totalRequests) * 100;
+      const cacheHitRate = (globalThis.reuseStats.hits / globalThis.reuseStats.totalRequests) * 100;
       const failureRate =
-        (global.reuseStats.validationFailures / global.reuseStats.totalRequests) * 100;
+        (globalThis.reuseStats.validationFailures / globalThis.reuseStats.totalRequests) * 100;
       const averageTimeSaved =
-        global.reuseStats.hits > 0
-          ? global.reuseStats.totalTimeSavedMs / global.reuseStats.hits
+        globalThis.reuseStats.hits > 0
+          ? globalThis.reuseStats.totalTimeSavedMs / globalThis.reuseStats.hits
           : 0;
 
       expect(cacheHitRate).toBe(80);
@@ -173,7 +173,7 @@ describe('Reuse Mechanisms Integration Tests', () => {
       const startTime = process.hrtime.bigint();
       // Simulate some operation
       const testData = 'test';
-      const hash = require('crypto').createHash('sha256').update(testData).digest('hex');
+      const hash = require('node:crypto').createHash('sha256').update(testData).digest('hex');
       const endTime = process.hrtime.bigint();
 
       const durationMs = Number(endTime - startTime) / 1e6;
@@ -228,24 +228,24 @@ describe('Reuse Mechanisms Integration Tests', () => {
 
   describe('Concurrent Access and Thread Safety', () => {
     test('should handle concurrent statistics updates', () => {
-      global.reuseStats = { hits: 0, totalRequests: 0, totalTimeSavedMs: 0 };
+      globalThis.reuseStats = { hits: 0, totalRequests: 0, totalTimeSavedMs: 0 };
 
       // Simulate concurrent updates
       const operations = [];
       for (let i = 0; i < 100; i++) {
         operations.push(() => {
-          global.reuseStats.hits++;
-          global.reuseStats.totalRequests++;
-          global.reuseStats.totalTimeSavedMs += 10;
+          globalThis.reuseStats.hits++;
+          globalThis.reuseStats.totalRequests++;
+          globalThis.reuseStats.totalTimeSavedMs += 10;
         });
       }
 
       // Execute operations
-      operations.forEach((op) => op());
+      for (const op of operations) op();
 
-      expect(global.reuseStats.hits).toBe(100);
-      expect(global.reuseStats.totalRequests).toBe(100);
-      expect(global.reuseStats.totalTimeSavedMs).toBe(1000);
+      expect(globalThis.reuseStats.hits).toBe(100);
+      expect(globalThis.reuseStats.totalRequests).toBe(100);
+      expect(globalThis.reuseStats.totalTimeSavedMs).toBe(1000);
     });
   });
 });

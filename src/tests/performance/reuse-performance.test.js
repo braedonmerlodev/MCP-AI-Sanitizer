@@ -76,7 +76,7 @@ describe('Reuse Mechanisms Performance Tests', () => {
     test('should measure token validation latency for different token sizes', () => {
       const results = {};
 
-      ['small', 'medium', 'large'].forEach((size) => {
+      for (const size of ['small', 'medium', 'large']) {
         const token = validTrustToken[size];
         const measurements = [];
 
@@ -95,7 +95,8 @@ describe('Reuse Mechanisms Performance Tests', () => {
         const avgTime = measurements.reduce((a, b) => a + b, 0) / measurements.length;
         const minTime = Math.min(...measurements);
         const maxTime = Math.max(...measurements);
-        const p95Time = measurements.sort((a, b) => a - b)[Math.floor(measurements.length * 0.95)];
+        const sorted = measurements.toSorted((a, b) => a - b);
+        const p95Time = sorted[Math.floor(measurements.length * 0.95)];
 
         results[size] = {
           averageMs: avgTime,
@@ -104,15 +105,15 @@ describe('Reuse Mechanisms Performance Tests', () => {
           p95Ms: p95Time,
           contentLength: testContent[size].length,
         };
-      });
+      }
 
       // Log performance results
       console.log('Token Validation Performance Results:');
-      Object.entries(results).forEach(([size, stats]) => {
+      for (const [size, stats] of Object.entries(results)) {
         console.log(
           `${size}: avg=${stats.averageMs.toFixed(3)}ms, p95=${stats.p95Ms.toFixed(3)}ms, content=${stats.contentLength}chars`,
         );
-      });
+      }
 
       // Performance assertions - validation should be fast (< 10ms target)
       expect(results.small.averageMs).toBeLessThan(10);
@@ -125,14 +126,14 @@ describe('Reuse Mechanisms Performance Tests', () => {
     test('should benchmark content hash computation', () => {
       const results = {};
 
-      ['small', 'medium', 'large'].forEach((size) => {
+      for (const size of ['small', 'medium', 'large']) {
         const content = testContent[size];
         const measurements = [];
 
         // Measure hash computation time
         for (let i = 0; i < 100; i++) {
           const startTime = process.hrtime.bigint();
-          const hash = require('crypto').createHash('sha256').update(content).digest('hex');
+          const hash = require('node:crypto').createHash('sha256').update(content).digest('hex');
           const endTime = process.hrtime.bigint();
 
           const durationMs = Number(endTime - startTime) / 1e6;
@@ -143,7 +144,9 @@ describe('Reuse Mechanisms Performance Tests', () => {
         }
 
         const avgTime = measurements.reduce((a, b) => a + b, 0) / measurements.length;
-        const p95Time = measurements.sort((a, b) => a - b)[Math.floor(measurements.length * 0.95)];
+        const p95Time = measurements.toSorted((a, b) => a - b)[
+          Math.floor(measurements.length * 0.95)
+        ];
 
         results[size] = {
           averageMs: avgTime,
@@ -151,14 +154,14 @@ describe('Reuse Mechanisms Performance Tests', () => {
           contentLength: content.length,
           throughput: content.length / 1024 / (avgTime / 1000), // KB per second
         };
-      });
+      }
 
       console.log('Content Hash Performance Results:');
-      Object.entries(results).forEach(([size, stats]) => {
+      for (const [size, stats] of Object.entries(results)) {
         console.log(
           `${size}: avg=${stats.averageMs.toFixed(3)}ms, throughput=${stats.throughput.toFixed(2)}KB/s`,
         );
-      });
+      }
     });
   });
 
@@ -174,7 +177,7 @@ describe('Reuse Mechanisms Performance Tests', () => {
         const sanitizationTimes = [];
         for (let i = 0; i < 50; i++) {
           const startTime = process.hrtime.bigint();
-          const result = await proxySanitizer.sanitize(content, {
+          await proxySanitizer.sanitize(content, {
             classification: 'llm',
             generateTrustToken: true,
           });
@@ -192,7 +195,7 @@ describe('Reuse Mechanisms Performance Tests', () => {
           // Simulate reuse validation logic
           const validation = trustTokenGenerator.validateToken(token);
           if (validation.isValid) {
-            const contentHash = require('crypto')
+            const contentHash = require('node:crypto')
               .createHash('sha256')
               .update(content)
               .digest('hex');
@@ -222,17 +225,17 @@ describe('Reuse Mechanisms Performance Tests', () => {
       }
 
       console.log('Reuse vs Sanitization Performance Comparison:');
-      Object.entries(results).forEach(([size, stats]) => {
+      for (const [size, stats] of Object.entries(results)) {
         console.log(
           `${size}: sanitization=${stats.sanitizationMs.toFixed(2)}ms, reuse=${stats.reuseMs.toFixed(2)}ms, speedup=${stats.speedup.toFixed(2)}x, saved=${stats.timeSavedMs.toFixed(2)}ms`,
         );
-      });
+      }
 
       // Performance assertions
-      Object.values(results).forEach((stats) => {
+      for (const stats of Object.values(results)) {
         expect(stats.speedup).toBeGreaterThan(1); // Reuse should be faster
         expect(stats.timeSavedMs).toBeGreaterThan(0); // Should save time
-      });
+      }
     });
   });
 
@@ -251,7 +254,7 @@ describe('Reuse Mechanisms Performance Tests', () => {
           // Simulate reuse validation
           const validation = trustTokenGenerator.validateToken(token);
           if (validation.isValid) {
-            const contentHash = require('crypto')
+            const contentHash = require('node:crypto')
               .createHash('sha256')
               .update(testContent[size])
               .digest('hex');
@@ -320,16 +323,16 @@ describe('Reuse Mechanisms Performance Tests', () => {
 
   describe('Scalability Tests', () => {
     test('should maintain performance with increasing content sizes', () => {
-      const sizes = [100, 1000, 10000, 100000]; // Content sizes in characters
+      const sizes = [100, 1000, 10_000, 100_000]; // Content sizes in characters
       const results = [];
 
-      sizes.forEach((size) => {
+      for (const size of sizes) {
         const content = 'x'.repeat(size);
         const measurements = [];
 
         for (let i = 0; i < 10; i++) {
           const startTime = process.hrtime.bigint();
-          const hash = require('crypto').createHash('sha256').update(content).digest('hex');
+          require('node:crypto').createHash('sha256').update(content).digest('hex');
           const endTime = process.hrtime.bigint();
 
           const durationMs = Number(endTime - startTime) / 1e6;
@@ -338,16 +341,16 @@ describe('Reuse Mechanisms Performance Tests', () => {
 
         const avgTime = measurements.reduce((a, b) => a + b, 0) / measurements.length;
         results.push({ size, avgTimeMs: avgTime });
-      });
+      }
 
       console.log('Scalability Test Results:');
-      results.forEach((result) => {
+      for (const result of results) {
         console.log(`${result.size} chars: ${result.avgTimeMs.toFixed(3)}ms`);
-      });
+      }
 
       // Scalability assertions - performance should degrade gracefully
       const firstResult = results[0];
-      const lastResult = results[results.length - 1];
+      const lastResult = results.at(-1);
       const degradationRatio = lastResult.avgTimeMs / firstResult.avgTimeMs;
 
       expect(degradationRatio).toBeLessThan(100); // Should not degrade by more than 100x

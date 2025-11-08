@@ -1,7 +1,5 @@
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 const AuditLog = require('../../models/AuditLog');
-const ErrorQueue = require('../../models/ErrorQueue');
-
 describe('Reuse Mechanisms Unit Tests', () => {
   let trustTokenGenerator;
   let mockValidToken;
@@ -12,7 +10,7 @@ describe('Reuse Mechanisms Unit Tests', () => {
   beforeEach(() => {
     trustTokenGenerator = new TrustTokenGenerator();
     testContent = JSON.stringify({ test: 'data', sensitive: 'information' });
-    testContentHash = require('crypto').createHash('sha256').update(testContent).digest('hex');
+    testContentHash = require('node:crypto').createHash('sha256').update(testContent).digest('hex');
 
     // Create a valid trust token for testing
     mockValidToken = trustTokenGenerator.generateToken(
@@ -27,12 +25,12 @@ describe('Reuse Mechanisms Unit Tests', () => {
     mockInvalidToken = { ...mockValidToken, signature: 'invalid-signature' };
 
     // Reset global stats before each test
-    global.reuseStats = null;
+    globalThis.reuseStats = null;
   });
 
   afterEach(() => {
     // Clean up global state
-    global.reuseStats = null;
+    globalThis.reuseStats = null;
   });
 
   describe('TrustTokenGenerator Validation', () => {
@@ -51,7 +49,7 @@ describe('Reuse Mechanisms Unit Tests', () => {
     test('should reject an expired trust token', () => {
       const expiredToken = {
         ...mockValidToken,
-        expiresAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+        expiresAt: new Date(Date.now() - 3_600_000).toISOString(), // 1 hour ago
       };
       const validation = trustTokenGenerator.validateToken(expiredToken);
       expect(validation.isValid).toBe(false);
@@ -68,13 +66,16 @@ describe('Reuse Mechanisms Unit Tests', () => {
 
   describe('Content Hash Verification', () => {
     test('should verify matching content hash', () => {
-      const computedHash = require('crypto').createHash('sha256').update(testContent).digest('hex');
+      const computedHash = require('node:crypto')
+        .createHash('sha256')
+        .update(testContent)
+        .digest('hex');
       expect(computedHash).toBe(testContentHash);
     });
 
     test('should detect content hash mismatch', () => {
       const modifiedContent = JSON.stringify({ test: 'modified', sensitive: 'information' });
-      const computedHash = require('crypto')
+      const computedHash = require('node:crypto')
         .createHash('sha256')
         .update(modifiedContent)
         .digest('hex');
@@ -83,78 +84,81 @@ describe('Reuse Mechanisms Unit Tests', () => {
 
     test('should handle empty content', () => {
       const emptyContent = '';
-      const emptyHash = require('crypto').createHash('sha256').update(emptyContent).digest('hex');
+      const emptyHash = require('node:crypto')
+        .createHash('sha256')
+        .update(emptyContent)
+        .digest('hex');
       expect(emptyHash).toMatch(/^[a-f0-9]{64}$/);
     });
   });
 
   describe('Reuse Statistics Tracking', () => {
     test('should initialize global reuse statistics', () => {
-      expect(global.reuseStats).toBeNull();
+      expect(globalThis.reuseStats).toBeNull();
 
       // Simulate reuse success
-      if (!global.reuseStats) {
-        global.reuseStats = {
+      if (!globalThis.reuseStats) {
+        globalThis.reuseStats = {
           hits: 0,
           totalRequests: 0,
-          validationSuccessRate: 1.0,
+          validationSuccessRate: 1,
           averageValidationTimeMs: 0,
           totalTimeSavedMs: 0,
           lastUpdated: new Date().toISOString(),
         };
       }
 
-      expect(global.reuseStats).toBeDefined();
-      expect(global.reuseStats.hits).toBe(0);
-      expect(global.reuseStats.totalRequests).toBe(0);
+      expect(globalThis.reuseStats).toBeDefined();
+      expect(globalThis.reuseStats.hits).toBe(0);
+      expect(globalThis.reuseStats.totalRequests).toBe(0);
     });
 
     test('should update statistics on successful reuse', () => {
       // Initialize stats
-      global.reuseStats = {
+      globalThis.reuseStats = {
         hits: 0,
         totalRequests: 0,
-        validationSuccessRate: 1.0,
+        validationSuccessRate: 1,
         averageValidationTimeMs: 0,
         totalTimeSavedMs: 0,
         lastUpdated: new Date().toISOString(),
       };
 
       // Simulate successful reuse
-      global.reuseStats.hits++;
-      global.reuseStats.totalRequests++;
-      global.reuseStats.validationSuccessRate =
-        global.reuseStats.hits / global.reuseStats.totalRequests;
-      global.reuseStats.averageValidationTimeMs =
-        (global.reuseStats.averageValidationTimeMs + 5.2) / 2;
-      global.reuseStats.totalTimeSavedMs += 50;
-      global.reuseStats.lastUpdated = new Date().toISOString();
+      globalThis.reuseStats.hits++;
+      globalThis.reuseStats.totalRequests++;
+      globalThis.reuseStats.validationSuccessRate =
+        globalThis.reuseStats.hits / globalThis.reuseStats.totalRequests;
+      globalThis.reuseStats.averageValidationTimeMs =
+        (globalThis.reuseStats.averageValidationTimeMs + 5.2) / 2;
+      globalThis.reuseStats.totalTimeSavedMs += 50;
+      globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
-      expect(global.reuseStats.hits).toBe(1);
-      expect(global.reuseStats.totalRequests).toBe(1);
-      expect(global.reuseStats.validationSuccessRate).toBe(1.0);
-      expect(global.reuseStats.totalTimeSavedMs).toBe(50);
+      expect(globalThis.reuseStats.hits).toBe(1);
+      expect(globalThis.reuseStats.totalRequests).toBe(1);
+      expect(globalThis.reuseStats.validationSuccessRate).toBe(1);
+      expect(globalThis.reuseStats.totalTimeSavedMs).toBe(50);
     });
 
     test('should track validation failures', () => {
-      global.reuseStats = { validationFailures: 0 };
+      globalThis.reuseStats = { validationFailures: 0 };
 
       // Simulate validation failure
-      global.reuseStats.validationFailures++;
+      globalThis.reuseStats.validationFailures++;
 
-      expect(global.reuseStats.validationFailures).toBe(1);
+      expect(globalThis.reuseStats.validationFailures).toBe(1);
     });
 
     test('should calculate cache hit rate correctly', () => {
-      global.reuseStats = {
+      globalThis.reuseStats = {
         hits: 7,
         totalRequests: 10,
         validationFailures: 1,
       };
 
-      const cacheHitRate = (global.reuseStats.hits / global.reuseStats.totalRequests) * 100;
+      const cacheHitRate = (globalThis.reuseStats.hits / globalThis.reuseStats.totalRequests) * 100;
       const failureRate =
-        (global.reuseStats.validationFailures / global.reuseStats.totalRequests) * 100;
+        (globalThis.reuseStats.validationFailures / globalThis.reuseStats.totalRequests) * 100;
 
       expect(cacheHitRate).toBe(70);
       expect(failureRate).toBe(10);
@@ -263,10 +267,9 @@ describe('Reuse Mechanisms Unit Tests', () => {
       let sum = 0;
       const measurements = [10, 20, 15, 25];
 
-      measurements.forEach((measurement, index) => {
+      for (const measurement of measurements) {
         sum += measurement;
-        const average = sum / (index + 1);
-      });
+      }
 
       const finalAverage = sum / measurements.length;
       expect(finalAverage).toBeCloseTo(17.5, 1);
@@ -280,7 +283,7 @@ describe('Reuse Mechanisms Unit Tests', () => {
       }).not.toThrow();
 
       expect(() => {
-        trustTokenGenerator.validateToken(undefined);
+        trustTokenGenerator.validateToken();
       }).not.toThrow();
     });
 
@@ -288,23 +291,23 @@ describe('Reuse Mechanisms Unit Tests', () => {
       const malformedContent = null;
       expect(() => {
         if (malformedContent) {
-          require('crypto').createHash('sha256').update(malformedContent).digest('hex');
+          require('node:crypto').createHash('sha256').update(malformedContent).digest('hex');
         }
       }).not.toThrow();
     });
 
     test('should handle concurrent statistics updates', () => {
       // Simulate concurrent access to global stats
-      global.reuseStats = { hits: 0, totalRequests: 0 };
+      globalThis.reuseStats = { hits: 0, totalRequests: 0 };
 
       // Simulate multiple concurrent updates
       for (let i = 0; i < 10; i++) {
-        global.reuseStats.hits++;
-        global.reuseStats.totalRequests++;
+        globalThis.reuseStats.hits++;
+        globalThis.reuseStats.totalRequests++;
       }
 
-      expect(global.reuseStats.hits).toBe(10);
-      expect(global.reuseStats.totalRequests).toBe(10);
+      expect(globalThis.reuseStats.hits).toBe(10);
+      expect(globalThis.reuseStats.totalRequests).toBe(10);
     });
   });
 });

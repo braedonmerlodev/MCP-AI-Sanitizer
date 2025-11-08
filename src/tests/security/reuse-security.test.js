@@ -62,7 +62,7 @@ describe('Reuse Mechanisms Security Tests', () => {
         expiresAt: tamperedToken.expiresAt,
       };
 
-      tamperedToken.signature = require('crypto')
+      tamperedToken.signature = require('node:crypto')
         .createHmac('sha256', trustTokenGenerator.secret)
         .update(JSON.stringify(signaturePayload))
         .digest('hex');
@@ -140,8 +140,8 @@ describe('Reuse Mechanisms Security Tests', () => {
       const similarContent1 = JSON.stringify({ data: 'test1' });
       const similarContent2 = JSON.stringify({ data: 'test2' });
 
-      const hash1 = require('crypto').createHash('sha256').update(similarContent1).digest('hex');
-      const hash2 = require('crypto').createHash('sha256').update(similarContent2).digest('hex');
+      const hash1 = require('node:crypto').createHash('sha256').update(similarContent1).digest('hex');
+      const hash2 = require('node:crypto').createHash('sha256').update(similarContent2).digest('hex');
 
       expect(hash1).not.toBe(hash2);
 
@@ -172,7 +172,7 @@ describe('Reuse Mechanisms Security Tests', () => {
     });
 
     test('should handle large content securely', () => {
-      const largeContent = 'x'.repeat(100000); // 100KB of content
+      const largeContent = 'x'.repeat(100_000); // 100KB of content
       const token = trustTokenGenerator.generateToken(largeContent, largeContent, ['test'], {
         expirationHours: 1,
       });
@@ -199,22 +199,22 @@ describe('Reuse Mechanisms Security Tests', () => {
         '{"contentHash": "invalid"}',
       ];
 
-      malformedTokens.forEach((malformedToken) => {
+      for (const malformedToken of malformedTokens) {
         expect(() => {
           trustTokenGenerator.validateToken(malformedToken);
         }).not.toThrow();
-      });
+      }
     });
 
     test('should handle extremely large tokens', () => {
       const largeToken = {
-        contentHash: 'x'.repeat(10000), // 10KB hash (invalid but large)
-        originalHash: 'x'.repeat(10000),
+        contentHash: 'x'.repeat(10_000), // 10KB hash (invalid but large)
+        originalHash: 'x'.repeat(10_000),
         sanitizationVersion: '1.0.0',
         rulesApplied: Array.from({ length: 1000 }, (_, i) => `rule-${i}`),
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
-        signature: 'x'.repeat(10000),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        signature: 'x'.repeat(10_000),
       };
 
       // Should handle large input without crashing
@@ -368,10 +368,10 @@ describe('Reuse Mechanisms Security Tests', () => {
       }
 
       // Validate all tokens
-      largeTokens.forEach((token) => {
+      for (const token of largeTokens) {
         const validation = trustTokenGenerator.validateToken(token);
         expect(validation.isValid).toBe(true);
-      });
+      }
 
       // Memory should be manageable
       const memoryUsage = process.memoryUsage();
@@ -382,7 +382,7 @@ describe('Reuse Mechanisms Security Tests', () => {
       const startTime = process.hrtime.bigint();
 
       // Validate the same token many times
-      for (let i = 0; i < 10000; i++) {
+      for (let i = 0; i < 10_000; i++) {
         trustTokenGenerator.validateToken(validTrustToken);
       }
 
