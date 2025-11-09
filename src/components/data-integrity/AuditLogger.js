@@ -351,6 +351,108 @@ class AuditLogger {
   }
 
   /**
+   * Logs high-fidelity data collection for AI training asynchronously
+   * @param {string} inputDataHash - SHA256 hash of input data
+   * @param {Array} processingSteps - List of processing steps applied
+   * @param {Object} decisionOutcome - Final decision with reasoning
+   * @param {Object} contextMetadata - Additional context metadata
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHighFidelityDataCollection(
+    inputDataHash,
+    processingSteps,
+    decisionOutcome,
+    contextMetadata,
+    context = {},
+  ) {
+    const details = {
+      inputDataHash,
+      processingSteps,
+      decisionOutcome: {
+        decision: decisionOutcome.decision,
+        reasoning: this.redactPII(decisionOutcome.reasoning || ''),
+        riskScore: decisionOutcome.riskScore,
+      },
+      contextMetadata: {
+        ...contextMetadata,
+        // Redact any potential PII in metadata
+        inputLength: contextMetadata.inputLength,
+        outputLength: contextMetadata.outputLength,
+        processingTime: contextMetadata.processingTime,
+      },
+    };
+
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'data_collection',
+      severity: 'info',
+      logger: 'HighFidelityDataLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'anonymous');
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('high_fidelity_data_collection', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Logs high-fidelity data collection for AI training asynchronously
+   * @param {string} inputDataHash - SHA256 hash of input data
+   * @param {Array} processingSteps - List of processing steps applied
+   * @param {Object} decisionOutcome - Final decision with reasoning
+   * @param {Object} contextMetadata - Additional context metadata
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHighFidelityDataCollection(
+    inputDataHash,
+    processingSteps,
+    decisionOutcome,
+    contextMetadata,
+    context = {},
+  ) {
+    const details = {
+      inputDataHash,
+      processingSteps,
+      decisionOutcome: {
+        decision: decisionOutcome.decision,
+        reasoning: this.redactPII(decisionOutcome.reasoning || ''),
+        riskScore: decisionOutcome.riskScore,
+      },
+      contextMetadata: {
+        ...contextMetadata,
+        // Redact any potential PII in metadata
+        inputLength: contextMetadata.inputLength,
+        outputLength: contextMetadata.outputLength,
+        processingTime: contextMetadata.processingTime,
+      },
+    };
+
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'data_collection',
+      severity: 'info',
+      logger: 'HighFidelityDataLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'anonymous');
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('high_fidelity_data_collection', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
    * Logs human intervention outcome asynchronously
    * @param {Object} outcomeData - Intervention outcome details
    * @param {Object} metrics - Effectiveness metrics
@@ -384,6 +486,57 @@ class AuditLogger {
     return new Promise((resolve) => {
       setImmediate(() => {
         const auditId = this.logOperation('hitl_human_intervention', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Logs high-fidelity data collection for AI training asynchronously
+   * @param {string} inputDataHash - SHA256 hash of input data
+   * @param {Array} processingSteps - List of processing steps applied
+   * @param {Object} decisionOutcome - Final decision with reasoning
+   * @param {Object} contextMetadata - Additional context metadata
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHighFidelityDataCollection(
+    inputDataHash,
+    processingSteps,
+    decisionOutcome,
+    contextMetadata,
+    context = {},
+  ) {
+    const details = {
+      inputDataHash,
+      processingSteps,
+      decisionOutcome: {
+        decision: decisionOutcome.decision,
+        reasoning: this.redactPII(decisionOutcome.reasoning || ''),
+        riskScore: decisionOutcome.riskScore,
+      },
+      contextMetadata: {
+        ...contextMetadata,
+        // Redact any potential PII in metadata
+        inputLength: contextMetadata.inputLength,
+        outputLength: contextMetadata.outputLength,
+        processingTime: contextMetadata.processingTime,
+      },
+    };
+
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'data_collection',
+      severity: 'info',
+      logger: 'HighFidelityDataLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'anonymous');
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('high_fidelity_data_collection', details, auditContext);
         resolve(auditId);
       });
     });

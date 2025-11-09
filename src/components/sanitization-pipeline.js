@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const UnicodeNormalization = require('./SanitizationPipeline/unicode-normalization.js');
 const SymbolStripping = require('./SanitizationPipeline/symbol-stripping.js');
 const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralization.js');
@@ -51,6 +52,7 @@ class SanitizationPipeline {
    * @returns {string|Object} - The sanitized result or {sanitizedData, trustToken} if generateTrustToken is true
    */
   async sanitize(data, options = {}) {
+    const startTime = Date.now();
     const {
       classification = 'unclear',
       riskLevel,
@@ -207,6 +209,32 @@ class SanitizationPipeline {
         });
       }
     }
+
+    // Log high-fidelity data collection for AI training
+    const processingTime = Date.now() - startTime;
+    const inputDataHash = crypto.createHash('sha256').update(data).digest('hex');
+    const decisionOutcome = {
+      decision: shouldBypass ? 'bypass' : 'sanitized',
+      reasoning: assessedRiskLevel,
+      riskScore: confidence,
+    };
+    const contextMetadata = {
+      inputLength: data.length,
+      outputLength: result.length,
+      processingTime,
+    };
+    const processingSteps = shouldBypass ? [] : appliedRules;
+    await this.auditLogger.logHighFidelityDataCollection(
+      inputDataHash,
+      processingSteps,
+      decisionOutcome,
+      contextMetadata,
+      {
+        userId: options.userId,
+        resourceId: options.resourceId || 'unknown',
+        sessionId: options.sessionId,
+      },
+    );
 
     // Generate trust token if requested
     if (generateTrustToken) {

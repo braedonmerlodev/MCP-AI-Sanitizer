@@ -38,6 +38,12 @@ class AuditLog {
     this.resolutionTime = data.resolutionTime;
     this.effectivenessScore = data.effectivenessScore;
 
+    // High-fidelity data collection fields for AI training
+    this.inputDataHash = data.inputDataHash;
+    this.processingSteps = data.processingSteps || [];
+    this.decisionOutcome = data.decisionOutcome || {};
+    this.contextMetadata = data.contextMetadata || {};
+
     // Tamper-proofing with HMAC signature
     this.secret =
       options.secret || process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production';
@@ -125,6 +131,10 @@ class AuditLog {
       humanDecision: this.humanDecision,
       resolutionTime: this.resolutionTime,
       effectivenessScore: this.effectivenessScore,
+      inputDataHash: this.inputDataHash,
+      processingSteps: this.processingSteps,
+      decisionOutcome: this.decisionOutcome,
+      contextMetadata: this.contextMetadata,
       signature: this.signature,
     };
   }
@@ -156,6 +166,14 @@ class AuditLog {
       anomalyScore: this.anomalyScore,
       detectionTimestamp: this.detectionTimestamp,
       riskCategory: this.riskCategory,
+      escalationId: this.escalationId,
+      humanDecision: this.humanDecision,
+      resolutionTime: this.resolutionTime,
+      effectivenessScore: this.effectivenessScore,
+      inputDataHash: this.inputDataHash,
+      processingSteps: this.processingSteps,
+      decisionOutcome: this.decisionOutcome,
+      contextMetadata: this.contextMetadata,
     };
 
     const payloadString = JSON.stringify(payload);
