@@ -1,0 +1,51 @@
+schema: 1
+story: '8.2'
+story_title: 'Optimize Bidirectional Processing'
+gate: PASS
+status_reason: 'Bidirectional selective processing implemented with excellent quality, comprehensive testing, and performance optimization achieved'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-09T12:00:00Z'
+
+waiver: { active: false }
+
+top_issues: []
+
+risk_summary:
+  totals:
+    critical: 0
+    high: 0
+    medium: 0
+    low: 1
+  recommendations:
+    must_fix: []
+    monitor:
+      - 'Monitor bypass rates for optimization effectiveness'
+
+quality_score: 95
+
+evidence:
+  tests_reviewed: 12
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Security integrity maintained with selective processing safeguards'
+  performance:
+    status: PASS
+    notes: 'Performance optimization achieved for low-risk traffic'
+  reliability:
+    status: PASS
+    notes: 'Bidirectional processing reliable with proper error handling'
+  maintainability:
+    status: PASS
+    notes: 'Clean implementation following established patterns'
+
+recommendations:
+  future:
+    - action: 'Add metrics dashboard for bypass rate monitoring'
+      refs: ['docs/architecture/monitoring.md']</content>
+<parameter name="filePath">docs/qa/gates/8.2-optimize-bidirectional-processing.yml
