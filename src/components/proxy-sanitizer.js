@@ -34,30 +34,40 @@ class ProxySanitizer {
 
     const sanitized = await this.pipeline.sanitize(data, options);
 
-    // Create audit log entry
-    const auditEntry = new AuditLog({
-      action:
-        sanitizationLevel === 'bypassed'
-          ? 'data_sanitization_bypassed'
-          : 'data_sanitization_applied',
-      resourceId: `sanitization_${operation}_${Date.now()}`,
-      details: {
-        dataLength: data.length,
-        sanitizedLength: sanitized.length,
-        operation: operation,
-        direction:
-          operation === 'request' ? 'inbound' : operation === 'response' ? 'outbound' : 'unknown',
-      },
-      destination: classification,
-      riskLevel:
-        classification === 'llm' ? 'high' : classification === 'non-llm' ? 'low' : 'medium',
-      sanitizationLevel: sanitizationLevel,
-    });
+    // Create audit log entry (wrapped in try-catch to prevent audit failures from breaking sanitization)
+    let auditId = null;
+    try {
+      const auditEntry = new AuditLog({
+        action:
+          sanitizationLevel === 'bypassed'
+            ? 'data_sanitization_bypassed'
+            : 'data_sanitization_applied',
+        resourceId: `sanitization_${operation}_${Date.now()}`,
+        details: {
+          dataLength: data.length,
+          sanitizedLength: sanitized.length,
+          operation: operation,
+          direction:
+            operation === 'request' ? 'inbound' : operation === 'response' ? 'outbound' : 'unknown',
+        },
+        destination: classification,
+        riskLevel:
+          classification === 'llm' ? 'high' : classification === 'non-llm' ? 'low' : 'medium',
+        sanitizationLevel: sanitizationLevel,
+      });
+      auditId = auditEntry.id;
+    } catch (error) {
+      logger.warn('Failed to create audit log entry', {
+        error: error.message,
+        operation,
+        classification,
+      });
+    }
 
     logger.info('Sanitization completed', {
       wasSanitized: classification !== 'non-llm',
       operation,
-      auditId: auditEntry.id,
+      auditId,
     });
 
     return sanitized;
