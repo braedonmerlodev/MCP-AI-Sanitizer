@@ -1,0 +1,50 @@
+# <!-- Powered by BMAD™ Core -->
+schema: 1
+story: 9.4.1
+story_title: Implement High-Fidelity Data Collection
+gate: CONCERNS
+status_reason: Implementation successfully captures high-fidelity data for AI training but requires test fixes and had duplicate code that was refactored during review
+reviewer: Quinn (Test Architect)
+updated: 2025-11-09T00:00:00.000Z
+
+top_issues:
+  - id: TEST-001
+    severity: medium
+    finding: logHighFidelityDataCollection tests are misplaced under DataIntegrityValidator and have incorrect expectations
+    suggested_action: Move tests to AuditLogger describe block and update expectations to match implementation
+    suggested_owner: dev
+  - id: CODE-001
+    severity: low
+    finding: Duplicate logHighFidelityDataCollection method in AuditLogger.js
+    suggested_action: Remove duplicate method (addressed during review)
+    suggested_owner: qa
+
+evidence:
+  tests_reviewed: 3
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: PII redaction properly implemented in logging
+  performance:
+    status: PASS
+    notes: Async logging prevents performance degradation
+  reliability:
+    status: CONCERNS
+    notes: Test bugs could mask issues in data collection validation
+  maintainability:
+    status: CONCERNS
+    notes: Test code needs refactoring for correctness
+
+recommendations:
+  immediate:
+    - action: Fix test placement and expectations for logHighFidelityDataCollection
+      refs: ['src/tests/unit/data-integrity.test.js']
+  future: []
+
+quality_score: 80
+expires: 2025-11-23T00:00:00.000Z
