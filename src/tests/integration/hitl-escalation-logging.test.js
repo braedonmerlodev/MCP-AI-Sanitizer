@@ -79,7 +79,9 @@ describe('HITL Escalation Logging Integration', () => {
     expect(interventionEntry.context.severity).toBe('info');
 
     // Verify chronological order
-    expect(new Date(escalationEntry.timestamp)).toBeBefore(new Date(interventionEntry.timestamp));
+    expect(new Date(escalationEntry.timestamp).getTime()).toBeLessThan(
+      new Date(interventionEntry.timestamp).getTime(),
+    );
   });
 
   test('should handle multiple escalations with different outcomes', async () => {

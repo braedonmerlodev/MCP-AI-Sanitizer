@@ -706,7 +706,7 @@ describe('AuditLogger', () => {
         },
       });
       expect(entries[0].context.userId).toBe('user123');
-      expect(entries[0].context.stage).toBe('unknown_risk_detection');
+      expect(entries[0].context.stage).toBe('detection');
       expect(entries[0].context.severity).toBe('info');
       expect(entries[0].context.logger).toBe('UnknownRiskLogger');
     });

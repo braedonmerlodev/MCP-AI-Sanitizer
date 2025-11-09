@@ -325,7 +325,7 @@ class AuditLogger {
   async logEscalationDecision(escalationData, context = {}) {
     const details = {
       escalationId: escalationData.escalationId,
-      triggerConditions: escalationData.triggerConditions || [],
+      triggerConditions: this.redactPII(escalationData.triggerConditions || []),
       decisionRationale: this.redactPII(escalationData.decisionRationale || ''),
       riskLevel: escalationData.riskLevel,
       resourceInfo: {
@@ -384,40 +384,6 @@ class AuditLogger {
     return new Promise((resolve) => {
       setImmediate(() => {
         const auditId = this.logOperation('hitl_human_intervention', details, auditContext);
-        resolve(auditId);
-      });
-    });
-  }
-
-  /**
-   * Logs HITL escalation decision asynchronously
-   * @param {Object} escalationData - Escalation details including trigger conditions
-   * @param {Object} context - Context information
-   * @returns {Promise<string>} - Audit entry ID
-   */
-  async logEscalationDecision(escalationData, context = {}) {
-    const details = {
-      escalationId: escalationData.escalationId,
-      triggerConditions: escalationData.triggerConditions || [],
-      decisionRationale: this.redactPII(escalationData.decisionRationale || ''),
-      riskLevel: escalationData.riskLevel,
-      resourceInfo: {
-        resourceId: context.resourceId || 'unknown',
-        type: context.resourceType || 'sanitization_request',
-      },
-    };
-    const auditContext = {
-      ...context,
-      sessionId: context.sessionId,
-      stage: context.stage || 'escalation',
-      severity: 'warning',
-      logger: 'HITLEscalationLogger',
-    };
-    auditContext.userId = this.redactPII(context.userId || 'system');
-
-    return new Promise((resolve) => {
-      setImmediate(() => {
-        const auditId = this.logOperation('hitl_escalation_decision', details, auditContext);
         resolve(auditId);
       });
     });
