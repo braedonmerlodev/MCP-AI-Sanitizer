@@ -1,0 +1,27 @@
+{
+  "exportMetadata": {
+    "timestamp": "2025-11-09T19:38:54.272Z",
+    "recordCount": 1,
+    "format": "json",
+    "version": "1.0"
+  },
+  "records": [
+    {
+      "id": "record-1",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "inputData": {
+        "content": "test content"
+      },
+      "processingSteps": [],
+      "decisionOutcome": {
+        "riskLevel": "Low"
+      },
+      "featureVector": {
+        "contentLength": 12
+      },
+      "trainingLabels": {},
+      "metadata": {},
+      "contentLength": 12
+    }
+  ]
+}

@@ -351,6 +351,132 @@ class AuditLogger {
   }
 
   /**
+   * Logs high-fidelity data collection for AI training asynchronously
+   * @param {string} inputDataHash - SHA256 hash of input data
+   * @param {Array} processingSteps - List of processing steps applied
+   * @param {Object} decisionOutcome - Final decision with reasoning
+   * @param {Object} contextMetadata - Additional context metadata
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHighFidelityDataCollection(
+    inputDataHash,
+    processingSteps,
+    decisionOutcome,
+    contextMetadata,
+    context = {},
+  ) {
+    // Data quality validation for AI training data completeness
+    if (!inputDataHash || typeof inputDataHash !== 'string' || inputDataHash.length !== 64) {
+      throw new TypeError('Invalid inputDataHash: must be a 64-character SHA256 hash string');
+    }
+    if (!Array.isArray(processingSteps)) {
+      throw new TypeError('Invalid processingSteps: must be an array of processing step names');
+    }
+    if (
+      !decisionOutcome ||
+      typeof decisionOutcome.decision !== 'string' ||
+      !decisionOutcome.decision
+    ) {
+      throw new TypeError('Invalid decisionOutcome: must have a non-empty decision string');
+    }
+    if (
+      typeof decisionOutcome.riskScore !== 'number' ||
+      decisionOutcome.riskScore < 0 ||
+      decisionOutcome.riskScore > 1
+    ) {
+      throw new TypeError('Invalid decisionOutcome.riskScore: must be a number between 0 and 1');
+    }
+    if (
+      !contextMetadata ||
+      typeof contextMetadata.inputLength !== 'number' ||
+      contextMetadata.inputLength < 0
+    ) {
+      throw new TypeError('Invalid contextMetadata.inputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.outputLength !== 'number' || contextMetadata.outputLength < 0) {
+      throw new TypeError('Invalid contextMetadata.outputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.processingTime !== 'number' || contextMetadata.processingTime < 0) {
+      throw new TypeError('Invalid contextMetadata.processingTime: must be a non-negative number');
+    }
+
+    if (
+      !decisionOutcome ||
+      typeof decisionOutcome.decision !== 'string' ||
+      !decisionOutcome.decision
+    ) {
+      throw new Error('Invalid decisionOutcome: must have a non-empty decision string');
+    }
+    if (
+      typeof decisionOutcome.riskScore !== 'number' ||
+      decisionOutcome.riskScore < 0 ||
+      decisionOutcome.riskScore > 1
+    ) {
+      throw new Error('Invalid decisionOutcome.riskScore: must be a number between 0 and 1');
+    }
+    if (
+      !contextMetadata ||
+      typeof contextMetadata.inputLength !== 'number' ||
+      contextMetadata.inputLength < 0
+    ) {
+      throw new Error('Invalid contextMetadata.inputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.outputLength !== 'number' || contextMetadata.outputLength < 0) {
+      throw new Error('Invalid contextMetadata.outputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.processingTime !== 'number' || contextMetadata.processingTime < 0) {
+      throw new Error('Invalid contextMetadata.processingTime: must be a non-negative number');
+    }
+
+    // Structured feature extraction for ML models
+    const featureVector = {
+      inputLength: contextMetadata.inputLength,
+      outputLength: contextMetadata.outputLength,
+      processingTime: contextMetadata.processingTime,
+      processingStepsCount: processingSteps.length,
+      riskScore: decisionOutcome.riskScore,
+      decision: decisionOutcome.decision,
+      hasProcessingSteps: processingSteps.length > 0,
+    };
+
+    const details = {
+      inputDataHash,
+      processingSteps,
+      decisionOutcome: {
+        decision: decisionOutcome.decision,
+        reasoning: this.redactPII(decisionOutcome.reasoning || ''),
+        riskScore: decisionOutcome.riskScore,
+      },
+      featureVector,
+      contextMetadata: {
+        ...contextMetadata,
+        // Redact any potential PII in metadata
+        inputLength: contextMetadata.inputLength,
+        outputLength: contextMetadata.outputLength,
+        processingTime: contextMetadata.processingTime,
+      },
+    };
+
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'data_collection',
+      severity: 'info',
+      logger: 'HighFidelityDataLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'anonymous');
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('high_fidelity_data_collection', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
    * Logs human intervention outcome asynchronously
    * @param {Object} outcomeData - Intervention outcome details
    * @param {Object} metrics - Effectiveness metrics

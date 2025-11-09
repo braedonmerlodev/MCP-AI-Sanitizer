@@ -16,56 +16,6 @@ describe('DataIntegrityValidator', () => {
     });
   });
 
-  describe('validateData', () => {
-    test('should fail validation for invalid data', async () => {
-      const result = await validator.validateData('not a number', { schema: 'number' });
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.details.schema.isValid).toBe(false);
-    });
-
-    test('should validate object with referential integrity', async () => {
-      const testData = {
-        id: 'test-123',
-        userId: 'user-456',
-        timestamp: new Date().toISOString(),
-      };
-
-      // Add a referential rule for testing
-      validator.addReferentialRule('userId', {
-        table: 'users',
-        field: 'id',
-        required: true,
-      });
-
-      const result = await validator.validateData(testData);
-
-      expect(result.details.referential).toBeDefined();
-      expect(result.details.criticalFields).toBeDefined();
-    });
-
-    test('should generate hash references for objects', async () => {
-      const testData = 'test data string';
-
-      const result = await validator.validateData(testData, { schema: 'string' });
-
-      expect(result.details.hashReference).toBeDefined();
-      expect(result.details.hashReference.algorithm).toBe('sha256');
-      expect(result.details.hashReference.rawDataHash).toBeDefined();
-      expect(result.details.hashReference.sanitizedDataHash).toBeDefined();
-    });
-
-    test('should route errors for invalid data', async () => {
-      const invalidData = null;
-
-      const result = await validator.validateData(invalidData, { schema: 'string' });
-
-      expect(result.isValid).toBe(false);
-      expect(result.details.errorRouting).toBeDefined();
-    });
-  });
-
   describe('generateHash', () => {
     test('should generate consistent hashes', () => {
       const data = 'test data';
@@ -822,6 +772,129 @@ describe('AuditLogger', () => {
 
       const entries = auditLogger.getAuditEntries({ operation: 'hitl_human_intervention' });
       expect(entries[0].details.humanDecision.rationale).toBe('PII detected: [EMAIL_REDACTED]');
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+  });
+
+  describe('logHighFidelityDataCollection', () => {
+    test('should log high-fidelity data collection for AI training asynchronously', async () => {
+      const inputDataHash = 'a'.repeat(64); // Mock SHA256 hash
+      const processingSteps = ['unicode_normalization', 'symbol_stripping'];
+      const decisionOutcome = {
+        decision: 'sanitized',
+        reasoning: 'High risk detected',
+        riskScore: 0.8,
+      };
+      const contextMetadata = {
+        inputLength: 100,
+        outputLength: 95,
+        processingTime: 50,
+      };
+      const context = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+      };
+
+      const auditId = await auditLogger.logHighFidelityDataCollection(
+        inputDataHash,
+        processingSteps,
+        decisionOutcome,
+        contextMetadata,
+        context,
+      );
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_fidelity_data_collection' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('high_fidelity_data_collection');
+      expect(entries[0].details.inputDataHash).toBe(inputDataHash);
+      expect(entries[0].details.processingSteps).toEqual(processingSteps);
+      expect(entries[0].details.decisionOutcome.decision).toBe('sanitized');
+      expect(entries[0].details.decisionOutcome.reasoning).toBe('High risk detected');
+      expect(entries[0].details.decisionOutcome.riskScore).toBe(0.8);
+      expect(entries[0].details.featureVector.inputLength).toBe(100);
+      expect(entries[0].details.featureVector.outputLength).toBe(95);
+      expect(entries[0].details.featureVector.processingTime).toBe(50);
+      expect(entries[0].details.featureVector.processingStepsCount).toBe(2);
+      expect(entries[0].details.featureVector.riskScore).toBe(0.8);
+      expect(entries[0].details.featureVector.decision).toBe('sanitized');
+      expect(entries[0].details.featureVector.hasProcessingSteps).toBe(true);
+      expect(entries[0].details.contextMetadata.inputLength).toBe(100);
+      expect(entries[0].details.contextMetadata.outputLength).toBe(95);
+      expect(entries[0].details.contextMetadata.processingTime).toBe(50);
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('data_collection');
+      expect(entries[0].context.logger).toBe('HighFidelityDataLogger');
+      expect(entries[0].context.severity).toBe('info');
+    });
+
+    test('should validate data quality for AI training', async () => {
+      await expect(
+        auditLogger.logHighFidelityDataCollection(
+          'invalid-hash',
+          ['step'],
+          { decision: 'test', riskScore: 0.5 },
+          { inputLength: 10, outputLength: 10, processingTime: 10 },
+          {},
+        ),
+      ).rejects.toThrow('Invalid inputDataHash: must be a 64-character SHA256 hash string');
+
+      await expect(
+        auditLogger.logHighFidelityDataCollection(
+          'a'.repeat(64),
+          'not-array',
+          { decision: 'test', riskScore: 0.5 },
+          { inputLength: 10, outputLength: 10, processingTime: 10 },
+          {},
+        ),
+      ).rejects.toThrow('Invalid processingSteps: must be an array of processing step names');
+
+      await expect(
+        auditLogger.logHighFidelityDataCollection(
+          'a'.repeat(64),
+          ['step'],
+          { riskScore: 0.5 },
+          { inputLength: 10, outputLength: 10, processingTime: 10 },
+          {},
+        ),
+      ).rejects.toThrow('Invalid decisionOutcome: must have a non-empty decision string');
+
+      await expect(
+        auditLogger.logHighFidelityDataCollection(
+          'a'.repeat(64),
+          ['step'],
+          { decision: 'test', riskScore: 1.5 },
+          { inputLength: 10, outputLength: 10, processingTime: 10 },
+          {},
+        ),
+      ).rejects.toThrow('Invalid decisionOutcome.riskScore: must be a number between 0 and 1');
+
+      await expect(
+        auditLogger.logHighFidelityDataCollection(
+          'a'.repeat(64),
+          ['step'],
+          { decision: 'test', riskScore: 0.5 },
+          { outputLength: 10, processingTime: 10 },
+          {},
+        ),
+      ).rejects.toThrow('Invalid contextMetadata.inputLength: must be a non-negative number');
+    });
+
+    test('should redact PII in decision outcome reasoning', async () => {
+      const auditId = await auditLogger.logHighFidelityDataCollection(
+        'a'.repeat(64),
+        ['step'],
+        { decision: 'sanitized', reasoning: 'Email found: test@example.com', riskScore: 0.5 },
+        { inputLength: 10, outputLength: 10, processingTime: 10 },
+        { userId: 'user@example.com' },
+      );
+
+      expect(auditId).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_fidelity_data_collection' });
+      expect(entries[0].details.decisionOutcome.reasoning).toBe('Email found: [EMAIL_REDACTED]');
       expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
     });
   });

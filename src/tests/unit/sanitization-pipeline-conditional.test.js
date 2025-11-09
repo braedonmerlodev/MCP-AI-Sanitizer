@@ -7,6 +7,9 @@ describe('SanitizationPipeline Conditional Logic', () => {
   beforeEach(() => {
     mockAuditLogger = {
       logRiskAssessmentDecision: jest.fn().mockResolvedValue('audit-id'),
+      logHighRiskCase: jest.fn().mockResolvedValue('audit-id'),
+      logUnknownRiskCase: jest.fn().mockResolvedValue('audit-id'),
+      logHighFidelityDataCollection: jest.fn().mockResolvedValue('audit-id'),
     };
     pipeline = new SanitizationPipeline({
       enableValidation: false, // Disable for unit tests

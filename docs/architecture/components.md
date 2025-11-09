@@ -48,10 +48,10 @@
 - logHighRiskCase(metadata, mlFields) - Logs high-level risk cases with ML-optimized fields (threat patterns, confidence scores, mitigation actions, feature vectors, training labels, anomaly scores)
 - logUnknownRiskCase(metadata, mlFields) - Logs unknown risk cases with ML-optimized fields for HITL review
 - logEscalationDecision(escalationData, context) - Logs HITL escalation decisions with trigger conditions and rationale
-- logHumanIntervention(outcomeData, metrics) - Logs human intervention outcomes with effectiveness metrics
-- logRawDataAccess(resourceId, accessType, context) - Logs access to raw data (security-critical)
-- getAuditEntries(filters) - Retrieves audit entries with filtering
-- getAuditStats() - Returns audit statistics
+  - logHumanIntervention(outcomeData, metrics) - Logs human intervention outcomes with effectiveness metrics
+  - logHighFidelityDataCollection(inputDataHash, processingSteps, decisionOutcome, contextMetadata, context) - Logs comprehensive data collection for AI training with structured features and validation
+  - getAuditEntries(filters) - Retrieves audit entries with filtering
+  - getAuditStats() - Returns audit statistics
 
 **ML-Optimized Fields for High-Risk Cases:**
 
@@ -72,6 +72,14 @@
 - effectivenessScore: float (0-1) - Effectiveness score of the HITL intervention
 - triggerConditions: array - Conditions that triggered the escalation
 - decisionRationale: string - Rationale for escalation decision
+
+**High-Fidelity Data Collection Fields for AI Training:**
+
+- inputDataHash: string - SHA256 hash of input data for traceability without storing sensitive data
+- processingSteps: array - List of processing steps applied (e.g., ['unicode_normalization', 'symbol_stripping'])
+- decisionOutcome: object - Final decision with reasoning {decision: 'sanitized'|'bypass', reasoning: string, riskScore: float}
+- featureVector: object - Structured features for ML models {inputLength, outputLength, processingTime, processingStepsCount, riskScore, decision, hasProcessingSteps}
+- contextMetadata: object - Additional context {inputLength, outputLength, processingTime}
 
 **Dependencies:** Winston for logging, DataIntegrityValidator for validation context
 
