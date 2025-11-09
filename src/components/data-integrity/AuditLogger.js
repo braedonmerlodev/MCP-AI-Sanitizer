@@ -3,6 +3,28 @@ const winston = require('winston');
 /**
  * AuditLogger records all integrity-related operations and access for compliance.
  * Provides tamper-proof audit trails with structured logging.
+ *
+ * Risk Assessment Logging Design:
+ * Structured log format for risk assessment decisions:
+ * {
+ *   id: auditId,
+ *   timestamp: ISO string,
+ *   operation: 'risk_assessment_decision',
+ *   details: {
+ *     decisionType: 'detection' | 'warning' | 'escalation' | 'classification',
+ *     riskLevel: 'High' | 'Unknown' | 'Low' | etc.,
+ *     assessmentParameters: { riskScore: number, triggers: array, ... },
+ *     resourceInfo: { resourceId: string, type: string },
+ *   },
+ *   context: {
+ *     userId: redactedUserId,
+ *     sessionId: string,
+ *     stage: 'sanitization' | 'validation' | etc.,
+ *     logger: 'RiskAssessmentLogger',
+ *     severity: 'info' | 'warning' | 'error',
+ *   },
+ *   level: 'info',
+ * }
  */
 class AuditLogger {
   constructor(options = {}) {
@@ -51,8 +73,8 @@ class AuditLogger {
       operation,
       details,
       context: {
-        ...context,
         logger: 'DataIntegrityValidator',
+        ...context,
       },
       level: 'info',
     };
@@ -167,6 +189,68 @@ class AuditLogger {
       ...context,
       severity: operation === 'rollback' ? 'error' : 'info',
     });
+  }
+
+  /**
+   * Logs risk assessment decisions asynchronously
+   * @param {string} decisionType - Type of decision ('detection', 'warning', 'escalation', 'classification')
+   * @param {string} riskLevel - Risk level ('High', 'Unknown', 'Low', etc.)
+   * @param {Object} assessmentParameters - Assessment details (riskScore, triggers, etc.)
+   * @param {Object} context - Context information (userId, resourceId, stage, etc.)
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logRiskAssessmentDecision(
+    decisionType,
+    riskLevel,
+    assessmentParameters = {},
+    context = {},
+  ) {
+    const details = {
+      decisionType,
+      riskLevel,
+      assessmentParameters: {
+        ...assessmentParameters,
+        // Redact any potential PII in parameters
+        triggers: assessmentParameters.triggers
+          ? assessmentParameters.triggers.map((trigger) => this.redactPII(trigger))
+          : [],
+        riskScore: assessmentParameters.riskScore,
+      },
+      resourceInfo: {
+        resourceId: context.resourceId || 'unknown',
+        type: context.resourceType || 'sanitization_request',
+      },
+    };
+
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'assessment',
+      severity: riskLevel === 'High' ? 'warning' : 'info',
+      logger: 'RiskAssessmentLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'anonymous');
+
+    // Perform logging asynchronously to minimize performance impact
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('risk_assessment_decision', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Redacts potential PII from strings
+   * @param {string} input - Input string
+   * @returns {string} - Redacted string
+   */
+  redactPII(input) {
+    if (typeof input !== 'string') return input;
+    // Simple redaction: replace potential emails, phones, etc.
+    return input
+      .replaceAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]')
+      .replaceAll(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]');
   }
 
   /**

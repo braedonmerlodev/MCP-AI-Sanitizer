@@ -595,4 +595,102 @@ describe('AuditLogger', () => {
       expect(stats.operations).toHaveProperty('error_routing', 1);
     });
   });
+
+  describe('logRiskAssessmentDecision', () => {
+    test('should log risk assessment decision asynchronously', async () => {
+      const auditId = await auditLogger.logRiskAssessmentDecision(
+        'detection',
+        'High',
+        { riskScore: 0.95, triggers: ['malicious_pattern'] },
+        { userId: 'user123', resourceId: 'req456', stage: 'sanitization' },
+      );
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('risk_assessment_decision');
+      expect(entries[0].details.decisionType).toBe('detection');
+      expect(entries[0].details.riskLevel).toBe('High');
+      expect(entries[0].details.assessmentParameters.riskScore).toBe(0.95);
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('sanitization');
+      expect(entries[0].context.logger).toBe('RiskAssessmentLogger');
+    });
+
+    test('should redact PII in assessment parameters', async () => {
+      const auditId = await auditLogger.logRiskAssessmentDecision(
+        'warning',
+        'Unknown',
+        { triggers: ['email@example.com', '123-456-7890'] },
+        { userId: 'test@example.com' },
+      );
+
+      expect(auditId).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries[0].details.assessmentParameters.triggers).toEqual([
+        '[EMAIL_REDACTED]',
+        '[PHONE_REDACTED]',
+      ]);
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+
+    test('should handle different decision types', async () => {
+      const auditId1 = await auditLogger.logRiskAssessmentDecision('escalation', 'High', {}, {});
+      const auditId2 = await auditLogger.logRiskAssessmentDecision('classification', 'Low', {}, {});
+      const auditId3 = await auditLogger.logRiskAssessmentDecision('detection', 'Unknown', {}, {});
+
+      expect(auditId1).toBeDefined();
+      expect(auditId2).toBeDefined();
+      expect(auditId3).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries).toHaveLength(3);
+      const decisionTypes = entries.map((e) => e.details.decisionType);
+      expect(decisionTypes).toContain('escalation');
+      expect(decisionTypes).toContain('classification');
+      expect(decisionTypes).toContain('detection');
+    });
+
+    test('should set severity based on risk level', async () => {
+      const auditId1 = await auditLogger.logRiskAssessmentDecision('detection', 'High', {}, {});
+      const auditId2 = await auditLogger.logRiskAssessmentDecision('detection', 'Low', {}, {});
+
+      expect(auditId1).toBeDefined();
+      expect(auditId2).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries.find((e) => e.details.riskLevel === 'High').context.severity).toBe('warning');
+      expect(entries.find((e) => e.details.riskLevel === 'Low').context.severity).toBe('info');
+    });
+
+    test('should include resource info', async () => {
+      const auditId = await auditLogger.logRiskAssessmentDecision(
+        'detection',
+        'High',
+        {},
+        { resourceId: 'res123', resourceType: 'api_request' },
+      );
+
+      expect(auditId).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
+      expect(entries[0].details.resourceInfo.type).toBe('api_request');
+    });
+
+    test('should include resource info', async () => {
+      await auditLogger.logRiskAssessmentDecision(
+        'detection',
+        'High',
+        {},
+        { resourceId: 'res123', resourceType: 'api_request' },
+      );
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
+      expect(entries[0].details.resourceInfo.type).toBe('api_request');
+    });
+  });
 });

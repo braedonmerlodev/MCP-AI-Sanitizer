@@ -2,10 +2,15 @@ const SanitizationPipeline = require('../../components/sanitization-pipeline');
 
 describe('SanitizationPipeline Conditional Logic', () => {
   let pipeline;
+  let mockAuditLogger;
 
   beforeEach(() => {
+    mockAuditLogger = {
+      logRiskAssessmentDecision: jest.fn().mockResolvedValue('audit-id'),
+    };
     pipeline = new SanitizationPipeline({
       enableValidation: false, // Disable for unit tests
+      auditLogger: mockAuditLogger,
     });
   });
 
@@ -131,6 +136,86 @@ describe('SanitizationPipeline Conditional Logic', () => {
 
       expect(result1.trustToken.contentHash).not.toBe(result2.trustToken.contentHash);
       expect(result1.trustToken.signature).not.toBe(result2.trustToken.signature);
+    });
+  });
+
+  describe('Risk Assessment Logging Integration', () => {
+    test('should log classification decision for low risk level', async () => {
+      const input = 'test data';
+      await pipeline.sanitize(input, { riskLevel: 'low', userId: 'user123', resourceId: 'res456' });
+
+      expect(mockAuditLogger.logRiskAssessmentDecision).toHaveBeenCalledWith(
+        'classification',
+        'low',
+        { riskScore: 0, triggers: [] },
+        { userId: 'user123', resourceId: 'res456', stage: 'risk-assessment' },
+      );
+    });
+
+    test('should log detection decision for high risk level', async () => {
+      const input = 'test data';
+      await pipeline.sanitize(input, {
+        riskLevel: 'high',
+        userId: 'user123',
+        resourceId: 'res456',
+      });
+
+      expect(mockAuditLogger.logRiskAssessmentDecision).toHaveBeenCalledWith(
+        'detection',
+        'high',
+        { riskScore: 0, triggers: [] },
+        { userId: 'user123', resourceId: 'res456', stage: 'risk-assessment' },
+      );
+    });
+
+    test('should log classification for non-llm classification', async () => {
+      const input = 'test data';
+      await pipeline.sanitize(input, {
+        classification: 'non-llm',
+        userId: 'user123',
+        resourceId: 'res456',
+      });
+
+      expect(mockAuditLogger.logRiskAssessmentDecision).toHaveBeenCalledWith(
+        'classification',
+        'Low',
+        { riskScore: 0, triggers: [] },
+        { userId: 'user123', resourceId: 'res456', stage: 'risk-assessment' },
+      );
+    });
+
+    test('should log classification for unclear classification', async () => {
+      const input = 'test data';
+      await pipeline.sanitize(input, {
+        classification: 'unclear',
+        userId: 'user123',
+        resourceId: 'res456',
+      });
+
+      expect(mockAuditLogger.logRiskAssessmentDecision).toHaveBeenCalledWith(
+        'classification',
+        'Unknown',
+        { riskScore: 0, triggers: [] },
+        { userId: 'user123', resourceId: 'res456', stage: 'risk-assessment' },
+      );
+    });
+
+    test('should include riskScore and triggers in logging', async () => {
+      const input = 'test data';
+      await pipeline.sanitize(input, {
+        riskLevel: 'high',
+        userId: 'user123',
+        resourceId: 'res456',
+        riskScore: 0.85,
+        triggers: ['pattern1', 'pattern2'],
+      });
+
+      expect(mockAuditLogger.logRiskAssessmentDecision).toHaveBeenCalledWith(
+        'detection',
+        'high',
+        { riskScore: 0.85, triggers: ['pattern1', 'pattern2'] },
+        { userId: 'user123', resourceId: 'res456', stage: 'risk-assessment' },
+      );
     });
   });
 });

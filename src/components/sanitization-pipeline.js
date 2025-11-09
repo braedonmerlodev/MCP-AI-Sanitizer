@@ -4,6 +4,7 @@ const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralizati
 const PatternRedaction = require('./SanitizationPipeline/pattern-redaction.js');
 const DataIntegrityValidator = require('./DataIntegrityValidator');
 const TrustTokenGenerator = require('./TrustTokenGenerator');
+const AuditLogger = require('./data-integrity/AuditLogger');
 const winston = require('winston');
 
 // Initialize logger
@@ -29,6 +30,9 @@ class SanitizationPipeline {
     // Initialize data integrity validator
     this.integrityValidator = new DataIntegrityValidator(options.integrityOptions || {});
     this.enableValidation = options.enableValidation !== false;
+
+    // Initialize audit logger
+    this.auditLogger = options.auditLogger || new AuditLogger(options.auditOptions || {});
 
     // Initialize trust token generator (lazy initialization)
     this.trustTokenGenerator = null;
@@ -57,6 +61,29 @@ class SanitizationPipeline {
 
     // Determine if to bypass based on risk level or classification for backward compatibility
     const shouldBypass = riskLevel ? riskLevel === 'low' : classification === 'non-llm';
+
+    // Log risk assessment decision
+    const decisionType = shouldBypass
+      ? 'classification'
+      : riskLevel === 'high'
+        ? 'detection'
+        : 'classification';
+    const assessedRiskLevel =
+      riskLevel ||
+      (classification === 'non-llm' ? 'Low' : classification === 'llm' ? 'High' : 'Unknown');
+    await this.auditLogger.logRiskAssessmentDecision(
+      decisionType,
+      assessedRiskLevel,
+      {
+        riskScore: options.riskScore || 0,
+        triggers: options.triggers || [],
+      },
+      {
+        userId: options.userId,
+        resourceId: options.resourceId || 'unknown',
+        stage: 'risk-assessment',
+      },
+    );
 
     // For security, default to full sanitization if classification is unclear and no risk level
     if (shouldBypass) {
