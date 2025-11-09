@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 /**
  * Configuration for sanitization risk mappings.
@@ -67,13 +67,13 @@ class SanitizationConfig {
       return false;
     }
 
-    const validRiskLevels = ['low', 'medium', 'high'];
+    const validRiskLevels = new Set(['low', 'medium', 'high']);
 
     for (const [key, value] of Object.entries(mappings)) {
       if (typeof key !== 'string' || typeof value !== 'string') {
         return false;
       }
-      if (!validRiskLevels.includes(value.toLowerCase())) {
+      if (!validRiskLevels.has(value.toLowerCase())) {
         return false;
       }
     }

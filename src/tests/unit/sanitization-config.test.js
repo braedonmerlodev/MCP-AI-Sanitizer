@@ -13,7 +13,7 @@ describe('SanitizationConfig', () => {
 
   afterEach(() => {
     // Restore original env
-    if (originalEnv !== undefined) {
+    if (originalEnv) {
       process.env.SANITIZATION_RISK_MAPPINGS = originalEnv;
     } else {
       delete process.env.SANITIZATION_RISK_MAPPINGS;
