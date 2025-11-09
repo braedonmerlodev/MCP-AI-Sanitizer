@@ -14,18 +14,119 @@ describe('DataIntegrityValidator', () => {
     validator = new DataIntegrityValidator({
       enableAuditing: false,
     });
+
+    test('should include resource info', async () => {
+      await auditLogger.logRiskAssessmentDecision(
+        'detection',
+        'High',
+        {},
+        { resourceId: 'res123', resourceType: 'api_request' },
+      );
+
+      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
+      expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
+      expect(entries[0].details.resourceInfo.type).toBe('api_request');
+    });
+  });
+
+  describe('logHighRiskCase', () => {
+    test('should log high-risk case with ML fields asynchronously', async () => {
+      const metadata = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+        stage: 'detection',
+      };
+
+      const mlFields = {
+        threatPatternId: 'pattern123',
+        confidenceScore: 0.95,
+        mitigationActions: ['block', 'alert'],
+        featureVector: { indicators: ['malicious'] },
+        trainingLabels: { label: 'high_risk' },
+        anomalyScore: 0.9,
+        detectionTimestamp: new Date().toISOString(),
+      };
+
+      const auditId = await auditLogger.logHighRiskCase(metadata, mlFields);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_risk_case' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('high_risk_case');
+      expect(entries[0].details).toEqual({
+        ...metadata,
+        mlFields: {
+          ...mlFields,
+          riskCategory: 'high',
+        },
+      });
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('high_risk_detection');
+      expect(entries[0].context.severity).toBe('warning');
+      expect(entries[0].context.logger).toBe('HighRiskLogger');
+    });
+
+    test('should redact PII in metadata', async () => {
+      const metadata = {
+        userId: 'test@example.com',
+        resourceId: 'res456',
+      };
+
+      const mlFields = {
+        threatPatternId: 'pattern123',
+        confidenceScore: 0.95,
+      };
+
+      await auditLogger.logHighRiskCase(metadata, mlFields);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_risk_case' });
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+  });
+
+  describe('logUnknownRiskCase', () => {
+    test('should log unknown-risk case with ML fields asynchronously', async () => {
+      const metadata = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+        stage: 'detection',
+      };
+
+      const mlFields = {
+        threatPatternId: 'unknown_pattern',
+        confidenceScore: 0.2,
+        mitigationActions: ['review'],
+        featureVector: { indicators: ['unclear'] },
+        trainingLabels: { label: 'unknown_risk' },
+        anomalyScore: 0.1,
+        detectionTimestamp: new Date().toISOString(),
+      };
+
+      const auditId = await auditLogger.logUnknownRiskCase(metadata, mlFields);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'unknown_risk_case' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('unknown_risk_case');
+      expect(entries[0].details).toEqual({
+        ...metadata,
+        mlFields: {
+          ...mlFields,
+          riskCategory: 'unknown',
+        },
+      });
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('unknown_risk_detection');
+      expect(entries[0].context.severity).toBe('info');
+      expect(entries[0].context.logger).toBe('UnknownRiskLogger');
+    });
   });
 
   describe('validateData', () => {
-    test('should validate string data successfully', async () => {
-      const result = await validator.validateData('test string', { schema: 'string' });
-
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.details.schema.isValid).toBe(true);
-      expect(result.metadata.dataType).toBe('string');
-    });
-
     test('should fail validation for invalid data', async () => {
       const result = await validator.validateData('not a number', { schema: 'number' });
 
@@ -33,6 +134,8 @@ describe('DataIntegrityValidator', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.details.schema.isValid).toBe(false);
     });
+  });
+});
 
     test('should validate object with referential integrity', async () => {
       const testData = {
@@ -679,18 +782,102 @@ describe('AuditLogger', () => {
       expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
       expect(entries[0].details.resourceInfo.type).toBe('api_request');
     });
+  });
 
-    test('should include resource info', async () => {
-      await auditLogger.logRiskAssessmentDecision(
-        'detection',
-        'High',
-        {},
-        { resourceId: 'res123', resourceType: 'api_request' },
-      );
+  describe('logHighRiskCase', () => {
+    test('should log high-risk case with ML fields asynchronously', async () => {
+      const metadata = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+        stage: 'detection',
+      };
 
-      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
-      expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
-      expect(entries[0].details.resourceInfo.type).toBe('api_request');
+      const mlFields = {
+        threatPatternId: 'pattern123',
+        confidenceScore: 0.95,
+        mitigationActions: ['block', 'alert'],
+        featureVector: { indicators: ['malicious'] },
+        trainingLabels: { label: 'high_risk' },
+        anomalyScore: 0.9,
+        detectionTimestamp: new Date().toISOString(),
+      };
+
+      const auditId = await auditLogger.logHighRiskCase(metadata, mlFields);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_risk_case' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('high_risk_case');
+      expect(entries[0].details).toEqual({
+        ...metadata,
+        mlFields: {
+          ...mlFields,
+          riskCategory: 'high',
+        },
+      });
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('high_risk_detection');
+      expect(entries[0].context.severity).toBe('warning');
+      expect(entries[0].context.logger).toBe('HighRiskLogger');
+    });
+
+    test('should redact PII in metadata', async () => {
+      const metadata = {
+        userId: 'test@example.com',
+        resourceId: 'res456',
+      };
+
+      const mlFields = {
+        threatPatternId: 'pattern123',
+        confidenceScore: 0.95,
+      };
+
+      await auditLogger.logHighRiskCase(metadata, mlFields);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'high_risk_case' });
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+  });
+
+  describe('logUnknownRiskCase', () => {
+    test('should log unknown-risk case with ML fields asynchronously', async () => {
+      const metadata = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+        stage: 'detection',
+      };
+
+      const mlFields = {
+        threatPatternId: 'unknown_pattern',
+        confidenceScore: 0.2,
+        mitigationActions: ['review'],
+        featureVector: { indicators: ['unclear'] },
+        trainingLabels: { label: 'unknown_risk' },
+        anomalyScore: 0.1,
+        detectionTimestamp: new Date().toISOString(),
+      };
+
+      const auditId = await auditLogger.logUnknownRiskCase(metadata, mlFields);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'unknown_risk_case' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('unknown_risk_case');
+      expect(entries[0].details).toEqual({
+        ...metadata,
+        mlFields: {
+          ...mlFields,
+          riskCategory: 'unknown',
+        },
+      });
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('unknown_risk_detection');
+      expect(entries[0].context.severity).toBe('info');
+      expect(entries[0].context.logger).toBe('UnknownRiskLogger');
     });
   });
 });

@@ -85,6 +85,52 @@ class SanitizationPipeline {
       },
     );
 
+    // Log high-risk or unknown-risk cases with ML-optimized fields if thresholds met
+    const confidence = options.riskScore || 0;
+    if (assessedRiskLevel === 'High' && confidence > 0.8) {
+      // High-Level Risk: confidence > 0.8 with known threat patterns
+      const mlFields = {
+        threatPatternId:
+          options.threatPatternId ||
+          (options.triggers && options.triggers.length > 0 ? options.triggers[0] : 'unknown'),
+        confidenceScore: confidence,
+        mitigationActions: options.mitigationActions || ['sanitization_applied'],
+        featureVector: options.featureVector || { riskIndicators: options.triggers || [] },
+        trainingLabels: options.trainingLabels || { supervised: 'high_risk' },
+        anomalyScore: options.anomalyScore || confidence,
+        detectionTimestamp: new Date().toISOString(),
+      };
+      await this.auditLogger.logHighRiskCase(
+        {
+          userId: options.userId,
+          resourceId: options.resourceId || 'unknown',
+          sessionId: options.sessionId,
+          stage: 'high_risk_detection',
+        },
+        mlFields,
+      );
+    } else if (assessedRiskLevel === 'Unknown' && confidence < 0.3) {
+      // Unknown Risk: confidence < 0.3 requiring HITL
+      const mlFields = {
+        threatPatternId: options.threatPatternId || 'unknown_pattern',
+        confidenceScore: confidence,
+        mitigationActions: options.mitigationActions || ['hitl_required'],
+        featureVector: options.featureVector || { riskIndicators: ['unclear_threat'] },
+        trainingLabels: options.trainingLabels || { supervised: 'unknown_risk' },
+        anomalyScore: options.anomalyScore || 1 - confidence,
+        detectionTimestamp: new Date().toISOString(),
+      };
+      await this.auditLogger.logUnknownRiskCase(
+        {
+          userId: options.userId,
+          resourceId: options.resourceId || 'unknown',
+          sessionId: options.sessionId,
+          stage: 'unknown_risk_detection',
+        },
+        mlFields,
+      );
+    }
+
     // For security, default to full sanitization if classification is unclear and no risk level
     if (shouldBypass) {
       // Skip sanitization for low-risk traffic

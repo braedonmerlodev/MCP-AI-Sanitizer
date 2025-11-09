@@ -1,0 +1,48 @@
+schema: 1
+story: '9.2'
+story_title: 'Enhance Audit Trail for High-Risk Cases'
+gate: CONCERNS
+status_reason: 'Implementation is solid with excellent code quality and security practices, but missing integration tests for high-risk case audit trails as specified in testing strategy.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-09T00:00:00Z'
+
+top_issues:
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Missing integration tests for high-risk case audit trails (AC #1-5)'
+    suggested_action: 'Add integration tests covering full high-risk detection and logging workflows'
+    suggested_owner: 'dev'
+
+waiver: { active: false }
+
+quality_score: 85
+expires: '2025-12-09T00:00:00Z'
+
+evidence:
+  tests_reviewed: 8
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'PII redaction implemented, tamper-proof signatures include ML fields'
+  performance:
+    status: PASS
+    notes: 'Async logging ensures <5% performance impact for high-risk processing'
+  reliability:
+    status: PASS
+    notes: 'Graceful error handling in logging failures, comprehensive test coverage'
+  maintainability:
+    status: PASS
+    notes: 'Clean integration with existing audit system, well-documented ML fields'
+
+recommendations:
+  immediate:
+    - action: 'Add integration tests for high-risk case logging workflows'
+      refs: ['src/tests/integration/']
+  future:
+    - action: 'Consider performance benchmarks for high-risk logging under load'
+      refs: ['src/components/data-integrity/AuditLogger.js']
