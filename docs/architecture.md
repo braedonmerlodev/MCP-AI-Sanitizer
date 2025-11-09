@@ -292,6 +292,61 @@ paths:
 
 **Technology Stack:** Node.js with Express.js for API handling, integrated with Azure Functions for deployment
 
+## Audit Logging
+
+### Risk Assessment Logging
+
+The system implements comprehensive structured logging for all risk assessment decisions to provide complete audit trails for risk evaluation processes.
+
+**Key Features:**
+
+- **Structured Format:** All risk assessment logs use JSON format with consistent fields including timestamp, decision type, risk level, and context metadata
+- **Asynchronous Logging:** Logging is performed asynchronously to minimize performance impact on sanitization operations
+- **PII Redaction:** Sensitive data such as user IDs and triggers are automatically redacted to prevent exposure
+- **Integration:** Seamlessly integrated with existing audit infrastructure using Winston logger and AuditLog model
+
+**Log Structure:**
+
+```json
+{
+  "id": "audit_1234567890_abc123",
+  "timestamp": "2025-11-09T18:32:20.577Z",
+  "operation": "risk_assessment_decision",
+  "details": {
+    "decisionType": "detection|classification|warning|escalation",
+    "riskLevel": "High|Unknown|Low",
+    "assessmentParameters": {
+      "riskScore": 0.85,
+      "triggers": ["[REDACTED]", "pattern2"]
+    },
+    "resourceInfo": {
+      "resourceId": "req123",
+      "type": "sanitization_request"
+    }
+  },
+  "context": {
+    "userId": "[EMAIL_REDACTED]",
+    "sessionId": "sess456",
+    "stage": "risk-assessment",
+    "logger": "RiskAssessmentLogger",
+    "severity": "info|warning"
+  }
+}
+```
+
+**Decision Types:**
+
+- **classification:** Risk level assessment (Low/Unknown/High)
+- **detection:** High-level risk detection triggering full sanitization
+- **warning:** Generation of risk warnings
+- **escalation:** Triggers for HITL (Human-in-the-Loop) escalation
+
+**Integration Points:**
+
+- **SanitizationPipeline:** Logs decisions during sanitize() method based on riskLevel/classification
+- **AuditLogger:** Provides logRiskAssessmentDecision() method for structured logging
+- **AuditLog Model:** Compatible with existing audit log storage and access controls
+
 ## Source Tree
 
 ```
