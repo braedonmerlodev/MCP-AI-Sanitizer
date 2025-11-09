@@ -1,62 +1,84 @@
 schema: 1
 story: '8.1'
 story_title: 'Implement Destination-Aware Sanitization Logic'
-gate: CONCERNS
-status_reason: 'Core conditional sanitization logic is implemented and tested, but missing bidirectional response sanitization, destination-aware audit logging, configurable risk mappings, and performance metrics tracking.'
+gate: FAIL
+status_reason: 'Critical risks identified including missing bidirectional sanitization and incomplete audit logging. Multiple acceptance criteria not fully implemented.'
 reviewer: 'Quinn (Test Architect)'
-updated: '2025-11-08T00:00:00.000Z'
+updated: '2025-11-08T00:00:00Z'
+
+waiver: { active: false }
 
 top_issues:
-  - id: 'AC5-BIDIRECTIONAL'
+  - id: 'TECH-001'
+    severity: high
+    finding: 'Bidirectional sanitization not implemented for all endpoints'
+    suggested_action: 'Implement response sanitization in API endpoints'
+    suggested_owner: 'dev'
+  - id: 'SEC-001'
     severity: medium
-    finding: 'Bidirectional sanitization not implemented - only request sanitization handles destination awareness'
-    suggested_action: 'Implement response sanitization with destination classification'
+    finding: 'Audit logging incomplete for destination and sanitization level'
+    suggested_action: 'Extend audit logging to include destination metadata'
     suggested_owner: 'dev'
-  - id: 'AC6-AUDIT-LOGGING'
+  - id: 'OPS-001'
     severity: medium
-    finding: 'Audit logging does not capture destination classification or applied sanitization level'
-    suggested_action: 'Extend AuditLog model and logging to include destination metadata'
+    finding: 'No performance metrics tracking for latency validation'
+    suggested_action: 'Add performance monitoring for sanitization operations'
     suggested_owner: 'dev'
-  - id: 'AC7-CONFIGURATION'
+  - id: 'SEC-002'
     severity: low
-    finding: 'Risk classifications are hardcoded, not configurable'
-    suggested_action: 'Add configuration schema and loading for risk level mappings'
-    suggested_owner: 'dev'
-  - id: 'AC8-PERFORMANCE'
-    severity: low
-    finding: 'No performance metrics tracking for latency measurements'
-    suggested_action: 'Implement performance monitoring for different sanitization levels'
+    finding: 'Missing configuration schema for risk level mappings'
+    suggested_action: 'Create configurable risk classification system'
     suggested_owner: 'dev'
 
+risk_summary:
+  totals:
+    critical: 1
+    high: 2
+    medium: 1
+    low: 1
+  highest:
+    id: TECH-001
+    score: 9
+    title: 'Missing bidirectional sanitization'
+  recommendations:
+    must_fix:
+      - 'Implement bidirectional sanitization for responses'
+      - 'Complete audit logging for compliance'
+    monitor:
+      - 'Add performance metrics tracking'
+      - 'Implement risk configuration system'
+
+quality_score: 60
+
 evidence:
-  tests_reviewed: 25
-  risks_identified: 4
+  tests_reviewed: 4
+  risks_identified: 5
   trace:
     ac_covered: [1, 2, 3, 4]
     ac_gaps: [5, 6, 7, 8]
 
 nfr_validation:
   security:
-    status: PASS
-    notes: 'Good security defaults with full sanitization for unclear destinations'
+    status: CONCERNS
+    notes: 'Bidirectional sanitization incomplete, audit logging partial'
   performance:
     status: CONCERNS
-    notes: 'Conditional bypass implemented but no metrics to validate performance gains'
+    notes: 'No performance metrics, latency not validated'
   reliability:
     status: PASS
-    notes: 'Error handling and fallbacks are properly implemented'
+    notes: 'Error handling implemented in middleware'
   maintainability:
     status: PASS
-    notes: 'Code is well-structured with clear separation of concerns'
+    notes: 'Code is well-structured with proper separation of concerns'
 
 recommendations:
   immediate:
-    - action: 'Complete bidirectional sanitization implementation'
-      refs: ['src/components/proxy-sanitizer.js', 'src/components/sanitization-pipeline.js']
-    - action: 'Add destination fields to audit logging'
-      refs: ['src/models/AuditLog.js', 'src/components/data-integrity/AuditLogger.js']
+    - action: 'Implement response sanitization in proxy handlers'
+      refs: ['src/components/proxy-sanitizer.js']
+    - action: 'Add destination field to audit logs'
+      refs: ['src/routes/api.js']
   future:
-    - action: 'Implement configurable risk mappings'
-      refs: ['Configuration schema needed']
     - action: 'Add performance metrics collection'
-      refs: ['Monitoring endpoints']
+      refs: ['src/routes/api.js']
+    - action: 'Create configuration for risk mappings'
+      refs: ['src/middleware/destination-tracking.js']
