@@ -32,6 +32,12 @@ class AuditLog {
     this.detectionTimestamp = data.detectionTimestamp;
     this.riskCategory = data.riskCategory;
 
+    // HITL escalation fields
+    this.escalationId = data.escalationId;
+    this.humanDecision = data.humanDecision || {};
+    this.resolutionTime = data.resolutionTime;
+    this.effectivenessScore = data.effectivenessScore;
+
     // Tamper-proofing with HMAC signature
     this.secret =
       options.secret || process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production';
@@ -115,6 +121,10 @@ class AuditLog {
       anomalyScore: this.anomalyScore,
       detectionTimestamp: this.detectionTimestamp,
       riskCategory: this.riskCategory,
+      escalationId: this.escalationId,
+      humanDecision: this.humanDecision,
+      resolutionTime: this.resolutionTime,
+      effectivenessScore: this.effectivenessScore,
       signature: this.signature,
     };
   }

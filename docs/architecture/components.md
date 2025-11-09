@@ -47,6 +47,8 @@
 - logRiskAssessmentDecision(decisionType, riskLevel, assessmentParameters, context) - Logs risk assessment decisions
 - logHighRiskCase(metadata, mlFields) - Logs high-level risk cases with ML-optimized fields (threat patterns, confidence scores, mitigation actions, feature vectors, training labels, anomaly scores)
 - logUnknownRiskCase(metadata, mlFields) - Logs unknown risk cases with ML-optimized fields for HITL review
+- logEscalationDecision(escalationData, context) - Logs HITL escalation decisions with trigger conditions and rationale
+- logHumanIntervention(outcomeData, metrics) - Logs human intervention outcomes with effectiveness metrics
 - logRawDataAccess(resourceId, accessType, context) - Logs access to raw data (security-critical)
 - getAuditEntries(filters) - Retrieves audit entries with filtering
 - getAuditStats() - Returns audit statistics
@@ -61,6 +63,15 @@
 - anomalyScore: float - Anomaly detection score
 - detectionTimestamp: ISO string - When the risk was detected
 - riskCategory: enum ('high' | 'unknown') - Risk category
+
+**HITL Escalation Fields:**
+
+- escalationId: string - Unique identifier for the escalation event
+- humanDecision: object - Human review decision details (decision, rationale, humanId)
+- resolutionTime: number - Time taken for human resolution in milliseconds
+- effectivenessScore: float (0-1) - Effectiveness score of the HITL intervention
+- triggerConditions: array - Conditions that triggered the escalation
+- decisionRationale: string - Rationale for escalation decision
 
 **Dependencies:** Winston for logging, DataIntegrityValidator for validation context
 

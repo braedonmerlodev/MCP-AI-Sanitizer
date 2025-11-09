@@ -711,4 +711,118 @@ describe('AuditLogger', () => {
       expect(entries[0].context.logger).toBe('UnknownRiskLogger');
     });
   });
+
+  describe('logEscalationDecision', () => {
+    test('should log HITL escalation decision asynchronously', async () => {
+      const escalationData = {
+        escalationId: 'esc123',
+        triggerConditions: ['high_risk_score', 'suspicious_pattern'],
+        decisionRationale: 'High risk detected requiring human review',
+        riskLevel: 'High',
+      };
+      const context = {
+        userId: 'system',
+        resourceId: 'req456',
+        stage: 'escalation',
+      };
+
+      const auditId = await auditLogger.logEscalationDecision(escalationData, context);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_escalation_decision' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('hitl_escalation_decision');
+      expect(entries[0].details.escalationId).toBe('esc123');
+      expect(entries[0].details.triggerConditions).toEqual([
+        'high_risk_score',
+        'suspicious_pattern',
+      ]);
+      expect(entries[0].details.decisionRationale).toBe(
+        'High risk detected requiring human review',
+      );
+      expect(entries[0].details.riskLevel).toBe('High');
+      expect(entries[0].context.userId).toBe('system');
+      expect(entries[0].context.stage).toBe('escalation');
+      expect(entries[0].context.logger).toBe('HITLEscalationLogger');
+      expect(entries[0].context.severity).toBe('warning');
+    });
+
+    test('should redact PII in escalation data', async () => {
+      const escalationData = {
+        escalationId: 'esc123',
+        triggerConditions: ['email@example.com'],
+        decisionRationale: 'Contact info found: 123-456-7890',
+      };
+
+      const auditId = await auditLogger.logEscalationDecision(escalationData, {
+        userId: 'admin@example.com',
+      });
+
+      expect(auditId).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_escalation_decision' });
+      expect(entries[0].details.triggerConditions).toEqual(['[EMAIL_REDACTED]']);
+      expect(entries[0].details.decisionRationale).toBe('Contact info found: [PHONE_REDACTED]');
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+  });
+
+  describe('logHumanIntervention', () => {
+    test('should log human intervention outcome asynchronously', async () => {
+      const outcomeData = {
+        escalationId: 'esc123',
+        decision: 'approve',
+        rationale: 'Reviewed and approved after manual check',
+        humanId: 'reviewer456',
+        resourceId: 'req456',
+        sessionId: 'sess789',
+        stage: 'intervention',
+        outcome: 'approved',
+      };
+      const metrics = {
+        resolutionTime: 300000, // 5 minutes in ms
+        effectivenessScore: 0.95,
+      };
+
+      const auditId = await auditLogger.logHumanIntervention(outcomeData, metrics);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_human_intervention' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('hitl_human_intervention');
+      expect(entries[0].details.escalationId).toBe('esc123');
+      expect(entries[0].details.humanDecision.decision).toBe('approve');
+      expect(entries[0].details.humanDecision.rationale).toBe(
+        'Reviewed and approved after manual check',
+      );
+      expect(entries[0].details.humanDecision.humanId).toBe('reviewer456');
+      expect(entries[0].details.resolutionTime).toBe(300000);
+      expect(entries[0].details.effectivenessScore).toBe(0.95);
+      expect(entries[0].details.outcome).toBe('approved');
+      expect(entries[0].context.userId).toBe('reviewer456');
+      expect(entries[0].context.stage).toBe('intervention');
+      expect(entries[0].context.logger).toBe('HITLInterventionLogger');
+      expect(entries[0].context.severity).toBe('info');
+    });
+
+    test('should redact PII in human intervention data', async () => {
+      const outcomeData = {
+        escalationId: 'esc123',
+        decision: 'reject',
+        rationale: 'PII detected: email@example.com',
+        humanId: 'reviewer@example.com',
+      };
+      const metrics = {};
+
+      const auditId = await auditLogger.logHumanIntervention(outcomeData, metrics);
+
+      expect(auditId).toBeDefined();
+
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_human_intervention' });
+      expect(entries[0].details.humanDecision.rationale).toBe('PII detected: [EMAIL_REDACTED]');
+      expect(entries[0].context.userId).toBe('[EMAIL_REDACTED]');
+    });
+  });
 });

@@ -317,16 +317,128 @@ class AuditLogger {
   }
 
   /**
-   * Redacts potential PII from strings
-   * @param {string} input - Input string
-   * @returns {string} - Redacted string
+   * Logs HITL escalation decision asynchronously
+   * @param {Object} escalationData - Escalation details including trigger conditions
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logEscalationDecision(escalationData, context = {}) {
+    const details = {
+      escalationId: escalationData.escalationId,
+      triggerConditions: escalationData.triggerConditions || [],
+      decisionRationale: this.redactPII(escalationData.decisionRationale || ''),
+      riskLevel: escalationData.riskLevel,
+      resourceInfo: {
+        resourceId: context.resourceId || 'unknown',
+        type: context.resourceType || 'sanitization_request',
+      },
+    };
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'escalation',
+      severity: 'warning',
+      logger: 'HITLEscalationLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'system');
+
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('hitl_escalation_decision', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Logs human intervention outcome asynchronously
+   * @param {Object} outcomeData - Intervention outcome details
+   * @param {Object} metrics - Effectiveness metrics
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHumanIntervention(outcomeData, metrics = {}) {
+    const details = {
+      escalationId: outcomeData.escalationId,
+      humanDecision: {
+        decision: outcomeData.decision,
+        rationale: this.redactPII(outcomeData.rationale || ''),
+        humanId: this.redactPII(outcomeData.humanId || 'unknown'),
+      },
+      triggerConditions: this.redactPII(outcomeData.triggerConditions || []), // Include for traceability
+      resolutionTime: metrics.resolutionTime || 0,
+      effectivenessScore: metrics.effectivenessScore || 0,
+      outcome: outcomeData.outcome,
+      resourceInfo: {
+        resourceId: outcomeData.resourceId || 'unknown',
+        type: outcomeData.resourceType || 'sanitization_request',
+      },
+    };
+    const auditContext = {
+      userId: this.redactPII(outcomeData.humanId || 'system'),
+      sessionId: outcomeData.sessionId,
+      stage: outcomeData.stage || 'intervention',
+      severity: 'info',
+      logger: 'HITLInterventionLogger',
+    };
+
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('hitl_human_intervention', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Logs HITL escalation decision asynchronously
+   * @param {Object} escalationData - Escalation details including trigger conditions
+   * @param {Object} context - Context information
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logEscalationDecision(escalationData, context = {}) {
+    const details = {
+      escalationId: escalationData.escalationId,
+      triggerConditions: escalationData.triggerConditions || [],
+      decisionRationale: this.redactPII(escalationData.decisionRationale || ''),
+      riskLevel: escalationData.riskLevel,
+      resourceInfo: {
+        resourceId: context.resourceId || 'unknown',
+        type: context.resourceType || 'sanitization_request',
+      },
+    };
+    const auditContext = {
+      ...context,
+      sessionId: context.sessionId,
+      stage: context.stage || 'escalation',
+      severity: 'warning',
+      logger: 'HITLEscalationLogger',
+    };
+    auditContext.userId = this.redactPII(context.userId || 'system');
+
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('hitl_escalation_decision', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Redacts potential PII from strings and arrays
+   * @param {string|Array} input - Input string or array
+   * @returns {string|Array} - Redacted string or array
    */
   redactPII(input) {
-    if (typeof input !== 'string') return input;
-    // Simple redaction: replace potential emails, phones, etc.
-    return input
-      .replaceAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]')
-      .replaceAll(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]');
+    if (typeof input === 'string') {
+      // Simple redaction: replace potential emails, phones, etc.
+      return input
+        .replaceAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]')
+        .replaceAll(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]');
+    } else if (Array.isArray(input)) {
+      return input.map((item) => this.redactPII(item));
+    } else {
+      return input;
+    }
   }
 
   /**
