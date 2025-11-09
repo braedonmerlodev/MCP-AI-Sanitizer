@@ -45,7 +45,7 @@ class ProxySanitizer {
     const sanitizedData = await this.sanitize(inputData, options);
     // Forward to LLMs/MCP - for now, mock response
     const llmResponse = this.forwardToLLM(sanitizedData);
-    // Apply output sanitization - assuming output is also LLM-bound, use same options
+    // Apply output sanitization - use same risk level as request for consistent security
     const outputSanitized = await this.sanitize(llmResponse, options);
     logger.info('n8n webhook processed');
     return { result: outputSanitized };
