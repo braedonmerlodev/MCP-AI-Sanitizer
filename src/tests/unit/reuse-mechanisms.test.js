@@ -229,7 +229,7 @@ describe('Reuse Mechanisms Unit Tests', () => {
 
       expect(auditLog.action).toBe('content_sanitization_completed');
       expect(auditLog.details.trustTokenGenerated).toBe(true);
-      expect(auditLog.getCategory()).toBe('other'); // content_sanitization_completed not in predefined categories
+      expect(auditLog.getCategory()).toBe('sanitization'); // content_sanitization_completed now in sanitization category
     });
 
     test('should verify audit log signatures', () => {
