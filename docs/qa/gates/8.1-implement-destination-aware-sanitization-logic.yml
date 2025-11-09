@@ -10,52 +10,66 @@ waiver: { active: false }
 
 top_issues:
   - id: 'TECH-001'
-    severity: high
-    finding: 'Bidirectional sanitization not implemented for all endpoints'
-    suggested_action: 'Implement response sanitization in API endpoints'
+    severity: critical
+    finding: 'Pipeline modification complexity for bidirectional processing'
+    suggested_action: 'Implement response sanitization with feature flags and extensive testing'
     suggested_owner: 'dev'
   - id: 'SEC-001'
-    severity: medium
-    finding: 'Audit logging incomplete for destination and sanitization level'
-    suggested_action: 'Extend audit logging to include destination metadata'
+    severity: high
+    finding: 'Incomplete response sanitization could expose sensitive data'
+    suggested_action: 'Add comprehensive response validation for all destination types'
     suggested_owner: 'dev'
-  - id: 'OPS-001'
-    severity: medium
-    finding: 'No performance metrics tracking for latency validation'
-    suggested_action: 'Add performance monitoring for sanitization operations'
+  - id: 'OPS-002'
+    severity: high
+    finding: 'Configuration errors could misclassify destinations'
+    suggested_action: 'Implement configuration validation with defaults and monitoring'
     suggested_owner: 'dev'
-  - id: 'SEC-002'
-    severity: low
-    finding: 'Missing configuration schema for risk level mappings'
-    suggested_action: 'Create configurable risk classification system'
+  - id: 'TECH-002'
+    severity: medium
+    finding: 'AuditLog schema changes needed for destination metadata'
+    suggested_action: 'Extend model with backward compatible schema evolution'
     suggested_owner: 'dev'
 
 risk_summary:
   totals:
     critical: 1
     high: 2
-    medium: 1
-    low: 1
+    medium: 2
+    low: 6
   highest:
     id: TECH-001
     score: 9
-    title: 'Missing bidirectional sanitization'
+    title: 'Pipeline modification for bidirectional processing'
   recommendations:
     must_fix:
-      - 'Implement bidirectional sanitization for responses'
-      - 'Complete audit logging for compliance'
+      - 'Implement bidirectional sanitization with feature flags'
+      - 'Add configuration validation for risk mappings'
+      - 'Complete response sanitization for security'
     monitor:
       - 'Add performance metrics tracking'
-      - 'Implement risk configuration system'
+      - 'Implement audit logging extensions'
+      - 'Monitor log volume and storage impact'
 
-quality_score: 60
+quality_score: 55
 
 evidence:
   tests_reviewed: 4
-  risks_identified: 5
+  risks_identified: 11
   trace:
     ac_covered: [1, 2, 3, 4]
     ac_gaps: [5, 6, 7, 8]
+
+test_design:
+  scenarios_total: 13
+  by_level:
+    unit: 4
+    integration: 6
+    e2e: 3
+  by_priority:
+    p0: 13
+    p1: 0
+    p2: 0
+  coverage_gaps: []
 
 nfr_validation:
   security:
