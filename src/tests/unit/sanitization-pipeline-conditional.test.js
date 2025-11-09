@@ -35,6 +35,24 @@ describe('SanitizationPipeline Conditional Logic', () => {
     expect(result).toBe('Helloworld');
   });
 
+  test('should bypass sanitization for low risk level', async () => {
+    const input = 'Hello\u200Bworld';
+    const result = await pipeline.sanitize(input, { riskLevel: 'low' });
+    expect(result).toBe('Hello\u200Bworld'); // Preserved
+  });
+
+  test('should apply full sanitization for high risk level', async () => {
+    const input = 'Hello\u200Bworld';
+    const result = await pipeline.sanitize(input, { riskLevel: 'high' });
+    expect(result).toBe('Helloworld'); // Sanitized
+  });
+
+  test('should apply full sanitization for medium risk level', async () => {
+    const input = 'Hello\u200Bworld';
+    const result = await pipeline.sanitize(input, { riskLevel: 'medium' });
+    expect(result).toBe('Helloworld'); // Sanitized
+  });
+
   test('should handle zero-width characters in LLM content', async () => {
     const input = 'Hello\u200Bworld'; // Zero-width space
     const result = await pipeline.sanitize(input, { classification: 'llm' });
