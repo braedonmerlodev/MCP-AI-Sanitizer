@@ -17,6 +17,11 @@ class AuditLog {
     this.sessionId = data.sessionId;
     this.createdAt = data.createdAt || new Date().toISOString();
 
+    // Sanitization-specific fields
+    this.destination = data.destination;
+    this.riskLevel = data.riskLevel;
+    this.sanitizationLevel = data.sanitizationLevel;
+
     // Tamper-proofing with HMAC signature
     this.secret =
       options.secret || process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production';
@@ -42,6 +47,8 @@ class AuditLog {
       'validation_failure',
       'trust_token_validation_failed',
       'access_denied',
+      'data_sanitization_applied',
+      'data_sanitization_bypassed',
     ];
     return criticalActions.includes(this.action);
   }
@@ -56,6 +63,11 @@ class AuditLog {
       cryptographic: ['hash_generate', 'hash_verify', 'cryptographic_operation'],
       access: ['raw_data_access', 'data_export', 'audit_access'],
       error: ['validation_failure', 'system_error'],
+      sanitization: [
+        'data_sanitization_applied',
+        'data_sanitization_bypassed',
+        'content_sanitization_completed',
+      ],
     };
 
     for (const [category, actions] of Object.entries(categories)) {
@@ -82,6 +94,9 @@ class AuditLog {
       userAgent: this.userAgent,
       sessionId: this.sessionId,
       createdAt: this.createdAt,
+      destination: this.destination,
+      riskLevel: this.riskLevel,
+      sanitizationLevel: this.sanitizationLevel,
       signature: this.signature,
     };
   }
@@ -102,6 +117,9 @@ class AuditLog {
       userAgent: this.userAgent,
       sessionId: this.sessionId,
       createdAt: this.createdAt,
+      destination: this.destination,
+      riskLevel: this.riskLevel,
+      sanitizationLevel: this.sanitizationLevel,
     };
 
     const payloadString = JSON.stringify(payload);
