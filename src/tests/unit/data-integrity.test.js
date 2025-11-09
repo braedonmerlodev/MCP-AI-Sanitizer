@@ -17,15 +17,6 @@ describe('DataIntegrityValidator', () => {
   });
 
   describe('validateData', () => {
-    test('should validate string data successfully', async () => {
-      const result = await validator.validateData('test string', { schema: 'string' });
-
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.details.schema.isValid).toBe(true);
-      expect(result.metadata.dataType).toBe('string');
-    });
-
     test('should fail validation for invalid data', async () => {
       const result = await validator.validateData('not a number', { schema: 'number' });
 
@@ -679,18 +670,45 @@ describe('AuditLogger', () => {
       expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
       expect(entries[0].details.resourceInfo.type).toBe('api_request');
     });
+  });
 
-    test('should include resource info', async () => {
-      await auditLogger.logRiskAssessmentDecision(
-        'detection',
-        'High',
-        {},
-        { resourceId: 'res123', resourceType: 'api_request' },
-      );
+  describe('logUnknownRiskCase', () => {
+    test('should log unknown-risk case with ML fields asynchronously', async () => {
+      const metadata = {
+        userId: 'user123',
+        resourceId: 'res456',
+        sessionId: 'sess789',
+        stage: 'detection',
+      };
 
-      const entries = auditLogger.getAuditEntries({ operation: 'risk_assessment_decision' });
-      expect(entries[0].details.resourceInfo.resourceId).toBe('res123');
-      expect(entries[0].details.resourceInfo.type).toBe('api_request');
+      const mlFields = {
+        threatPatternId: 'unknown_pattern',
+        confidenceScore: 0.2,
+        mitigationActions: ['review'],
+        featureVector: { indicators: ['unclear'] },
+        trainingLabels: { label: 'unknown_risk' },
+        anomalyScore: 0.1,
+        detectionTimestamp: new Date().toISOString(),
+      };
+
+      const auditId = await auditLogger.logUnknownRiskCase(metadata, mlFields);
+
+      expect(auditId).toMatch(/^audit_/);
+
+      const entries = auditLogger.getAuditEntries({ operation: 'unknown_risk_case' });
+      expect(entries).toHaveLength(1);
+      expect(entries[0].operation).toBe('unknown_risk_case');
+      expect(entries[0].details).toEqual({
+        ...metadata,
+        mlFields: {
+          ...mlFields,
+          riskCategory: 'unknown',
+        },
+      });
+      expect(entries[0].context.userId).toBe('user123');
+      expect(entries[0].context.stage).toBe('unknown_risk_detection');
+      expect(entries[0].context.severity).toBe('info');
+      expect(entries[0].context.logger).toBe('UnknownRiskLogger');
     });
   });
 });

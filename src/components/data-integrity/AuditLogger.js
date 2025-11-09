@@ -241,6 +241,82 @@ class AuditLogger {
   }
 
   /**
+   * Logs high-risk case with ML-optimized fields asynchronously
+   * @param {Object} metadata - Standard audit metadata (userId, resourceId, etc.)
+   * @param {Object} mlFields - ML-optimized fields for AI training
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logHighRiskCase(metadata, mlFields) {
+    const details = {
+      ...metadata,
+      mlFields: {
+        threatPatternId: mlFields.threatPatternId,
+        confidenceScore: mlFields.confidenceScore,
+        mitigationActions: mlFields.mitigationActions || [],
+        featureVector: mlFields.featureVector || {},
+        trainingLabels: mlFields.trainingLabels || {},
+        anomalyScore: mlFields.anomalyScore,
+        detectionTimestamp: mlFields.detectionTimestamp || new Date().toISOString(),
+        riskCategory: 'high',
+      },
+    };
+
+    const auditContext = {
+      userId: this.redactPII(metadata.userId || 'anonymous'),
+      sessionId: metadata.sessionId,
+      stage: metadata.stage || 'high_risk_detection',
+      severity: 'warning',
+      logger: 'HighRiskLogger',
+    };
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('high_risk_case', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
+   * Logs unknown risk case with ML-optimized fields asynchronously
+   * @param {Object} metadata - Standard audit metadata (userId, resourceId, etc.)
+   * @param {Object} mlFields - ML-optimized fields for AI training
+   * @returns {Promise<string>} - Audit entry ID
+   */
+  async logUnknownRiskCase(metadata, mlFields) {
+    const details = {
+      ...metadata,
+      mlFields: {
+        threatPatternId: mlFields.threatPatternId,
+        confidenceScore: mlFields.confidenceScore,
+        mitigationActions: mlFields.mitigationActions || [],
+        featureVector: mlFields.featureVector || {},
+        trainingLabels: mlFields.trainingLabels || {},
+        anomalyScore: mlFields.anomalyScore,
+        detectionTimestamp: mlFields.detectionTimestamp || new Date().toISOString(),
+        riskCategory: 'unknown',
+      },
+    };
+
+    const auditContext = {
+      userId: this.redactPII(metadata.userId || 'anonymous'),
+      sessionId: metadata.sessionId,
+      stage: metadata.stage || 'unknown_risk_detection',
+      severity: 'info',
+      logger: 'UnknownRiskLogger',
+    };
+
+    // Perform logging asynchronously
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        const auditId = this.logOperation('unknown_risk_case', details, auditContext);
+        resolve(auditId);
+      });
+    });
+  }
+
+  /**
    * Redacts potential PII from strings
    * @param {string} input - Input string
    * @returns {string} - Redacted string

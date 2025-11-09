@@ -35,3 +35,33 @@
 **Dependencies:** SanitizationPipeline (for validation hooks), TrustTokenSystem (for cryptographic lineage)
 
 **Technology Stack:** Node.js with validation libraries (Joi), cryptographic modules (crypto), database access for audit logs
+
+## AuditLogger
+
+**Responsibility:** Provides comprehensive audit logging for all data integrity operations, with specialized support for high-risk case logging optimized for AI/ML training.
+
+**Key Interfaces:**
+
+- logOperation(operation, details, context) - Logs general data integrity operations
+- logValidation(validationResult, context) - Logs validation outcomes
+- logRiskAssessmentDecision(decisionType, riskLevel, assessmentParameters, context) - Logs risk assessment decisions
+- logHighRiskCase(metadata, mlFields) - Logs high-level risk cases with ML-optimized fields (threat patterns, confidence scores, mitigation actions, feature vectors, training labels, anomaly scores)
+- logUnknownRiskCase(metadata, mlFields) - Logs unknown risk cases with ML-optimized fields for HITL review
+- logRawDataAccess(resourceId, accessType, context) - Logs access to raw data (security-critical)
+- getAuditEntries(filters) - Retrieves audit entries with filtering
+- getAuditStats() - Returns audit statistics
+
+**ML-Optimized Fields for High-Risk Cases:**
+
+- threatPatternId: string - Identifier for detected threat pattern
+- confidenceScore: float (0-1) - Confidence level of risk assessment
+- mitigationActions: array - Recommended actions (e.g., ['block', 'alert'])
+- featureVector: object - Structured risk indicators for ML consumption
+- trainingLabels: object - Labels for supervised learning
+- anomalyScore: float - Anomaly detection score
+- detectionTimestamp: ISO string - When the risk was detected
+- riskCategory: enum ('high' | 'unknown') - Risk category
+
+**Dependencies:** Winston for logging, DataIntegrityValidator for validation context
+
+**Technology Stack:** Node.js with Winston logging library, async processing for performance

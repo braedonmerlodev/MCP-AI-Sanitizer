@@ -22,6 +22,16 @@ class AuditLog {
     this.riskLevel = data.riskLevel;
     this.sanitizationLevel = data.sanitizationLevel;
 
+    // High-risk ML-optimized fields
+    this.threatPatternId = data.threatPatternId;
+    this.confidenceScore = data.confidenceScore;
+    this.mitigationActions = data.mitigationActions || [];
+    this.featureVector = data.featureVector || {};
+    this.trainingLabels = data.trainingLabels || {};
+    this.anomalyScore = data.anomalyScore;
+    this.detectionTimestamp = data.detectionTimestamp;
+    this.riskCategory = data.riskCategory;
+
     // Tamper-proofing with HMAC signature
     this.secret =
       options.secret || process.env.AUDIT_SECRET || 'default-audit-secret-change-in-production';
@@ -97,6 +107,14 @@ class AuditLog {
       destination: this.destination,
       riskLevel: this.riskLevel,
       sanitizationLevel: this.sanitizationLevel,
+      threatPatternId: this.threatPatternId,
+      confidenceScore: this.confidenceScore,
+      mitigationActions: this.mitigationActions,
+      featureVector: this.featureVector,
+      trainingLabels: this.trainingLabels,
+      anomalyScore: this.anomalyScore,
+      detectionTimestamp: this.detectionTimestamp,
+      riskCategory: this.riskCategory,
       signature: this.signature,
     };
   }
@@ -120,6 +138,14 @@ class AuditLog {
       destination: this.destination,
       riskLevel: this.riskLevel,
       sanitizationLevel: this.sanitizationLevel,
+      threatPatternId: this.threatPatternId,
+      confidenceScore: this.confidenceScore,
+      mitigationActions: this.mitigationActions,
+      featureVector: this.featureVector,
+      trainingLabels: this.trainingLabels,
+      anomalyScore: this.anomalyScore,
+      detectionTimestamp: this.detectionTimestamp,
+      riskCategory: this.riskCategory,
     };
 
     const payloadString = JSON.stringify(payload);
