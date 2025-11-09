@@ -368,11 +368,39 @@ class AuditLogger {
   ) {
     // Data quality validation for AI training data completeness
     if (!inputDataHash || typeof inputDataHash !== 'string' || inputDataHash.length !== 64) {
-      throw new Error('Invalid inputDataHash: must be a 64-character SHA256 hash string');
+      throw new TypeError('Invalid inputDataHash: must be a 64-character SHA256 hash string');
     }
     if (!Array.isArray(processingSteps)) {
-      throw new Error('Invalid processingSteps: must be an array of processing step names');
+      throw new TypeError('Invalid processingSteps: must be an array of processing step names');
     }
+    if (
+      !decisionOutcome ||
+      typeof decisionOutcome.decision !== 'string' ||
+      !decisionOutcome.decision
+    ) {
+      throw new TypeError('Invalid decisionOutcome: must have a non-empty decision string');
+    }
+    if (
+      typeof decisionOutcome.riskScore !== 'number' ||
+      decisionOutcome.riskScore < 0 ||
+      decisionOutcome.riskScore > 1
+    ) {
+      throw new TypeError('Invalid decisionOutcome.riskScore: must be a number between 0 and 1');
+    }
+    if (
+      !contextMetadata ||
+      typeof contextMetadata.inputLength !== 'number' ||
+      contextMetadata.inputLength < 0
+    ) {
+      throw new TypeError('Invalid contextMetadata.inputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.outputLength !== 'number' || contextMetadata.outputLength < 0) {
+      throw new TypeError('Invalid contextMetadata.outputLength: must be a non-negative number');
+    }
+    if (typeof contextMetadata.processingTime !== 'number' || contextMetadata.processingTime < 0) {
+      throw new TypeError('Invalid contextMetadata.processingTime: must be a non-negative number');
+    }
+
     if (
       !decisionOutcome ||
       typeof decisionOutcome.decision !== 'string' ||
