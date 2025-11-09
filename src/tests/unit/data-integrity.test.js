@@ -781,7 +781,7 @@ describe('AuditLogger', () => {
         outcome: 'approved',
       };
       const metrics = {
-        resolutionTime: 300000, // 5 minutes in ms
+        resolutionTime: 300_000, // 5 minutes in ms
         effectivenessScore: 0.95,
       };
 
@@ -798,7 +798,7 @@ describe('AuditLogger', () => {
         'Reviewed and approved after manual check',
       );
       expect(entries[0].details.humanDecision.humanId).toBe('reviewer456');
-      expect(entries[0].details.resolutionTime).toBe(300000);
+      expect(entries[0].details.resolutionTime).toBe(300_000);
       expect(entries[0].details.effectivenessScore).toBe(0.95);
       expect(entries[0].details.outcome).toBe('approved');
       expect(entries[0].context.userId).toBe('reviewer456');

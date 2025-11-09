@@ -28,6 +28,7 @@ describe('HITL Escalation Logging Integration', () => {
       escalationData,
       escalationContext,
     );
+    expect(escalationAuditId).toMatch(/^audit_/);
 
     // Log human intervention
     const outcomeData = {
@@ -41,11 +42,12 @@ describe('HITL Escalation Logging Integration', () => {
       outcome: 'approved',
     };
     const metrics = {
-      resolutionTime: 180000, // 3 minutes
+      resolutionTime: 180_000, // 3 minutes
       effectivenessScore: 0.92,
     };
 
     const interventionAuditId = await auditLogger.logHumanIntervention(outcomeData, metrics);
+    expect(interventionAuditId).toMatch(/^audit_/);
 
     // Verify audit trail
     const allEntries = auditLogger.getAuditEntries();
@@ -72,7 +74,7 @@ describe('HITL Escalation Logging Integration', () => {
     // Verify intervention logging
     expect(interventionEntry.details.escalationId).toBe('esc-001');
     expect(interventionEntry.details.humanDecision.decision).toBe('approve');
-    expect(interventionEntry.details.resolutionTime).toBe(180000);
+    expect(interventionEntry.details.resolutionTime).toBe(180_000);
     expect(interventionEntry.details.effectivenessScore).toBe(0.92);
     expect(interventionEntry.context.userId).toBe('reviewer-456');
     expect(interventionEntry.context.stage).toBe('intervention');
@@ -105,7 +107,7 @@ describe('HITL Escalation Logging Integration', () => {
         resourceId: 'req-1',
         outcome: 'approved',
       },
-      { resolutionTime: 120000, effectivenessScore: 0.9 },
+      { resolutionTime: 120_000, effectivenessScore: 0.9 },
     );
 
     // Second escalation - rejected
@@ -128,7 +130,7 @@ describe('HITL Escalation Logging Integration', () => {
         resourceId: 'req-2',
         outcome: 'rejected',
       },
-      { resolutionTime: 300000, effectivenessScore: 0.85 },
+      { resolutionTime: 300_000, effectivenessScore: 0.85 },
     );
 
     const entries = auditLogger.getAuditEntries();
