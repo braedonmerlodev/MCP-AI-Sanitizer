@@ -15,34 +15,33 @@ describe('Data Export API Integration', () => {
     format: Joi.string().valid('json', 'csv', 'parquet').required(),
     startDate: Joi.string().isoDate().optional(),
     endDate: Joi.string().isoDate().optional(),
-    riskLevel: Joi.string().valid('Low', 'Unknown', 'High').optional(),
+    riskScore: Joi.number().min(0).max(1).optional(),
     maxRecords: Joi.number().integer().min(1).max(50000).optional(),
   });
 
   beforeEach(() => {
     // Mock dependencies
     mockAuditLogger = {
-      logOperation: (operation, details, context) => Promise.resolve({ id: 'audit-123' }),
-      getAuditEntries: (filters) => {
-        console.log('Mock getAuditEntries called with filters:', filters);
+      logOperation: jest.fn().mockResolvedValue({ id: 'audit-123' }),
+      getAuditEntries: jest.fn((filters = {}) => {
+        // Mock implementation that returns test data
         const result = [
           {
-            operation: 'risk_assessment_context',
-            timestamp: '2023-01-01T00:00:00.000Z',
             id: 'record-1',
+            timestamp: '2023-01-01T00:00:00.000Z',
+            operation: 'high_fidelity_data_collection',
             details: {
-              inputData: { content: 'test content' },
+              inputDataHash: 'hash123',
               processingSteps: [],
-              decisionOutcome: { riskLevel: 'Low' },
-              featureVector: { contentLength: 12 },
-              trainingLabels: {},
-              metadata: {},
+              decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
+              featureVector: {},
+              contextMetadata: { inputLength: 4, outputLength: 4, processingTime: 1 },
             },
           },
         ];
         console.log('Mock returning:', result);
         return result;
-      },
+      }),
     };
 
     mockAccessControlEnforcer = {
@@ -91,7 +90,7 @@ describe('Data Export API Integration', () => {
           {
             startDate: value.startDate,
             endDate: value.endDate,
-            riskLevel: value.riskLevel,
+            riskScore: value.riskScore,
           },
           exportContext,
         );
@@ -128,11 +127,14 @@ describe('Data Export API Integration', () => {
         {
           id: 'record-1',
           timestamp: '2023-01-01T00:00:00.000Z',
-          inputData: { content: 'test content' },
-          decisionOutcome: { riskLevel: 'Low' },
-          featureVector: { contentLength: 12 },
-          trainingLabels: {},
-          metadata: {},
+          operation: 'high_fidelity_data_collection',
+          details: {
+            inputDataHash: 'hash123',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
+            featureVector: { contentLength: 12 },
+            contextMetadata: {},
+          },
         },
       ];
 
@@ -155,11 +157,14 @@ describe('Data Export API Integration', () => {
         {
           id: 'record-1',
           timestamp: '2023-01-01T00:00:00.000Z',
-          inputData: { content: 'test content' },
-          decisionOutcome: { riskLevel: 'Low' },
-          featureVector: { contentLength: 12 },
-          trainingLabels: {},
-          metadata: {},
+          operation: 'high_fidelity_data_collection',
+          details: {
+            inputDataHash: 'hash123',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
+            featureVector: { contentLength: 12 },
+            contextMetadata: {},
+          },
         },
       ];
 
@@ -175,28 +180,56 @@ describe('Data Export API Integration', () => {
       expect(response.body.recordCount).toBe(1);
     });
 
+    it('should export Parquet data successfully', async () => {
+      const mockData = [
+        {
+          id: 'record-1',
+          timestamp: '2023-01-01T00:00:00.000Z',
+          operation: 'high_fidelity_data_collection',
+          details: {
+            inputDataHash: 'hash123',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
+            featureVector: { contentLength: 12 },
+            contextMetadata: {},
+          },
+        },
+      ];
+
+      mockAuditLogger.getAuditEntries.mockReturnValue(mockData);
+
+      const response = await request(app)
+        .post('/api/export/training-data')
+        .send({ format: 'parquet' })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.format).toBe('parquet');
+      expect(response.body.recordCount).toBe(1);
+    });
+
     it('should filter data by date range', async () => {
       const mockData = [
         {
-          operation: 'risk_assessment_context',
+          operation: 'high_fidelity_data_collection',
           timestamp: '2023-01-01T00:00:00.000Z',
           details: {
-            inputData: { content: 'old content' },
-            decisionOutcome: { riskLevel: 'Low' },
+            inputDataHash: 'hash1',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
             featureVector: {},
-            trainingLabels: {},
-            metadata: {},
+            contextMetadata: {},
           },
         },
         {
-          operation: 'risk_assessment_context',
+          operation: 'high_fidelity_data_collection',
           timestamp: '2023-01-15T00:00:00.000Z',
           details: {
-            inputData: { content: 'new content' },
-            decisionOutcome: { riskLevel: 'High' },
+            inputDataHash: 'hash2',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.8 },
             featureVector: {},
-            trainingLabels: {},
-            metadata: {},
+            contextMetadata: {},
           },
         },
       ];
@@ -214,28 +247,30 @@ describe('Data Export API Integration', () => {
       expect(response.body.recordCount).toBe(1);
     });
 
-    it('should filter data by risk level', async () => {
+    it('should filter data by risk score', async () => {
       const mockData = [
         {
-          operation: 'risk_assessment_context',
+          id: 'record-1',
+          operation: 'high_fidelity_data_collection',
           timestamp: '2023-01-01T00:00:00.000Z',
           details: {
-            inputData: { content: 'low risk' },
-            decisionOutcome: { riskLevel: 'Low' },
+            inputDataHash: 'hash1',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
             featureVector: {},
-            trainingLabels: {},
-            metadata: {},
+            contextMetadata: {},
           },
         },
         {
-          operation: 'risk_assessment_context',
+          id: 'record-2',
+          operation: 'high_fidelity_data_collection',
           timestamp: '2023-01-02T00:00:00.000Z',
           details: {
-            inputData: { content: 'high risk' },
-            decisionOutcome: { riskLevel: 'High' },
+            inputDataHash: 'hash2',
+            processingSteps: [],
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.8 },
             featureVector: {},
-            trainingLabels: {},
-            metadata: {},
+            contextMetadata: {},
           },
         },
       ];
@@ -246,7 +281,7 @@ describe('Data Export API Integration', () => {
         .post('/api/export/training-data')
         .send({
           format: 'json',
-          riskLevel: 'High',
+          riskScore: 0.8,
         })
         .expect(200);
 

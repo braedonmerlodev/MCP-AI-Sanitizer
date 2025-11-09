@@ -83,9 +83,9 @@ class DataExportManager {
    * @returns {Array} - Filtered training data records
    */
   getTrainingData(filters = {}) {
-    // Get risk assessment context entries
+    // Get high fidelity data collection entries
     const auditEntries = this.auditLogger.getAuditEntries({
-      operation: 'risk_assessment_context',
+      operation: 'high_fidelity_data_collection',
       ...filters,
     });
 
@@ -93,12 +93,11 @@ class DataExportManager {
     const trainingData = auditEntries.map((entry) => ({
       id: entry.id,
       timestamp: entry.timestamp,
-      inputData: entry.details.inputData,
+      inputDataHash: entry.details.inputDataHash,
       processingSteps: entry.details.processingSteps,
       decisionOutcome: entry.details.decisionOutcome,
       featureVector: entry.details.featureVector,
-      trainingLabels: entry.details.trainingLabels,
-      metadata: entry.details.metadata,
+      contextMetadata: entry.details.contextMetadata,
       // Flatten feature vector for CSV/Parquet compatibility
       ...this.flattenFeatureVector(entry.details.featureVector),
     }));
@@ -118,9 +117,9 @@ class DataExportManager {
       );
     }
 
-    if (filters.riskLevel) {
+    if (filters.riskScore) {
       filteredData = filteredData.filter(
-        (record) => record.decisionOutcome.riskLevel === filters.riskLevel,
+        (record) => record.decisionOutcome.riskScore == filters.riskScore,
       );
     }
 
@@ -260,17 +259,16 @@ class DataExportManager {
       throw new Error('No data to export');
     }
 
-    // Define Parquet schema based on data structure
+    // Define Parquet schema based on training data structure
     const schema = new parquet.ParquetSchema({
       id: { type: 'UTF8' },
       timestamp: { type: 'UTF8' },
-      inputData_content: { type: 'UTF8', optional: true },
-      decisionOutcome_riskLevel: { type: 'UTF8', optional: true },
-      decisionOutcome_actionsTaken: { type: 'UTF8', optional: true },
-      metadata_loggedAt: { type: 'UTF8', optional: true },
-      metadata_provenance: { type: 'UTF8', optional: true },
-      // Add more fields as needed - this is a simplified schema
-      // In production, you'd dynamically generate based on all possible fields
+      inputDataHash: { type: 'UTF8', optional: true },
+      processingSteps: { type: 'UTF8', optional: true }, // JSON string
+      decisionOutcome: { type: 'UTF8', optional: true }, // JSON string
+      featureVector: { type: 'UTF8', optional: true }, // JSON string
+      contextMetadata: { type: 'UTF8', optional: true }, // JSON string
+      // Additional flattened fields will be added dynamically
     });
 
     // Create Parquet writer
@@ -281,12 +279,12 @@ class DataExportManager {
       const parquetRecord = {
         id: record.id,
         timestamp: record.timestamp,
-        inputData_content: record.inputData?.content || '',
-        decisionOutcome_riskLevel: record.decisionOutcome?.riskLevel || '',
-        decisionOutcome_actionsTaken: JSON.stringify(record.decisionOutcome?.actionsTaken || []),
-        metadata_loggedAt: record.metadata?.loggedAt || '',
-        metadata_provenance: record.metadata?.provenance || '',
-        // Add flattened features
+        inputDataHash: record.inputDataHash || '',
+        processingSteps: JSON.stringify(record.processingSteps || []),
+        decisionOutcome: JSON.stringify(record.decisionOutcome || {}),
+        featureVector: JSON.stringify(record.featureVector || {}),
+        contextMetadata: JSON.stringify(record.contextMetadata || {}),
+        // Add any additional flattened fields
         ...Object.fromEntries(
           Object.entries(record)
             .filter(
@@ -294,12 +292,11 @@ class DataExportManager {
                 ![
                   'id',
                   'timestamp',
-                  'inputData',
+                  'inputDataHash',
                   'processingSteps',
                   'decisionOutcome',
                   'featureVector',
-                  'trainingLabels',
-                  'metadata',
+                  'contextMetadata',
                 ].includes(key),
             )
             .map(([key, value]) => [

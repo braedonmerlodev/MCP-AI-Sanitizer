@@ -15,16 +15,15 @@ describe('DataExportManager', () => {
         // Simple mock implementation that filters by operation
         const allEntries = [
           {
-            operation: 'risk_assessment_context',
+            operation: 'high_fidelity_data_collection',
             timestamp: '2023-01-01T00:00:00.000Z',
             id: 'record-1',
             details: {
-              inputData: { content: 'test' },
+              inputDataHash: 'hash123',
               processingSteps: [],
-              decisionOutcome: { riskLevel: 'Low' },
+              decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
               featureVector: {},
-              trainingLabels: {},
-              metadata: {},
+              contextMetadata: { inputLength: 4, outputLength: 4, processingTime: 1 },
             },
           },
           {
@@ -70,14 +69,13 @@ describe('DataExportManager', () => {
         {
           id: 'record-1',
           timestamp: '2023-01-01T00:00:00.000Z',
-          operation: 'risk_assessment_context',
+          operation: 'high_fidelity_data_collection',
           details: {
-            inputData: { content: 'test content' },
+            inputDataHash: 'abc123',
             processingSteps: [],
-            decisionOutcome: { riskLevel: 'Low' },
+            decisionOutcome: { decision: 'sanitized', reasoning: 'test', riskScore: 0.1 },
             featureVector: { contentLength: 12 },
-            trainingLabels: {},
-            metadata: {},
+            contextMetadata: { inputLength: 10, outputLength: 10, processingTime: 5 },
           },
         },
       ];
@@ -128,7 +126,7 @@ describe('DataExportManager', () => {
       const result = dataExportManager.getTrainingData();
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toHaveProperty('inputData');
+      expect(result[0]).toHaveProperty('inputDataHash');
     });
 
     it('should apply date filters', () => {

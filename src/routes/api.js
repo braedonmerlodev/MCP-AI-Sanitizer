@@ -17,6 +17,8 @@ const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLog = require('../models/AuditLog');
+const AuditLogger = require('../components/data-integrity/AuditLogger');
+const DataExportManager = require('../components/data-integrity/DataExportManager');
 
 const router = express.Router();
 
@@ -29,6 +31,11 @@ const pdfGenerator = new PDFGenerator();
 const adminOverrideController = new AdminOverrideController();
 const accessControlEnforcer = new AccessControlEnforcer({
   adminOverrideController,
+});
+const auditLogger = new AuditLogger();
+const dataExportManager = new DataExportManager({
+  auditLogger,
+  accessControlEnforcer,
 });
 
 // Initialize logger
@@ -724,6 +731,51 @@ router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => 
   });
 
   res.json(monitoringData);
+});
+
+// Data export route
+router.post('/export/training-data', accessValidationMiddleware, async (req, res) => {
+  try {
+    const { format = 'json', ...filters } = req.body;
+
+    // Validate format
+    const validFormats = ['json', 'csv', 'parquet'];
+    if (!validFormats.includes(format)) {
+      return res.status(400).json({
+        error: `Invalid format. Supported formats: ${validFormats.join(', ')}`,
+      });
+    }
+
+    // Export data
+    const exportResult = await dataExportManager.exportTrainingData(format, filters, {
+      userId: req.userId || 'system',
+      ipAddress: req.ip,
+      req,
+    });
+
+    // Set headers
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${exportResult.filePath.split('/').pop()}"`,
+    );
+    res.setHeader('X-Export-Format', format);
+    res.setHeader('X-Export-Record-Count', exportResult.recordCount);
+    res.setHeader('X-Export-File-Size', exportResult.fileSize);
+
+    // Stream file
+    const fs = require('node:fs');
+    const stream = fs.createReadStream(exportResult.filePath);
+    stream.pipe(res);
+
+    // Clean up file after response
+    stream.on('end', () => {
+      fs.unlinkSync(exportResult.filePath);
+    });
+  } catch (error) {
+    logger.error('Data export error', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to export training data' });
+  }
 });
 
 module.exports = router;

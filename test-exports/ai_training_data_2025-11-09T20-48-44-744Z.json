@@ -1,0 +1,36 @@
+{
+  "exportMetadata": {
+    "timestamp": "2025-11-09T20:48:44.744Z",
+    "recordCount": 2,
+    "format": "json",
+    "version": "1.0"
+  },
+  "records": [
+    {
+      "id": "record-1",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "inputDataHash": "hash1",
+      "processingSteps": [],
+      "decisionOutcome": {
+        "decision": "sanitized",
+        "reasoning": "test",
+        "riskScore": 0.1
+      },
+      "featureVector": {},
+      "contextMetadata": {}
+    },
+    {
+      "id": "record-2",
+      "timestamp": "2023-01-02T00:00:00.000Z",
+      "inputDataHash": "hash2",
+      "processingSteps": [],
+      "decisionOutcome": {
+        "decision": "sanitized",
+        "reasoning": "test",
+        "riskScore": 0.8
+      },
+      "featureVector": {},
+      "contextMetadata": {}
+    }
+  ]
+}

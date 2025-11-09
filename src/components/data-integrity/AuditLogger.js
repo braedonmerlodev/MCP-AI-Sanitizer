@@ -401,34 +401,6 @@ class AuditLogger {
       throw new TypeError('Invalid contextMetadata.processingTime: must be a non-negative number');
     }
 
-    if (
-      !decisionOutcome ||
-      typeof decisionOutcome.decision !== 'string' ||
-      !decisionOutcome.decision
-    ) {
-      throw new Error('Invalid decisionOutcome: must have a non-empty decision string');
-    }
-    if (
-      typeof decisionOutcome.riskScore !== 'number' ||
-      decisionOutcome.riskScore < 0 ||
-      decisionOutcome.riskScore > 1
-    ) {
-      throw new Error('Invalid decisionOutcome.riskScore: must be a number between 0 and 1');
-    }
-    if (
-      !contextMetadata ||
-      typeof contextMetadata.inputLength !== 'number' ||
-      contextMetadata.inputLength < 0
-    ) {
-      throw new Error('Invalid contextMetadata.inputLength: must be a non-negative number');
-    }
-    if (typeof contextMetadata.outputLength !== 'number' || contextMetadata.outputLength < 0) {
-      throw new Error('Invalid contextMetadata.outputLength: must be a non-negative number');
-    }
-    if (typeof contextMetadata.processingTime !== 'number' || contextMetadata.processingTime < 0) {
-      throw new Error('Invalid contextMetadata.processingTime: must be a non-negative number');
-    }
-
     // Structured feature extraction for ML models
     const featureVector = {
       inputLength: contextMetadata.inputLength,
