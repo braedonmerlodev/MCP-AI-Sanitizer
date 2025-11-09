@@ -239,8 +239,108 @@ paths:
                      description: The sanitized and processed result
          '400':
            description: Invalid request payload
-         '500':
-           description: Internal server error
+          '500':
+            description: Internal server error
+    /api/export/training-data:
+      post:
+        summary: Export high-fidelity training data for AI pipelines
+        description: Exports collected training data in JSON, CSV, or Parquet formats for AI model training. Requires authentication via trust token.
+        security:
+          - trustToken: []
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - format
+                properties:
+                  format:
+                    type: string
+                    enum: [json, csv, parquet]
+                    description: Export format for training data
+                    example: json
+                  filters:
+                    type: object
+                    properties:
+                      startDate:
+                        type: string
+                        format: date-time
+                        description: Filter data from this date
+                        example: "2023-01-01T00:00:00.000Z"
+                      endDate:
+                        type: string
+                        format: date-time
+                        description: Filter data until this date
+                        example: "2023-12-31T23:59:59.999Z"
+                      riskScore:
+                        type: number
+                        minimum: 0
+                        maximum: 1
+                        description: Filter by minimum risk score
+                        example: 0.5
+                      maxRecords:
+                        type: integer
+                        minimum: 1
+                        maximum: 10000
+                        description: Maximum number of records to export
+                        example: 1000
+        responses:
+          '200':
+            description: Training data exported successfully
+            content:
+              application/octet-stream:
+                schema:
+                  type: string
+                  format: binary
+                  description: Exported training data file
+            headers:
+              X-Export-Format:
+                schema:
+                  type: string
+                  enum: [json, csv, parquet]
+                description: Format of exported data
+              X-Export-Record-Count:
+                schema:
+                  type: integer
+                description: Number of records exported
+              X-Export-File-Size:
+                schema:
+                  type: integer
+                description: Size of exported file in bytes
+              Content-Disposition:
+                schema:
+                  type: string
+                description: Filename for download
+          '400':
+            description: Invalid request - unsupported format or invalid filters
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    error:
+                      type: string
+                      example: "Invalid format. Supported formats: json, csv, parquet"
+          '403':
+            description: Authentication failed - invalid or missing trust token
+          '429':
+            description: Rate limit exceeded - too many export requests
+          '500':
+            description: Internal server error during export
+         x-rate-limit:
+           limit: 100
+           window: 1h
+           description: Maximum 100 export requests per hour per IP
+
+components:
+  securitySchemes:
+    trustToken:
+      type: apiKey
+      in: header
+      name: x-trust-token
+      description: Trust token for AI agent authentication and access validation
 
 ## n8n Integration Examples
 
