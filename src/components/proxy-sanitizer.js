@@ -1,5 +1,6 @@
 const SanitizationPipeline = require('./sanitization-pipeline');
 const AuditLog = require('../models/AuditLog');
+const sanitizationConfig = require('../config/sanitizationConfig');
 const winston = require('winston');
 
 // Initialize logger
@@ -16,6 +17,13 @@ const logger = winston.createLogger({
 class ProxySanitizer {
   constructor() {
     this.pipeline = new SanitizationPipeline();
+    this.metrics = {
+      totalOperations: 0,
+      totalLatency: 0,
+      latencies: [],
+      maxLatency: 0,
+      minLatency: Infinity,
+    };
   }
 
   /**
@@ -28,11 +36,24 @@ class ProxySanitizer {
    */
   async sanitize(data, options = {}) {
     const { classification = 'unclear', operation = 'unknown' } = options;
-    const sanitizationLevel = classification === 'non-llm' ? 'bypassed' : 'full';
+    const riskLevel = sanitizationConfig.getRiskLevel(classification);
+    const sanitizationLevel = riskLevel === 'low' ? 'bypassed' : 'full';
 
-    logger.info('Starting sanitization process', { classification, operation });
+    logger.info('Starting sanitization process', { classification, riskLevel, operation });
 
-    const sanitized = await this.pipeline.sanitize(data, options);
+    const startTime = Date.now();
+    const sanitized = await this.pipeline.sanitize(data, { ...options, riskLevel });
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    // Update metrics
+    this.metrics.totalOperations++;
+    this.metrics.totalLatency += latency;
+    this.metrics.latencies.push(latency);
+    if (latency > this.metrics.maxLatency) this.metrics.maxLatency = latency;
+    if (latency < this.metrics.minLatency) this.metrics.minLatency = latency;
+
+    logger.info('Sanitization latency measured', { latency, operation });
 
     // Create audit log entry (wrapped in try-catch to prevent audit failures from breaking sanitization)
     let auditId = null;
@@ -49,10 +70,10 @@ class ProxySanitizer {
           operation: operation,
           direction:
             operation === 'request' ? 'inbound' : operation === 'response' ? 'outbound' : 'unknown',
+          latency: latency,
         },
         destination: classification,
-        riskLevel:
-          classification === 'llm' ? 'high' : classification === 'non-llm' ? 'low' : 'medium',
+        riskLevel: riskLevel,
         sanitizationLevel: sanitizationLevel,
       });
       auditId = auditEntry.id;
@@ -65,9 +86,10 @@ class ProxySanitizer {
     }
 
     logger.info('Sanitization completed', {
-      wasSanitized: classification !== 'non-llm',
+      wasSanitized: riskLevel !== 'low',
       operation,
       auditId,
+      latency,
     });
 
     return sanitized;
@@ -99,6 +121,21 @@ class ProxySanitizer {
 
     logger.info('n8n webhook processed');
     return { result: outputSanitized };
+  }
+
+  /**
+   * Gets performance metrics for sanitization operations.
+   * @returns {Object} Metrics object
+   */
+  getMetrics() {
+    const avgLatency =
+      this.metrics.totalOperations > 0
+        ? this.metrics.totalLatency / this.metrics.totalOperations
+        : 0;
+    return {
+      ...this.metrics,
+      averageLatency: avgLatency,
+    };
   }
 
   /**

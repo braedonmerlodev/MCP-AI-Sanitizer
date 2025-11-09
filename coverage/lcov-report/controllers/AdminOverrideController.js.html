@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">11.11% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>10/90</span>
+                <span class='fraction'>0/90</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">27.77% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>15/54</span>
+                <span class='fraction'>0/54</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">11.11% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/9</span>
+                <span class='fraction'>0/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">11.23% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>10/89</span>
+                <span class='fraction'>0/89</span>
             </div>
         
             
@@ -484,8 +484,8 @@
 <a name='L419'></a><a href='#L419'>419</a>
 <a name='L420'></a><a href='#L420'>420</a>
 <a name='L421'></a><a href='#L421'>421</a>
-<a name='L422'></a><a href='#L422'>422</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<a name='L422'></a><a href='#L422'>422</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -500,7 +500,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -509,15 +509,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -525,7 +525,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -904,9 +904,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const winston = require('winston');
-const AuditLoggerAccess = require('../components/AuditLoggerAccess');
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const winston = <span class="cstat-no" title="statement not covered" >require('winston');</span>
+const AuditLoggerAccess = <span class="cstat-no" title="statement not covered" >require('../components/AuditLoggerAccess');</span>
 &nbsp;
 /**
  * AdminOverrideController handles emergency admin override capabilities.
@@ -920,8 +920,8 @@ const AuditLoggerAccess = require('../components/AuditLoggerAccess');
  */
 &nbsp;
 class AdminOverrideController {
-  constructor(options = {}) {
-    this.logger =
+<span class="fstat-no" title="function not covered" >  co</span>nstructor(options = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+<span class="cstat-no" title="statement not covered" >    this.logger =</span>
       options.logger ||
       winston.createLogger({
         level: 'info',
@@ -930,15 +930,15 @@ class AdminOverrideController {
       });
 &nbsp;
     // Override configuration
-    this.defaultDuration = options.defaultDuration || 15 * 60 * 1000; // 15 minutes in ms
-    this.maxDuration = options.maxDuration || 60 * 60 * 1000; // 1 hour max
-    this.maxConcurrentOverrides = options.maxConcurrentOverrides || 1; // Limit concurrent overrides
+<span class="cstat-no" title="statement not covered" >    this.defaultDuration = options.defaultDuration || 15 * 60 * 1000; </span>// 15 minutes in ms
+<span class="cstat-no" title="statement not covered" >    this.maxDuration = options.maxDuration || 60 * 60 * 1000; </span>// 1 hour max
+<span class="cstat-no" title="statement not covered" >    this.maxConcurrentOverrides = options.maxConcurrentOverrides || 1; </span>// Limit concurrent overrides
 &nbsp;
     // In-memory override state (in production, use Redis or database)
-    this.activeOverrides = new Map(); // overrideId -&gt; { adminId, startTime, endTime, justification }
+<span class="cstat-no" title="statement not covered" >    this.activeOverrides = new Map(); </span>// overrideId -&gt; { adminId, startTime, endTime, justification }
 &nbsp;
     // Audit logger
-    this.auditLogger = new AuditLoggerAccess({
+<span class="cstat-no" title="statement not covered" >    this.auditLogger = new AuditLoggerAccess({</span>
       secret:
         options.auditSecret ||
         process.env.AUDIT_SECRET ||
@@ -946,7 +946,7 @@ class AdminOverrideController {
     });
 &nbsp;
     // Admin authentication (simplified - in production use proper auth system)
-    this.adminAuthSecret =
+<span class="cstat-no" title="statement not covered" >    this.adminAuthSecret =</span>
       options.adminAuthSecret ||
       process.env.ADMIN_AUTH_SECRET ||
       'admin-secret-change-in-production';
@@ -1325,7 +1325,7 @@ class AdminOverrideController {
   }
 }
 &nbsp;
-module.exports = AdminOverrideController;
+<span class="cstat-no" title="statement not covered" >module.exports = AdminOverrideController;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -1333,7 +1333,7 @@ module.exports = AdminOverrideController;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-08T23:10:32.528Z
+                at 2025-11-09T00:41:04.666Z
             </div>
         <script src="../prettify.js"></script>
         <script>
