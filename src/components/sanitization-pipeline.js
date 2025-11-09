@@ -40,6 +40,7 @@ class SanitizationPipeline {
    * @param {string} data - The input string to sanitize.
    * @param {Object} options - Sanitization options
    * @param {string} options.classification - Destination classification ('llm', 'non-llm', 'unclear')
+   * @param {string} options.riskLevel - Risk level ('low', 'medium', 'high')
    * @param {boolean} options.skipValidation - Skip integrity validation
    * @param {Object} options.validationOptions - Options for integrity validation
    * @param {boolean} options.generateTrustToken - Generate trust token for sanitized content
@@ -48,23 +49,28 @@ class SanitizationPipeline {
   async sanitize(data, options = {}) {
     const {
       classification = 'unclear',
+      riskLevel,
       skipValidation = false,
       validationOptions = {},
       generateTrustToken = false,
     } = options;
 
-    // For security, default to full sanitization if classification is unclear
-    if (classification === 'non-llm') {
-      // Skip sanitization for non-LLM traffic
-      logger.info('Sanitization bypassed for non-LLM traffic', {
+    // Determine if to bypass based on risk level or classification for backward compatibility
+    const shouldBypass = riskLevel ? riskLevel === 'low' : classification === 'non-llm';
+
+    // For security, default to full sanitization if classification is unclear and no risk level
+    if (shouldBypass) {
+      // Skip sanitization for low-risk traffic
+      logger.info('Sanitization bypassed for low-risk traffic', {
         classification,
+        riskLevel,
         dataLength: data.length,
       });
 
       // Still validate if enabled and not explicitly skipped
       if (this.enableValidation && !skipValidation) {
         const validationResult = await this.integrityValidator.validateData(data, {
-          source: 'non-llm-bypass',
+          source: 'low-risk-bypass',
           ...validationOptions,
         });
 
@@ -79,8 +85,12 @@ class SanitizationPipeline {
       return data;
     }
 
-    // Apply full sanitization for LLM-bound or unclear traffic
-    logger.info('Applying full sanitization pipeline', { classification, dataLength: data.length });
+    // Apply full sanitization for high/medium-risk or unclear traffic
+    logger.info('Applying full sanitization pipeline', {
+      classification,
+      riskLevel,
+      dataLength: data.length,
+    });
 
     let result = data;
 

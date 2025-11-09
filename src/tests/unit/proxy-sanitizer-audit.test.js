@@ -19,7 +19,10 @@ describe('ProxySanitizer Audit Logging', () => {
       const result = await proxySanitizer.sanitize(testData, options);
 
       expect(result).toBe('sanitized data');
-      expect(proxySanitizer.pipeline.sanitize).toHaveBeenCalledWith(testData, options);
+      expect(proxySanitizer.pipeline.sanitize).toHaveBeenCalledWith(testData, {
+        ...options,
+        riskLevel: 'high',
+      });
 
       // Note: In a real test environment, we would verify audit log creation
       // but for unit tests, we focus on the sanitization logic
@@ -35,7 +38,10 @@ describe('ProxySanitizer Audit Logging', () => {
       const result = await proxySanitizer.sanitize(testData, options);
 
       expect(result).toBe(testData);
-      expect(proxySanitizer.pipeline.sanitize).toHaveBeenCalledWith(testData, options);
+      expect(proxySanitizer.pipeline.sanitize).toHaveBeenCalledWith(testData, {
+        ...options,
+        riskLevel: 'low',
+      });
     });
   });
 
