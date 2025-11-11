@@ -568,10 +568,19 @@ from agent.monitoring_tools import MonitoringTools
 from agent.response_tools import ResponseTools
 from config.agent_prompts import AGENT_SYSTEM_PROMPT
 import asyncio
+import os
 
 async def main():
-    # Initialize agent
-    agent = SecurityAgent()
+    # Initialize agent with configurable LLM
+    llm_config = {
+        "model": os.getenv("AGENT_LLM_MODEL", "gpt-4"),  # Default to GPT-4, can change to gpt-3.5-turbo, claude, etc.
+        "temperature": 0.1,  # Low temperature for security decisions
+        "max_tokens": 2000,
+        "api_key": os.getenv("AGENT_LLM_API_KEY"),
+        "base_url": os.getenv("AGENT_LLM_BASE_URL")  # For local models or different providers
+    }
+
+    agent = SecurityAgent(llm_config=llm_config)
 
     # Add specialized tool sets
     monitoring_tools = MonitoringTools(agent)
@@ -587,7 +596,7 @@ async def main():
     agent.set_system_prompt(AGENT_SYSTEM_PROMPT)
 
     # Start agent with continuous monitoring
-    print("Starting MCP Security Agent...")
+    print(f"Starting MCP Security Agent with {llm_config['model']}...")
 
     # Example: Start with system health check
     result = await agent.run("Perform initial system health check and report any anomalies")
@@ -617,6 +626,40 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+### 3.3 LLM Configuration Options
+
+**Development vs Production LLMs:**
+
+```bash
+# Development (for building/testing agent)
+export AGENT_LLM_MODEL="gpt-4"  # High capability for complex reasoning
+export AGENT_LLM_API_KEY="your-openai-key"
+
+# Production (for running agent)
+export AGENT_LLM_MODEL="gpt-3.5-turbo"  # Cost-effective for routine operations
+export AGENT_LLM_API_KEY="your-openai-key"
+
+# Alternative providers
+export AGENT_LLM_MODEL="claude-3-sonnet"
+export AGENT_LLM_BASE_URL="https://api.anthropic.com"
+export AGENT_LLM_API_KEY="your-anthropic-key"
+
+# Local models (via Ollama or similar)
+export AGENT_LLM_MODEL="llama2:13b"
+export AGENT_LLM_BASE_URL="http://localhost:11434"
+export AGENT_LLM_API_KEY=""  # Not needed for local
+```
+
+**LLM Selection Strategy:**
+
+| Use Case               | Recommended Model            | Reasoning                              |
+| ---------------------- | ---------------------------- | -------------------------------------- |
+| **Development**        | GPT-4/Claude-3               | Complex reasoning for agent building   |
+| **Production Routine** | GPT-3.5-turbo/Claude-3-Haiku | Cost-effective for standard operations |
+| **Security Analysis**  | GPT-4/Claude-3               | High reasoning for threat assessment   |
+| **Local/Offline**      | Llama 2/3, Mistral           | Privacy, no API costs                  |
+| **Specialized**        | Domain-specific models       | Fine-tuned for security tasks          |
 
 ## Phase 4: Testing and Validation
 
