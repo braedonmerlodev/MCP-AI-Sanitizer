@@ -663,7 +663,23 @@ export AGENT_LLM_API_KEY=""  # Not needed for local
 
 ## Phase 4: Testing and Validation
 
-### 4.1 Unit Testing
+### 4.1 Testing Strategy Overview
+
+The agent testing strategy follows a comprehensive approach covering unit tests, integration tests, end-to-end tests, and user acceptance testing. The goal is to ensure the agent meets all security, performance, and functional requirements while maintaining system stability.
+
+**Testing Pyramid:**
+
+- **Unit Tests (70%)**: Individual functions, tools, and components
+- **Integration Tests (20%)**: API interactions and component communication
+- **End-to-End Tests (10%)**: Complete workflows and user scenarios
+
+**Testing Environments:**
+
+- **Development**: Local testing with mocked services
+- **Staging**: Full integration testing with test backend
+- **Production**: Canary deployments and monitoring
+
+### 4.2 Unit Testing
 
 ```python
 # tests/test_agent.py
@@ -705,7 +721,7 @@ class TestSecurityAgent:
         assert "error" in result
 ```
 
-### 4.2 Integration Testing
+### 4.3 Integration Testing
 
 ```python
 # tests/integration/test_agent_backend.py
@@ -735,6 +751,348 @@ class TestAgentBackendIntegration:
 
         assert "statistics" in result or "error" in result
 ```
+
+### 4.4 End-to-End Testing Scenarios
+
+**Critical E2E Test Cases:**
+
+1. **Threat Detection Workflow**: Inject malicious content → Agent detects → Sanitizes → Logs incident → Sends alert
+2. **Learning Validation**: Feed agent historical data → Verify pattern recognition → Test improved detection
+3. **Orchestration Chain**: Detect threat → Activate admin override → Trigger n8n workflow → Verify response
+4. **Performance Under Load**: 1000 concurrent requests → Monitor response times → Validate <5s SLA
+5. **Failure Recovery**: Simulate backend outage → Agent continues monitoring → Graceful degradation
+
+**E2E Test Automation:**
+
+```python
+# tests/e2e/test_agent_workflows.py
+import pytest
+from agent.security_agent import SecurityAgent
+import time
+
+class TestAgentE2E:
+    def test_threat_detection_workflow(self, test_backend):
+        """Complete threat detection and response workflow"""
+        agent = SecurityAgent()
+
+        # Step 1: Inject malicious content
+        malicious_content = "<script>alert('xss')</script>"
+
+        # Step 2: Agent processes and detects threat
+        result = agent.run(f"Analyze this content for threats: {malicious_content}")
+
+        # Step 3: Verify detection
+        assert "threat" in result.lower() or "sanitized" in result.lower()
+
+        # Step 4: Check audit logs
+        logs = test_backend.get_audit_logs()
+        assert any("threat" in log["message"].lower() for log in logs)
+
+        # Step 5: Verify alert generation
+        alerts = test_backend.get_alerts()
+        assert len(alerts) > 0
+```
+
+### 4.5 User Acceptance Testing (UAT) Criteria
+
+**Business Validation Criteria:**
+
+- **Security Effectiveness**: Agent detects ≥95% of known threat patterns
+- **False Positive Rate**: <5% false alerts in normal operations
+- **Response Time**: Threat detection and initial response within 5 seconds
+- **System Stability**: No security degradation when agent is active
+- **Learning Improvement**: Detection accuracy improves ≥10% over first 30 days
+
+**User Acceptance Scenarios:**
+
+1. **Administrator Override**: Agent suggests action, admin can override with justification
+2. **Alert Management**: Security team receives clear, actionable alerts
+3. **Performance Monitoring**: Dashboard shows agent effectiveness metrics
+4. **Configuration Management**: Easy adjustment of agent sensitivity and rules
+5. **Audit Compliance**: All agent actions are logged and auditable
+
+**UAT Test Scripts:**
+
+- Simulate various threat scenarios
+- Test agent responses under different load conditions
+- Validate learning from incident response feedback
+- Verify integration with existing security workflows
+
+### 4.6 Performance and Load Testing
+
+**Performance Benchmarks:**
+
+- **Response Time**: <100ms for routine monitoring, <5s for threat response
+- **Throughput**: Handle 1000+ concurrent monitoring streams
+- **Memory Usage**: <512MB baseline, <1GB under load
+- **CPU Usage**: <30% average, <70% peak
+
+**Load Testing Scenarios:**
+
+```python
+# tests/performance/test_agent_load.py
+import pytest
+import asyncio
+from agent.security_agent import SecurityAgent
+import time
+
+class TestAgentPerformance:
+    @pytest.mark.asyncio
+    async def test_concurrent_monitoring(self):
+        """Test agent handling 1000+ concurrent monitoring requests"""
+        agent = SecurityAgent()
+
+        start_time = time.time()
+
+        # Simulate 1000 concurrent monitoring tasks
+        tasks = []
+        for i in range(1000):
+            task = agent.run(f"Monitor system status {i}")
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks)
+
+        end_time = time.time()
+        total_time = end_time - start_time
+
+        # Validate performance
+        assert total_time < 300  # Complete within 5 minutes
+        assert all("success" in result.lower() for result in results)
+```
+
+### 4.7 Security Testing
+
+**Agent Security Validation:**
+
+- **Input Validation**: Agent rejects malformed or malicious inputs
+- **API Security**: All agent-backend communication uses HTTPS with auth
+- **Data Protection**: Agent doesn't expose sensitive information in logs/responses
+- **Access Control**: Agent respects backend authorization rules
+
+**Adversarial Testing:**
+
+- Attempt to manipulate agent decisions through crafted inputs
+- Test agent response to backend API failures
+- Validate agent doesn't become attack vector itself
+
+## Phase 4.8: Disaster Recovery and Failover
+
+### 4.8.1 Agent Failure Scenarios and Recovery
+
+**Agent Failure Types:**
+
+1. **LLM API Outage**: External LLM service unavailable
+2. **Backend API Failure**: MCP-Security backend unreachable
+3. **Agent Logic Error**: Bug in agent decision-making
+4. **Resource Exhaustion**: Memory/CPU limits exceeded
+5. **Network Issues**: Connectivity problems between components
+
+**Recovery Strategies:**
+
+```python
+# agent/recovery_manager.py
+class AgentRecoveryManager:
+    def __init__(self, agent):
+        self.agent = agent
+        self.fallback_llm = "gpt-3.5-turbo"  # Simpler model as backup
+        self.circuit_breaker = CircuitBreaker()
+        self.health_checks = HealthMonitor()
+
+    async def handle_llm_failure(self):
+        """Switch to fallback LLM when primary fails"""
+        if self.agent.llm_config["model"] != self.fallback_llm:
+            print("Switching to fallback LLM...")
+            self.agent.llm_config["model"] = self.fallback_llm
+            await self.agent.reinitialize_llm()
+            return True
+        return False
+
+    async def handle_backend_failure(self):
+        """Implement circuit breaker for backend APIs"""
+        if self.circuit_breaker.is_open():
+            # Enter degraded mode - continue monitoring but skip actions
+            await self.enter_degraded_mode()
+            return True
+        return False
+
+    async def enter_degraded_mode(self):
+        """Continue basic monitoring when backend is unavailable"""
+        print("Entering degraded mode - basic monitoring only")
+
+        # Continue health checks and logging
+        while not await self.health_checks.backend_available():
+            await self.perform_basic_monitoring()
+            await asyncio.sleep(60)  # Check every minute
+
+        # Attempt recovery
+        await self.attempt_recovery()
+
+    async def perform_basic_monitoring(self):
+        """Basic monitoring without backend dependency"""
+        # Local health checks, log analysis, etc.
+        # Continue until backend recovers
+        pass
+
+    async def attempt_recovery(self):
+        """Gradually restore full functionality"""
+        print("Attempting recovery...")
+
+        # Test backend connectivity
+        if await self.health_checks.backend_available():
+            # Close circuit breaker
+            self.circuit_breaker.close()
+            # Restore full agent functionality
+            await self.restore_full_functionality()
+            print("Recovery successful")
+        else:
+            print("Recovery failed, remaining in degraded mode")
+```
+
+### 4.8.2 Security Maintenance During Failures
+
+**Security Principles During Failures:**
+
+- **Fail Secure**: Default to more restrictive security posture
+- **Maintain Audit Trail**: Continue logging even during failures
+- **No Silent Failures**: Alert administrators to agent issues
+- **Graceful Degradation**: Reduce functionality but maintain core security
+
+**Security Failure Procedures:**
+
+```python
+# agent/security_maintenance.py
+class SecurityMaintenance:
+    def __init__(self, agent):
+        self.agent = agent
+        self.security_baseline = self.load_security_baseline()
+
+    async def handle_agent_failure(self, failure_type: str):
+        """Maintain security during agent failures"""
+        if failure_type == "llm_unavailable":
+            await self.activate_security_fallback_mode()
+        elif failure_type == "backend_unreachable":
+            await self.enable_local_security_mode()
+        elif failure_type == "logic_error":
+            await self.freeze_automated_actions()
+
+    async def activate_security_fallback_mode(self):
+        """Fallback security measures when agent can't make decisions"""
+        # Enable strict default policies
+        await self.backend_api_call("POST", "/api/admin/override/activate", {
+            "duration": 3600000,  # 1 hour
+            "justification": "Agent failure - activating security fallback"
+        })
+
+        # Alert security team
+        await self.send_security_alert({
+            "severity": "HIGH",
+            "message": "Agent LLM unavailable, activated security fallback mode",
+            "actions_taken": ["Admin override activated", "Increased monitoring"]
+        })
+
+    async def enable_local_security_mode(self):
+        """Local security enforcement when backend unavailable"""
+        # Implement local rate limiting
+        # Enable basic input validation
+        # Continue logging locally
+        # Queue actions for when backend recovers
+
+        print("Backend unavailable - enabling local security mode")
+        # Local security rules would be implemented here
+
+    async def freeze_automated_actions(self):
+        """Stop automated actions during logic errors"""
+        self.agent.automation_enabled = False
+
+        await self.send_security_alert({
+            "severity": "CRITICAL",
+            "message": "Agent logic error detected, automated actions frozen",
+            "manual_intervention_required": True
+        })
+
+    async def send_security_alert(self, alert_data: dict):
+        """Send alerts through available channels"""
+        # Try multiple alert channels for redundancy
+        channels = [
+            self.send_email_alert,
+            self.send_slack_alert,
+            self.log_to_filesystem
+        ]
+
+        for channel in channels:
+            try:
+                await channel(alert_data)
+                break  # Success, stop trying other channels
+            except Exception:
+                continue  # Try next channel
+```
+
+### 4.8.3 Rollback Procedures
+
+**Agent Rollback Strategy:**
+
+1. **Versioned Deployments**: Keep last 3 working versions
+2. **Gradual Rollback**: Reduce traffic to new version first
+3. **Data Preservation**: Maintain learning data across rollbacks
+4. **Monitoring During Rollback**: Watch for security regressions
+
+**Rollback Implementation:**
+
+```yaml
+# k8s/rollback-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent-rollback
+spec:
+  template:
+    spec:
+      containers:
+        - name: rollback
+          image: kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Gradual rollback
+              kubectl set image deployment/mcp-security-agent agent=mcp-security-agent:v1.0
+              kubectl rollout status deployment/mcp-security-agent
+
+              # Verify security functionality
+              kubectl exec -it deployment/mcp-security-agent -- python health_check.py
+
+              # Restore learning data if needed
+              kubectl exec -it deployment/mcp-security-agent -- python restore_learning_data.py
+      restartPolicy: Never
+```
+
+### 4.8.4 Business Continuity Planning
+
+**Maximum Allowable Downtime (MAD):**
+
+- **Agent Full Failure**: 4 hours (security team can manually handle)
+- **Degraded Mode**: 24 hours (basic monitoring continues)
+- **LLM Fallback**: 1 hour (switch to backup model)
+
+**Recovery Time Objectives (RTO):**
+
+- **Critical Functions**: 15 minutes (threat detection, blocking)
+- **Full Recovery**: 2 hours (all learning and orchestration features)
+- **Data Recovery**: 4 hours (restore from backups)
+
+**Recovery Point Objectives (RPO):**
+
+- **Learning Data**: 1 hour (continuous backup)
+- **Audit Logs**: 5 minutes (real-time replication)
+- **Configuration**: 15 minutes (version controlled)
+
+**Business Continuity Procedures:**
+
+1. **Immediate Response**: Alert security team, activate manual procedures
+2. **Assessment**: Determine failure scope and impact
+3. **Recovery**: Follow appropriate recovery procedure
+4. **Validation**: Test security functionality before full restoration
+5. **Lessons Learned**: Document incident and improve procedures
 
 ## Phase 5: Deployment and Operations
 
