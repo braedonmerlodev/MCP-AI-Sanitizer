@@ -14,6 +14,7 @@ class JobStatus {
     this.updatedAt = data.updatedAt || new Date().toISOString();
     this.retryCount = data.retryCount || 0;
     this.errorMessage = data.errorMessage;
+    this.result = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
     this.dbPath = data.dbPath || path.join(__dirname, '../../data/job-status.db');
   }
 
@@ -28,15 +29,16 @@ class JobStatus {
         } else {
           this.db.run(
             `
-            CREATE TABLE IF NOT EXISTS job_status (
-              id TEXT PRIMARY KEY,
-              jobId TEXT NOT NULL,
-              status TEXT NOT NULL,
-              createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL,
-              retryCount INTEGER DEFAULT 0,
-              errorMessage TEXT
-            )
+             CREATE TABLE IF NOT EXISTS job_status (
+               id TEXT PRIMARY KEY,
+               jobId TEXT NOT NULL,
+               status TEXT NOT NULL,
+               createdAt TEXT NOT NULL,
+               updatedAt TEXT NOT NULL,
+               retryCount INTEGER DEFAULT 0,
+               errorMessage TEXT,
+               result TEXT
+             )
           `,
             (err) => {
               if (err) {
@@ -58,8 +60,8 @@ class JobStatus {
     await this.initialize();
     return new Promise((resolve, reject) => {
       const sql = `
-        INSERT OR REPLACE INTO job_status (id, jobId, status, createdAt, updatedAt, retryCount, errorMessage)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO job_status (id, jobId, status, createdAt, updatedAt, retryCount, errorMessage, result)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
       this.db.run(
         sql,
@@ -71,6 +73,7 @@ class JobStatus {
           this.updatedAt,
           this.retryCount,
           this.errorMessage,
+          this.result ? JSON.stringify(this.result) : null,
         ],
         function (err) {
           if (err) {
@@ -116,12 +119,16 @@ class JobStatus {
    * Updates the status and updatedAt, then saves to database
    * @param {string} status - New status
    * @param {string} errorMessage - Error message if failed
+   * @param {Object} result - Result data if completed
    */
-  async updateStatus(status, errorMessage = null) {
+  async updateStatus(status, errorMessage = null, result = null) {
     this.status = status;
     this.updatedAt = new Date().toISOString();
     if (errorMessage) {
       this.errorMessage = errorMessage;
+    }
+    if (result) {
+      this.result = result;
     }
     await this.save();
   }
@@ -148,6 +155,7 @@ class JobStatus {
       updatedAt: this.updatedAt,
       retryCount: this.retryCount,
       errorMessage: this.errorMessage,
+      result: this.result,
     };
   }
 

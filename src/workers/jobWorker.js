@@ -24,12 +24,56 @@ async function processJob(job, cb) {
     }
 
     const ProxySanitizer = require('../components/proxy-sanitizer');
-    const sanitizer = new ProxySanitizer();
-    const result = await sanitizer.sanitize(job.data, job.options);
+    const MarkdownConverter = require('../components/MarkdownConverter');
+    const pdfParse = require('pdf-parse');
 
-    // Update status to completed
+    let result;
+
+    if (job.data.type === 'upload-pdf') {
+      // Handle PDF upload processing
+      const buffer = Buffer.from(job.data.fileBuffer, 'base64');
+
+      // Extract text and metadata from PDF
+      const pdfData = await pdfParse(buffer);
+      const extractedText = pdfData.text;
+      const metadata = {
+        pages: pdfData.numpages,
+        title: pdfData.info?.Title || null,
+        author: pdfData.info?.Author || null,
+        subject: pdfData.info?.Subject || null,
+        creator: pdfData.info?.Creator || null,
+        producer: pdfData.info?.Producer || null,
+        creationDate: pdfData.info?.CreationDate || null,
+        modificationDate: pdfData.info?.ModDate || null,
+        encoding: 'utf8',
+      };
+
+      // Convert extracted text to Markdown
+      const markdownConverter = new MarkdownConverter();
+      let markdownText = extractedText;
+      try {
+        markdownText = markdownConverter.convert(extractedText);
+      } catch (convertError) {
+        // Fallback to plain text
+      }
+
+      // Sanitize converted text
+      const sanitizer = new ProxySanitizer();
+      result = await sanitizer.sanitize(markdownText, job.options);
+
+      // Add metadata to result
+      result.metadata = metadata;
+      result.fileName = job.data.fileName;
+      result.status = 'processed';
+    } else {
+      // Default: sanitize content
+      const sanitizer = new ProxySanitizer();
+      result = await sanitizer.sanitize(job.data, job.options);
+    }
+
+    // Update status to completed with result
     if (jobStatus) {
-      await jobStatus.updateStatus('completed');
+      await jobStatus.updateStatus('completed', null, result);
     }
 
     logger.info('Job processed successfully', { jobId });

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
+const jobStatusRoutes = require('./routes/jobStatus');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
@@ -25,6 +26,8 @@ app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
+app.use('/api/jobs', jobStatusRoutes);
+app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -35,6 +38,7 @@ app.get('/', (req, res) => {
       'POST /api/sanitize': 'Sanitize input data',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
       'POST /api/documents/upload': 'Upload PDF documents for processing',
+      'GET /api/jobs/{taskId}': 'Poll async job status and results',
       'GET /health': 'Health check',
     },
     documentation: 'See README.md for usage details',
