@@ -138,7 +138,9 @@ global.ImageData = class ImageData {
 
 // Mock window and document for basic compatibility
 global.window = global.window || {};
-global.document = global.document || {};
+global.document = global.document || {
+  createElement: () => ({}),
+};
 global.navigator = global.navigator || { userAgent: 'Jest' };
 
 // Provide other browser APIs that might be needed
