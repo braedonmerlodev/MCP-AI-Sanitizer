@@ -633,4 +633,101 @@ describe('API Integration Tests - Access Validation Middleware', () => {
       });
     });
   });
+
+  describe('Agent Sync Mode Tests', () => {
+    test('should detect agent request via X-Agent-Key header', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .set('X-Agent-Key', 'agent-security-123')
+        .set('User-Agent', 'SecurityAgent/1.0')
+        .send({
+          content: 'Test content for agent sanitization',
+          async: true, // Should be overridden to sync
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.sanitizedContent).toBeDefined();
+      expect(response.body.trustToken).toBeDefined();
+      expect(response.headers['x-agent-request']).toBe('true');
+      expect(response.headers['x-agent-type']).toBe('security');
+    });
+
+    test('should enforce sync mode for agent requests overriding async preference', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .set('X-API-Key', 'agent-monitor-456')
+        .send({
+          content: 'Test content for sync override',
+          async: true, // This should be ignored for agents
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.sanitizedContent).toBeDefined();
+      // Should not have async processing headers
+      expect(response.headers['x-api-version']).toBeUndefined();
+      expect(response.headers['x-async-processing']).toBeUndefined();
+    });
+
+    test('should support explicit sync=true parameter for non-agent requests', async () => {
+      const response = await request(app).post('/api/sanitize/json?sync=true').send({
+        content: 'Test content with sync parameter',
+        async: true, // Should be overridden by query param
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.sanitizedContent).toBeDefined();
+      // Should not have async processing headers
+      expect(response.headers['x-api-version']).toBeUndefined();
+      expect(response.headers['x-async-processing']).toBeUndefined();
+    });
+
+    test('should process large PDF synchronously for agent requests', async () => {
+      // Create a large PDF buffer (>10MB threshold)
+      const largePdfBuffer = Buffer.alloc(15 * 1024 * 1024, '%PDF-1.4\n'); // 15MB
+
+      const response = await request(app)
+        .post('/api/documents/upload?sync=true')
+        .set('X-Agent-Key', 'agent-bmad-789')
+        .set('x-trust-token', JSON.stringify(validToken))
+        .attach('pdf', largePdfBuffer, 'large-test.pdf')
+        .set('Content-Type', 'multipart/form-data');
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toContain('processed successfully');
+      expect(response.body.sanitizedContent).toBeDefined();
+      expect(response.body.trustToken).toBeDefined();
+      // Should not have async processing headers
+      expect(response.headers['x-api-version']).toBeUndefined();
+      expect(response.headers['x-async-processing']).toBeUndefined();
+    });
+
+    test('should maintain <100ms response time for agent sanitization', async () => {
+      const iterations = 10;
+      const times = [];
+
+      for (let i = 0; i < iterations; i++) {
+        const start = process.hrtime.bigint();
+        await request(app)
+          .post('/api/sanitize/json')
+          .set('X-Agent-Key', 'agent-performance-test')
+          .send({
+            content: `Performance test content ${i}`,
+          });
+        const end = process.hrtime.bigint();
+        const durationMs = Number(end - start) / 1_000_000;
+        times.push(durationMs);
+      }
+
+      const averageTime = times.reduce((a, b) => a + b, 0) / times.length;
+      const maxTime = Math.max(...times);
+
+      console.log(
+        `Agent sync performance: Average ${averageTime.toFixed(2)}ms, Max ${maxTime.toFixed(2)}ms`,
+      );
+
+      // Agent operations should be <100ms as per requirements
+      expect(averageTime).toBeLessThan(100);
+      expect(maxTime).toBeLessThan(100);
+    });
+  });
 });
