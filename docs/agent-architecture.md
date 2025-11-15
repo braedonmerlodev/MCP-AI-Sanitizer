@@ -4,6 +4,8 @@
 
 This document describes the architecture for integrating an autonomous security agent using DeepAgent CLI and LangSmith with the existing MCP-Security backend. The agent will learn from security data, monitor system activities, and orchestrate automated responses while leveraging the comprehensive backend API toolset.
 
+**API Reference**: All backend API endpoints are fully documented in the [OpenAPI 3.0.3 specification](../openapi-spec.yaml), which serves as the authoritative source for API integration details.
+
 ## Architecture Principles
 
 ### Core Principles
@@ -49,18 +51,20 @@ graph TB
         E --> I[Response Actions]
     end
 
-    subgraph "Backend API Endpoints"
-        J[POST /api/sanitize] --> K[Basic Sanitization]
-        L[POST /api/sanitize/json] --> M[Advanced Sanitization + Trust Tokens]
-        N[POST /api/trust-tokens/validate] --> O[Token Validation]
-        P[POST /api/documents/upload] --> Q[PDF Processing]
-        R[POST /api/documents/generate-pdf] --> S[PDF Generation]
-        T[POST /api/webhook/n8n] --> U[N8N Integration]
-        V[POST /api/export/training-data] --> W[Data Export]
-        X[GET /api/monitoring/reuse-stats] --> Y[Performance Metrics]
-        Z[GET /health] --> AA[System Health]
-        BB[POST /api/admin/override/activate] --> CC[Admin Controls]
-    end
+     subgraph "Backend API Endpoints"
+         J[POST /api/sanitize] --> K[Basic Sanitization]
+         L[POST /api/sanitize/json] --> M[Advanced Sanitization + Trust Tokens]
+         N[POST /api/trust-tokens/validate] --> O[Token Validation]
+         P[POST /api/documents/upload] --> Q[PDF Processing]
+         R[POST /api/documents/generate-pdf] --> S[PDF Generation]
+         T[POST /api/webhook/n8n] --> U[N8N Integration]
+         V[POST /api/export/training-data] --> W[Data Export]
+         X[GET /api/monitoring/reuse-stats] --> Y[Performance Metrics]
+         Z[GET /health] --> AA[System Health]
+         BB[POST /api/admin/override/activate] --> CC[Admin Controls]
+         DD[GET /api/jobs/{taskId}/status] --> EE[Async Job Status]
+         FF[GET /api/jobs/{taskId}/result] --> GG[Async Job Results]
+     end
 
     subgraph "Data Sources for Learning"
         DD[Risk Assessment Logs<br/>Story 9.1] --> EE[Structured Risk Data]
@@ -69,16 +73,18 @@ graph TB
         JJ[HITL Escalation<br/>Story 9.3] --> KK[Intervention Data]
     end
 
-    A --> J
-    A --> L
-    A --> N
-    A --> P
-    A --> R
-    A --> T
-    A --> V
-    A --> X
-    A --> Z
-    A --> BB
+     A --> J
+     A --> L
+     A --> N
+     A --> P
+     A --> R
+     A --> T
+     A --> V
+     A --> X
+     A --> Z
+     A --> BB
+     A --> DD
+     A --> FF
 
     X --> D
     Y --> D
@@ -170,16 +176,24 @@ sequenceDiagram
 
 #### API Gateway
 
-- **Endpoints Available to Agent**:
-  - `POST /api/sanitize` - Content sanitization
-  - `POST /api/sanitize/json` - Advanced sanitization with trust tokens
-  - `POST /api/trust-tokens/validate` - Token validation
-  - `POST /api/documents/upload` - PDF processing
-  - `POST /api/documents/generate-pdf` - PDF generation
-  - `POST /api/webhook/n8n` - Workflow integration
-  - `POST /api/export/training-data` - Data export
-  - `GET /api/monitoring/reuse-stats` - Performance metrics
-  - `GET /health` - System health
+- **Authoritative API Documentation**: See [openapi-spec.yaml](../openapi-spec.yaml) for complete API specifications
+- **Agent Integration**: Agents automatically use synchronous processing mode via middleware
+- **Endpoints Available to Agent** (15 total endpoints):
+  - `POST /api/sanitize` - Basic text sanitization
+  - `POST /api/sanitize/json` - JSON content sanitization with trust tokens (sync/async)
+  - `POST /api/documents/upload` - PDF document processing
+  - `POST /api/documents/generate-pdf` - PDF generation from content
+  - `POST /api/webhook/n8n` - N8N workflow integration
+  - `POST /api/trust-tokens/validate` - Trust token validation
+  - `GET /api/jobs/{taskId}/status` - Async job status checking
+  - `GET /api/jobs/{taskId}/result` - Async job result retrieval
+  - `DELETE /api/jobs/{taskId}` - Async job cancellation
+  - `GET /api/monitoring/reuse-stats` - Performance metrics and statistics
+  - `POST /api/export/training-data` - Training data export for AI learning
+  - `GET /health` - System health check
+  - `POST /api/admin/override/activate` - Admin override activation
+  - `DELETE /api/admin/override/{overrideId}` - Admin override deactivation
+  - `GET /api/admin/override/status` - Admin override status
 
 #### Security Components
 
