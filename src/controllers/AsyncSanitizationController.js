@@ -1,4 +1,3 @@
-const queueManager = require('../utils/queueManager');
 const winston = require('winston');
 
 const logger = winston.createLogger({
@@ -12,6 +11,10 @@ const logger = winston.createLogger({
  * Provides centralized logic for submitting jobs and managing async processing.
  */
 class AsyncSanitizationController {
+  constructor(queueManagerInstance = null) {
+    this.queueManager = queueManagerInstance || require('../utils/queueManager');
+  }
+
   /**
    * Submits a sanitization job to the queue.
    * @param {string} content - Content to sanitize
@@ -27,7 +30,7 @@ class AsyncSanitizationController {
         ...options,
       };
 
-      const taskId = await queueManager.addJob(jobData, jobOptions);
+      const taskId = await this.queueManager.addJob(jobData, jobOptions);
       logger.info('Async sanitization job submitted', { taskId, contentLength: content.length });
       return taskId;
     } catch (error) {
@@ -56,7 +59,7 @@ class AsyncSanitizationController {
         ...options,
       };
 
-      const taskId = await queueManager.addJob(jobData, jobOptions);
+      const taskId = await this.queueManager.addJob(jobData, jobOptions);
       logger.info('Async PDF upload job submitted', {
         taskId,
         fileSize: fileBuffer.length,

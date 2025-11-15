@@ -166,6 +166,8 @@ router.post(
           taskId,
           contentLength: value.content.length,
         });
+        res.set('X-API-Version', '1.1');
+        res.set('X-Async-Processing', 'true');
         return res.json({
           taskId,
           status: 'processing',
@@ -478,6 +480,8 @@ router.post(
             fileSize: file.size,
             fileName: file.originalname,
           });
+          res.set('X-API-Version', '1.1');
+          res.set('X-Async-Processing', 'true');
           return res.json({
             taskId,
             status: 'processing',

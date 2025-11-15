@@ -14,7 +14,7 @@ const logger = winston.createLogger({
 
 // Validation schema for job ID
 const jobIdSchema = Joi.object({
-  taskId: Joi.string().required(),
+  taskId: Joi.string().pattern(/^\d+$/).required(),
 });
 
 /**
@@ -50,6 +50,8 @@ router.get('/:taskId', async (req, res) => {
     }
 
     logger.info('Job status retrieved', { taskId: value.taskId, status: jobStatus.status });
+    res.set('X-API-Version', '1.1');
+    res.set('X-Async-Processing', 'true');
     res.json(response);
   } catch (err) {
     logger.error('Error retrieving job status', { taskId: value.taskId, error: err.message });

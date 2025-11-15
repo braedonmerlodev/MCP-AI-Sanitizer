@@ -3,9 +3,10 @@ const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
 const jobStatusRoutes = require('./routes/jobStatus');
-const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
+
+const app = express();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -14,19 +15,12 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-// Create Express app
-const app = express();
-
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Response validation middleware (non-blocking)
-app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
-app.use('/api/jobs', jobStatusRoutes);
 app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
@@ -63,10 +57,12 @@ app.use((err, req, res) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start server only if this file is run directly
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 module.exports = app;
