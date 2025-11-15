@@ -12,6 +12,7 @@ const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
 const responseValidationMiddleware = require('../middleware/response-validation');
 const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
+const { agentAuth, enforceAgentSync } = require('../middleware/agentAuth');
 const { requestSchemas, responseSchemas } = require('../schemas/api-contract-schemas');
 const AccessControlEnforcer = require('../components/AccessControlEnforcer');
 const AdminOverrideController = require('../controllers/AdminOverrideController');
@@ -25,6 +26,10 @@ const router = express.Router();
 
 // Response validation middleware (non-blocking)
 router.use(responseValidationMiddleware);
+
+// Agent authentication and sync enforcement middleware
+router.use(agentAuth);
+router.use(enforceAgentSync);
 
 const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
@@ -151,8 +156,8 @@ router.post(
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Check if async processing is requested
-    if (value.async) {
+    // Check if async processing is requested and sync mode is not forced
+    if (value.async && req.query.sync !== 'true') {
       try {
         const jobData = value.content;
         const jobOptions = {
@@ -460,9 +465,9 @@ router.post(
 
       const file = req.file;
 
-      // Check for async processing: files >10MB
+      // Check for async processing: files >10MB (unless sync mode forced) (unless sync mode forced)
       const ASYNC_THRESHOLD = 10_485_760; // 10MB
-      if (file.size > ASYNC_THRESHOLD) {
+      if (file.size > ASYNC_THRESHOLD && req.query.sync !== 'true') {
         try {
           const jobData = {
             type: 'upload-pdf',
