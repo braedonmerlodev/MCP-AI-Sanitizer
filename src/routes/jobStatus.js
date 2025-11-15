@@ -1,62 +1,50 @@
 const express = require('express');
 const Joi = require('joi');
-const JobStatus = require('../models/JobStatus');
-const winston = require('winston');
+const JobStatusController = require('../controllers/jobStatusController');
 
 const router = express.Router();
-
-// Initialize logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [new winston.transports.Console()],
-});
 
 // Validation schema for job ID
 const jobIdSchema = Joi.object({
   taskId: Joi.string().pattern(/^\d+$/).required(),
 });
 
-/**
- * GET /api/jobs/{taskId}
- * Retrieves the status and result of an async job.
- */
-router.get('/:taskId', async (req, res) => {
+// Middleware to validate taskId parameter
+const validateTaskId = (req, res, next) => {
   const { error, value } = jobIdSchema.validate({ taskId: req.params.taskId });
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
   }
+  req.taskId = value.taskId;
+  next();
+};
 
-  try {
-    const jobStatus = await JobStatus.load(value.taskId);
-    if (!jobStatus) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+/**
+ * GET /api/jobs/{taskId}/status
+ * Retrieves the status and progress of an async job.
+ */
+router.get('/:taskId/status', validateTaskId, JobStatusController.getStatus);
 
-    const response = {
-      taskId: jobStatus.jobId,
-      status: jobStatus.status,
-      createdAt: jobStatus.createdAt,
-      updatedAt: jobStatus.updatedAt,
-    };
+/**
+ * GET /api/jobs/{taskId}/result
+ * Retrieves the result of a completed async job.
+ */
+router.get('/:taskId/result', validateTaskId, JobStatusController.getResult);
 
-    if (jobStatus.status === 'completed' && jobStatus.result) {
-      response.result = jobStatus.result;
-      response.completedAt = jobStatus.updatedAt;
-    } else if (jobStatus.status === 'failed') {
-      response.error = jobStatus.errorMessage;
-    } else if (jobStatus.status === 'processing') {
-      response.estimatedTime = 'TBD'; // Could calculate based on job type
-    }
+/**
+ * DELETE /api/jobs/{taskId}
+ * Cancels an async job if possible.
+ */
+router.delete('/:taskId', validateTaskId, JobStatusController.cancelJob);
 
-    logger.info('Job status retrieved', { taskId: value.taskId, status: jobStatus.status });
-    res.set('X-API-Version', '1.1');
-    res.set('X-Async-Processing', 'true');
-    res.json(response);
-  } catch (err) {
-    logger.error('Error retrieving job status', { taskId: value.taskId, error: err.message });
-    res.status(500).json({ error: 'Failed to retrieve job status' });
-  }
+/**
+ * GET /api/jobs/{taskId}
+ * Legacy endpoint - redirects to status for backward compatibility
+ * @deprecated Use /api/jobs/{taskId}/status instead
+ */
+router.get('/:taskId', validateTaskId, async (req, res) => {
+  // For backward compatibility, redirect to the status endpoint
+  res.redirect(301, `/api/jobs/${req.taskId}/status`);
 });
 
 module.exports = router;
