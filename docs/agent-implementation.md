@@ -20,6 +20,7 @@ This document provides a comprehensive implementation guide for building the aut
 - All API endpoints functional (verified via health check)
 - Database with audit logs and risk assessment data
 - Admin access for initial agent configuration
+- **API Documentation**: Complete OpenAPI 3.0.3 specification available at [openapi-spec.yaml](../openapi-spec.yaml)
 
 ### Development Environment
 
@@ -80,12 +81,18 @@ BACKEND_CONFIG = {
         "export_data": "/api/export/training-data",
         "monitoring": "/api/monitoring/reuse-stats",
         "health": "/health",
-        "admin_override": "/api/admin/override/activate"
+        "admin_override_activate": "/api/admin/override/activate",
+        "admin_override_deactivate": "/api/admin/override/{overrideId}",
+        "admin_override_status": "/api/admin/override/status",
+        "job_status": "/api/jobs/{taskId}/status",
+        "job_result": "/api/jobs/{taskId}/result",
+        "job_cancel": "/api/jobs/{taskId}"
     },
     "rate_limits": {
         "sanitize": 100,  # requests per minute
         "monitoring": 60,
-        "export": 10
+        "export": 10,
+        "job_status": 120  # higher for status checks
     }
 }
 ```
@@ -517,7 +524,7 @@ Available Tools:
 - sanitize_content: Sanitize potentially malicious content
 - monitor_system: Check system health and detect anomalies
 - learn_from_incidents: Analyze recent security data for patterns
-- orchestrate_response: Execute automated security responses
+- orchestrate_response: Execute automated security response actions
 
 Guidelines:
 - Always validate actions before execution
@@ -527,6 +534,8 @@ Guidelines:
 - Maintain security as the highest priority
 
 Backend Integration:
+- **API Reference**: All endpoints documented in openapi-spec.yaml
+- **Sync Mode**: You automatically use synchronous processing for all operations
 - Use provided API endpoints for all operations
 - Respect rate limits and authentication requirements
 - Handle API errors gracefully with fallback strategies
@@ -541,20 +550,24 @@ Learning Approach:
 
 AGENT_TOOLS_CONFIG = {
     "sanitize_content": {
-        "description": "Sanitize content using MCP-Security backend",
+        "description": "Sanitize content using MCP-Security backend (basic or JSON with trust tokens)",
         "when_to_use": "When processing potentially malicious or untrusted content"
     },
     "monitor_system": {
-        "description": "Monitor system health and performance metrics",
+        "description": "Monitor system health, performance metrics, and detect anomalies",
         "when_to_use": "Regular health checks or when investigating performance issues"
     },
     "learn_from_incidents": {
-        "description": "Analyze recent security incidents for learning",
+        "description": "Export and analyze recent security incidents for continuous learning",
         "when_to_use": "After incidents or during scheduled learning sessions"
     },
     "orchestrate_response": {
-        "description": "Execute automated security response actions",
+        "description": "Execute automated security response actions (admin override, N8N workflows)",
         "when_to_use": "When threats are detected and automated response is appropriate"
+    },
+    "job_management": {
+        "description": "Check status and retrieve results of asynchronous jobs",
+        "when_to_use": "When monitoring async sanitization operations"
     }
 }
 ```
@@ -572,6 +585,7 @@ import os
 
 async def main():
     # Initialize agent with configurable LLM
+    # Note: Agent automatically uses sync mode for all backend operations
     llm_config = {
         "model": os.getenv("AGENT_LLM_MODEL", "gpt-4"),  # Default to GPT-4, can change to gpt-3.5-turbo, claude, etc.
         "temperature": 0.1,  # Low temperature for security decisions
@@ -1314,11 +1328,14 @@ def search_security_knowledge(query: str) -> Dict[str, Any]:
 
 This implementation guide provides a complete roadmap for building and deploying the autonomous security agent. The agent integrates seamlessly with the existing MCP-Security backend while providing advanced learning and orchestration capabilities through DeepAgent CLI and LangSmith.
 
+**API Integration**: All backend endpoints are fully documented in the [OpenAPI 3.0.3 specification](../openapi-spec.yaml), ensuring accurate and up-to-date integration details.
+
 Key success factors:
 
 - Thorough testing of all backend integrations
 - Proper monitoring and alerting setup
 - Continuous learning validation
 - Security-first approach to all operations
+- Regular updates to stay current with API changes
 
 The agent will enhance the MCP-Security system's capabilities by providing intelligent, adaptive security responses that improve over time.
