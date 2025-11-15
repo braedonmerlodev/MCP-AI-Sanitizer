@@ -19,7 +19,6 @@ describe('Async Processing Integration Tests', () => {
 
     // Create app with mocked routes
     const express = require('express');
-    const winston = require('winston');
 
     // Create controller with mock
     const controller = new AsyncSanitizationController(mockQueueManager);

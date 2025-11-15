@@ -1,4 +1,4 @@
-const { performance } = require('perf_hooks');
+const { performance } = require('node:perf_hooks');
 const app = require('../../app');
 const request = require('supertest');
 
@@ -31,7 +31,7 @@ describe('Performance Validation', () => {
       );
 
       // Store baseline for comparison
-      global.syncBaseline = avgTime;
+      globalThis.syncBaseline = avgTime;
     });
   });
 
@@ -52,7 +52,7 @@ describe('Performance Validation', () => {
       }
 
       const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
-      const overhead = ((avgTime - global.syncBaseline) / global.syncBaseline) * 100;
+      const overhead = ((avgTime - globalThis.syncBaseline) / globalThis.syncBaseline) * 100;
 
       console.log(`Async detection overhead: ${overhead.toFixed(2)}%`);
 

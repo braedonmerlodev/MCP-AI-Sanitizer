@@ -11,7 +11,6 @@ describe('Job Status API Routes', () => {
 
     // Create app with routes
     const express = require('express');
-    const winston = require('winston');
 
     // Require the jobStatus routes (JobStatus.load is now stubbed)
     const jobStatusRoutes = require('../../routes/jobStatus');
@@ -21,13 +20,6 @@ describe('Job Status API Routes', () => {
     apiRoutes.get('/test', (req, res) => res.json({ ok: true }));
 
     app = express();
-
-    // Initialize logger
-    const logger = winston.createLogger({
-      level: 'error', // Reduce noise
-      format: winston.format.json(),
-      transports: [new winston.transports.Console()],
-    });
 
     // Middleware
     app.use(express.json({ limit: '25mb' }));

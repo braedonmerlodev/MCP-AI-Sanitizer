@@ -84,7 +84,7 @@ class AsyncSanitizationController {
     if (forceAsync) return true;
 
     // File size threshold
-    if (fileSize && fileSize > 10485760) return true; // 10MB
+    if (fileSize && fileSize > 10_485_760) return true; // 10MB
 
     // Processing time threshold (if available)
     if (processingTime && processingTime > 5000) return true; // 5 seconds

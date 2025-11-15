@@ -110,7 +110,7 @@ describe('AsyncSanitizationController', () => {
     });
 
     it('should return true when fileSize exceeds 10MB', () => {
-      const criteria = { fileSize: 10485761 }; // 10MB + 1
+      const criteria = { fileSize: 10_485_761 }; // 10MB + 1
       expect(controller.shouldProcessAsync(criteria)).toBe(true);
     });
 
@@ -120,7 +120,7 @@ describe('AsyncSanitizationController', () => {
     });
 
     it('should return false for small files and short processing time', () => {
-      const criteria = { fileSize: 1000000, processingTime: 1000 };
+      const criteria = { fileSize: 1_000_000, processingTime: 1000 };
       expect(controller.shouldProcessAsync(criteria)).toBe(false);
     });
 
