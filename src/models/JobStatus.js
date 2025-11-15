@@ -9,12 +9,16 @@ class JobStatus {
   constructor(data = {}) {
     this.id = data.id || this.generateId();
     this.jobId = data.jobId;
-    this.status = data.status || 'queued'; // queued, processing, completed, failed
+    this.status = data.status || 'queued'; // queued, processing, completed, failed, cancelled
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
     this.retryCount = data.retryCount || 0;
     this.errorMessage = data.errorMessage;
     this.result = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+    this.progress = data.progress || 0; // 0-100 percentage
+    this.currentStep = data.currentStep || null; // current processing step
+    this.totalSteps = data.totalSteps || null; // total steps for progress calculation
+    this.expiresAt = data.expiresAt || this.calculateExpiry(); // job expiration time
     this.dbPath = data.dbPath || path.join(__dirname, '../../data/job-status.db');
   }
 
@@ -29,17 +33,21 @@ class JobStatus {
         } else {
           this.db.run(
             `
-             CREATE TABLE IF NOT EXISTS job_status (
-               id TEXT PRIMARY KEY,
-               jobId TEXT NOT NULL,
-               status TEXT NOT NULL,
-               createdAt TEXT NOT NULL,
-               updatedAt TEXT NOT NULL,
-               retryCount INTEGER DEFAULT 0,
-               errorMessage TEXT,
-               result TEXT
-             )
-          `,
+              CREATE TABLE IF NOT EXISTS job_status (
+                id TEXT PRIMARY KEY,
+                jobId TEXT NOT NULL,
+                status TEXT NOT NULL,
+                createdAt TEXT NOT NULL,
+                updatedAt TEXT NOT NULL,
+                retryCount INTEGER DEFAULT 0,
+                errorMessage TEXT,
+                result TEXT,
+                progress INTEGER DEFAULT 0,
+                currentStep TEXT,
+                totalSteps INTEGER,
+                expiresAt TEXT
+              )
+           `,
             (err) => {
               if (err) {
                 reject(err);
@@ -60,8 +68,8 @@ class JobStatus {
     await this.initialize();
     return new Promise((resolve, reject) => {
       const sql = `
-        INSERT OR REPLACE INTO job_status (id, jobId, status, createdAt, updatedAt, retryCount, errorMessage, result)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO job_status (id, jobId, status, createdAt, updatedAt, retryCount, errorMessage, result, progress, currentStep, totalSteps, expiresAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       this.db.run(
         sql,
@@ -74,6 +82,10 @@ class JobStatus {
           this.retryCount,
           this.errorMessage,
           this.result ? JSON.stringify(this.result) : null,
+          this.progress,
+          this.currentStep,
+          this.totalSteps,
+          this.expiresAt,
         ],
         function (err) {
           if (err) {
@@ -116,6 +128,16 @@ class JobStatus {
   }
 
   /**
+   * Calculates job expiration time (24 hours from creation by default)
+   * @returns {string} - ISO timestamp for expiration
+   */
+  calculateExpiry() {
+    const expiryTime = new Date(this.createdAt);
+    expiryTime.setHours(expiryTime.getHours() + 24); // 24 hours expiry
+    return expiryTime.toISOString();
+  }
+
+  /**
    * Updates the status and updatedAt, then saves to database
    * @param {string} status - New status
    * @param {string} errorMessage - Error message if failed
@@ -143,6 +165,39 @@ class JobStatus {
   }
 
   /**
+   * Updates progress and current step
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {string} currentStep - Current processing step
+   * @param {number} totalSteps - Total number of steps
+   */
+  async updateProgress(progress, currentStep = null, totalSteps = null) {
+    this.progress = Math.min(100, Math.max(0, progress));
+    if (currentStep) this.currentStep = currentStep;
+    if (totalSteps) this.totalSteps = totalSteps;
+    this.updatedAt = new Date().toISOString();
+    await this.save();
+  }
+
+  /**
+   * Checks if the job has expired
+   * @returns {boolean} - True if expired
+   */
+  isExpired() {
+    return new Date() > new Date(this.expiresAt);
+  }
+
+  /**
+   * Cancels the job if it's in a cancellable state
+   */
+  async cancel() {
+    if (this.status === 'queued' || this.status === 'processing') {
+      this.status = 'cancelled';
+      this.updatedAt = new Date().toISOString();
+      await this.save();
+    }
+  }
+
+  /**
    * Converts to plain object for storage/serialization
    * @returns {Object} - Plain object representation
    */
@@ -156,6 +211,10 @@ class JobStatus {
       retryCount: this.retryCount,
       errorMessage: this.errorMessage,
       result: this.result,
+      progress: this.progress,
+      currentStep: this.currentStep,
+      totalSteps: this.totalSteps,
+      expiresAt: this.expiresAt,
     };
   }
 
