@@ -1,0 +1,27 @@
+{
+  "exportMetadata": {
+    "timestamp": "2025-11-09T22:21:07.829Z",
+    "recordCount": 1,
+    "format": "json",
+    "version": "1.0"
+  },
+  "records": [
+    {
+      "id": "al_1762726867822_b1ma07b5f",
+      "timestamp": "2025-11-09T22:21:07.822Z",
+      "inputDataHash": "b5fb451b5d7a4338d92f7b93d9d784dca066c62b3178f5ca526f443e4f62b85d",
+      "processingSteps": [],
+      "decisionOutcome": {
+        "decision": "sanitized",
+        "reasoning": "test",
+        "riskScore": 0.1
+      },
+      "featureVector": {},
+      "contextMetadata": {
+        "originalLength": 38,
+        "sanitizedLength": 38,
+        "processingTime": 1
+      }
+    }
+  ]
+}

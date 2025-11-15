@@ -139,6 +139,8 @@ export default [
       'unicorn/filename-case': 'off',
       // Allow relative requires in tests that ESLint can't resolve
       'n/no-missing-require': 'off',
+      // Allow dev dependencies in tests
+      'n/no-unpublished-require': 'off',
     },
   },
 
