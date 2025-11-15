@@ -15,15 +15,13 @@ const logger = winston.createLogger({
  * Follows proxy pattern similar to ProxySanitizer.
  */
 class QueueManager {
-  constructor() {
-    this.queue = null;
-  }
+  static queue = null;
 
   getQueue() {
-    if (!this.queue) {
-      this.queue = new Queue(processJob, queueConfig);
+    if (!QueueManager.queue) {
+      QueueManager.queue = new Queue(processJob, queueConfig);
     }
-    return this.queue;
+    return QueueManager.queue;
   }
 
   /**

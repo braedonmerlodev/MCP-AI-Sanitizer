@@ -1,6 +1,6 @@
 const JobStatus = require('../../models/JobStatus');
-const fs = require('fs').promises;
-const path = require('path');
+const fs = require('node:fs').promises;
+const path = require('node:path');
 
 describe('JobStatus', () => {
   const testDbPath = path.join(__dirname, '../../../data/test-job-status.db');
