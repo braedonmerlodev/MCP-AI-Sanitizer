@@ -1,0 +1,792 @@
+openapi: 3.0.3
+info:
+  title: MCP AI Sanitizer API
+  description: |
+    API for content sanitization, trust token management, and document processing.
+    Supports both synchronous and asynchronous processing modes for optimal agent integration.
+  version: "1.1.0"
+  contact:
+    name: MCP AI Sanitizer Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.mcp-sanitizer.com
+    description: Production server
+
+security:
+  - trustToken: []
+  - apiKey: []
+
+paths:
+  /api/sanitize:
+    post:
+      summary: Basic text sanitization
+      description: Sanitizes input text data synchronously
+      operationId: sanitizeText
+      tags:
+        - Sanitization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: string
+                  description: Text content to sanitize
+                  example: "Sample text to sanitize"
+      responses:
+        "200":
+          description: Sanitization successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sanitizedData:
+                    type: string
+                    description: Sanitized text content
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Sanitization failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/sanitize/json:
+    post:
+      summary: JSON content sanitization with trust tokens
+      description: |
+        Sanitizes JSON content and returns sanitized data with trust token.
+        Supports both synchronous and asynchronous processing modes.
+        Agents automatically use synchronous mode.
+      operationId: sanitizeJson
+      tags:
+        - Sanitization
+      parameters:
+        - name: sync
+          in: query
+          description: Force synchronous processing (agents use this automatically)
+          schema:
+            type: string
+            enum: [true]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Content to sanitize
+                  example: "Content requiring sanitization"
+                classification:
+                  type: string
+                  description: Content classification (optional)
+                  example: "llm"
+                trustToken:
+                  $ref: "#/components/schemas/TrustToken"
+                async:
+                  type: boolean
+                  description: Request asynchronous processing (ignored if sync=true)
+                  default: false
+      responses:
+        "200":
+          description: Sanitization completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sanitizedContent:
+                    type: string
+                    description: Sanitized content
+                  trustToken:
+                    $ref: "#/components/schemas/TrustToken"
+                  metadata:
+                    $ref: "#/components/schemas/SanitizationMetadata"
+        "202":
+          description: Async processing started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                    description: Async task identifier
+                    example: "1234567890123"
+                  status:
+                    type: string
+                    enum: [processing]
+                  estimatedTime:
+                    type: number
+                    description: Estimated processing time in milliseconds
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied - trust token required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Sanitization failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/documents/upload:
+    post:
+      summary: PDF document upload and sanitization
+      description: |
+        Uploads PDF documents, extracts text, and sanitizes content.
+        Supports synchronous processing for agents.
+      operationId: uploadDocument
+      tags:
+        - Documents
+      parameters:
+        - name: sync
+          in: query
+          description: Force synchronous processing (agents use this automatically)
+          schema:
+            type: string
+            enum: [true]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - pdf
+              properties:
+                pdf:
+                  type: string
+                  format: binary
+                  description: PDF file to upload and process
+      responses:
+        "200":
+          description: Document processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "PDF uploaded and processed successfully"
+                  fileName:
+                    type: string
+                    description: Original filename
+                  size:
+                    type: number
+                    description: File size in bytes
+                  metadata:
+                    $ref: "#/components/schemas/PDFMetadata"
+                  status:
+                    type: string
+                    enum: [processed]
+                  sanitizedContent:
+                    type: string
+                    description: Sanitized extracted text
+                  trustToken:
+                    $ref: "#/components/schemas/TrustToken"
+        "202":
+          description: Async processing started for large files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                    description: Async task identifier
+                  status:
+                    type: string
+                    enum: [processing]
+                  estimatedTime:
+                    type: number
+                    description: Estimated processing time in milliseconds
+        "400":
+          description: Invalid file or processing error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied - trust token required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/documents/generate-pdf:
+    post:
+      summary: Generate clean PDF with trust token
+      description: Creates a clean PDF document with embedded trust token
+      operationId: generatePDF
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+                - trustToken
+              properties:
+                data:
+                  type: string
+                  description: Sanitized content for PDF generation
+                trustToken:
+                  $ref: "#/components/schemas/TrustToken"
+                metadata:
+                  type: object
+                  description: Additional PDF metadata
+      responses:
+        "200":
+          description: PDF generated successfully
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid request or trust token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: PDF generation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/webhook/n8n:
+    post:
+      summary: N8N webhook processing
+      description: Processes webhooks from N8N automation platform
+      operationId: processN8nWebhook
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: string
+                  description: Webhook data to process
+      responses:
+        "200":
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Processing result
+        "400":
+          description: Invalid webhook data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Webhook processing failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/trust-tokens/validate:
+    post:
+      summary: Validate trust token
+      description: Validates trust token authenticity and expiration
+      operationId: validateTrustToken
+      tags:
+        - Trust Tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrustToken"
+      responses:
+        "200":
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Trust token is valid"
+        "400":
+          description: Token validation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    description: Validation error message
+        "410":
+          description: Token has expired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Token has expired"
+
+  /api/jobs/{taskId}/status:
+    get:
+      summary: Get async job status
+      description: Retrieves the current status and progress of an asynchronous job
+      operationId: getJobStatus
+      tags:
+        - Job Management
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            pattern: '^\d+$'
+      responses:
+        "200":
+          description: Job status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [processing, completed, failed, cancelled]
+                  progress:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                    description: Progress percentage
+                  message:
+                    type: string
+                    description: Status message
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid task ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/jobs/{taskId}/result:
+    get:
+      summary: Get async job result
+      description: Retrieves the result of a completed asynchronous job
+      operationId: getJobResult
+      tags:
+        - Job Management
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            pattern: '^\d+$'
+      responses:
+        "200":
+          description: Job result retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [completed]
+                  result:
+                    type: object
+                    description: Job execution result
+                  completedAt:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid task ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Job not found or not completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Result retrieval failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/jobs/{taskId}:
+    delete:
+      summary: Cancel async job
+      description: Cancels an asynchronous job if possible
+      operationId: cancelJob
+      tags:
+        - Job Management
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            pattern: '^\d+$'
+      responses:
+        "200":
+          description: Job cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [cancelled]
+                  message:
+                    type: string
+        "400":
+          description: Invalid task ID or job cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/monitoring/reuse-stats:
+    get:
+      summary: Get trust token reuse statistics
+      description: Retrieves comprehensive statistics about trust token reuse
+      operationId: getReuseStats
+      tags:
+        - Monitoring
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  summary:
+                    type: object
+                    properties:
+                      totalRequests:
+                        type: integer
+                      cacheHits:
+                        type: integer
+                      cacheMisses:
+                        type: integer
+                      sanitizationOperations:
+                        type: integer
+                      validationFailures:
+                        type: integer
+                  performance:
+                    type: object
+                    properties:
+                      cacheHitRate:
+                        type: string
+                      failureRate:
+                        type: string
+                      averageValidationTimeMs:
+                        type: string
+                      averageSanitizationTimeMs:
+                        type: string
+                      averageTimeSavedPerRequestMs:
+                        type: string
+                      totalTimeSavedMs:
+                        type: integer
+                  health:
+                    type: object
+                    properties:
+                      validationSuccessRate:
+                        type: string
+                      lastUpdated:
+                        type: string
+                        format: date-time
+                      status:
+                        type: string
+                        enum: [healthy, warning, critical]
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/export/training-data:
+    post:
+      summary: Export training data
+      description: Exports training data for AI model improvement
+      operationId: exportTrainingData
+      tags:
+        - Data Export
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [json, csv, parquet]
+                  default: json
+                  description: Export format
+      responses:
+        "200":
+          description: Data exported successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Export failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    TrustToken:
+      type: object
+      required:
+        - contentHash
+        - originalHash
+        - sanitizationVersion
+        - rulesApplied
+        - timestamp
+        - expiresAt
+        - signature
+      properties:
+        contentHash:
+          type: string
+          description: SHA-256 hash of sanitized content
+          example: "e4fde6de77c4853d4b98afcf9ad6720e6054319908ae526f4fc88168ecb0d5b3"
+        originalHash:
+          type: string
+          description: SHA-256 hash of original content
+          example: "a1b2c3d4e5f678901234567890123456789012345678901234567890"
+        sanitizationVersion:
+          type: string
+          description: Version of sanitization rules used
+          example: "1.1.0"
+        rulesApplied:
+          type: array
+          items:
+            type: string
+          description: List of sanitization rules applied
+          example: ["UnicodeNormalization", "SymbolStripping", "EscapeNeutralization"]
+        timestamp:
+          type: string
+          format: date-time
+          description: When sanitization was performed
+          example: "2025-11-15T22:17:38.841Z"
+        expiresAt:
+          type: string
+          format: date-time
+          description: When trust token expires
+          example: "2025-11-16T22:17:38.841Z"
+        signature:
+          type: string
+          description: Cryptographic signature for validation
+          example: "a958bd13ec99abf54b778146089bb6082b84a29b7d20c874f10c950aa8d161aa"
+
+    SanitizationMetadata:
+      type: object
+      properties:
+        originalLength:
+          type: integer
+          description: Original content length
+        sanitizedLength:
+          type: integer
+          description: Sanitized content length
+        timestamp:
+          type: string
+          format: date-time
+        reused:
+          type: boolean
+          description: Whether result was reused from cache
+        performance:
+          type: object
+          properties:
+            totalTimeMs:
+              type: number
+            tokenValidationTimeMs:
+              type: number
+            timeSavedMs:
+              type: number
+
+    PDFMetadata:
+      type: object
+      properties:
+        pages:
+          type: integer
+          description: Number of pages in PDF
+        title:
+          type: string
+          description: PDF title
+        author:
+          type: string
+          description: PDF author
+        subject:
+          type: string
+          description: PDF subject
+        creator:
+          type: string
+          description: PDF creator
+        producer:
+          type: string
+          description: PDF producer
+        creationDate:
+          type: string
+          description: Creation date
+        modificationDate:
+          type: string
+          description: Last modification date
+        encoding:
+          type: string
+          description: Text encoding used
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error message
+        code:
+          type: string
+          description: Error code
+
+  securitySchemes:
+    trustToken:
+      type: apiKey
+      in: header
+      name: x-trust-token
+      description: Trust token for content validation and reuse
+    apiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: API key for agent authentication
+
+tags:
+  - name: Sanitization
+    description: Content sanitization and cleaning operations
+  - name: Documents
+    description: PDF document processing and generation
+  - name: Webhooks
+    description: External webhook integrations
+  - name: Trust Tokens
+    description: Trust token validation and management
+  - name: Job Management
+    description: Asynchronous job status and result management
+  - name: Monitoring
+    description: System monitoring and statistics
+  - name: Data Export
+    description: Training data export for AI improvement
