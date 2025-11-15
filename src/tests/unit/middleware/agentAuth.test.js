@@ -27,7 +27,6 @@ describe('Agent Authentication Middleware', () => {
       mockReq.get.mockImplementation((header) => {
         if (header === 'X-Agent-Key') return 'agent-security-123';
         if (header === 'User-Agent') return 'TestAgent/1.0';
-        return undefined;
       });
 
       agentAuth(mockReq, mockRes, mockNext);
@@ -44,7 +43,7 @@ describe('Agent Authentication Middleware', () => {
       mockReq.get.mockImplementation((header) => {
         if (header === 'X-API-Key') return 'agent-monitor-456';
         if (header === 'User-Agent') return 'MonitorAgent/2.0';
-        return undefined;
+        return;
       });
 
       agentAuth(mockReq, mockRes, mockNext);
@@ -58,7 +57,7 @@ describe('Agent Authentication Middleware', () => {
     it('should detect agent request via User-Agent string', () => {
       mockReq.get.mockImplementation((header) => {
         if (header === 'User-Agent') return 'BMad-Agent/1.0';
-        return undefined;
+        return;
       });
 
       agentAuth(mockReq, mockRes, mockNext);
@@ -71,7 +70,7 @@ describe('Agent Authentication Middleware', () => {
     it('should not mark non-agent requests', () => {
       mockReq.get.mockImplementation((header) => {
         if (header === 'User-Agent') return 'Mozilla/5.0';
-        return undefined;
+        return;
       });
 
       agentAuth(mockReq, mockRes, mockNext);
@@ -133,7 +132,7 @@ describe('Agent Authentication Middleware', () => {
         get: jest.fn((header) => {
           if (header === 'X-Agent-Key') return 'agent-security-123';
           if (header === 'User-Agent') return 'SecurityAgent/1.0';
-          return undefined;
+          return;
         }),
       };
 
@@ -145,7 +144,7 @@ describe('Agent Authentication Middleware', () => {
       const req = {
         get: jest.fn((header) => {
           if (header === 'X-API-Key') return 'agent-monitor-456';
-          return undefined;
+          return;
         }),
       };
 
@@ -157,7 +156,7 @@ describe('Agent Authentication Middleware', () => {
       const req = {
         get: jest.fn((header) => {
           if (header === 'User-Agent') return 'BMad-Agent/1.0';
-          return undefined;
+          return;
         }),
       };
 
@@ -169,7 +168,7 @@ describe('Agent Authentication Middleware', () => {
       const req = {
         get: jest.fn((header) => {
           if (header === 'X-Agent-Key') return 'agent-custom-789';
-          return undefined;
+          return;
         }),
       };
 

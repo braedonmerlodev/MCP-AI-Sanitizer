@@ -90,17 +90,15 @@ function determineAgentType(req) {
  * Can be used to override async preferences for agents
  */
 const enforceAgentSync = (req, res, next) => {
-  if (req.isAgentRequest) {
+  if (req.isAgentRequest && req.query.async !== 'true') {
     // Force sync mode for agent requests unless explicitly overridden
-    if (req.query.async !== 'true') {
-      req.query.sync = 'true';
-      req.forceSync = true;
+    req.query.sync = 'true';
+    req.forceSync = true;
 
-      logger.debug('Enforcing sync mode for agent request', {
-        agentType: req.agentType,
-        originalQuery: req.originalUrl,
-      });
-    }
+    logger.debug('Enforcing sync mode for agent request', {
+      agentType: req.agentType,
+      originalQuery: req.originalUrl,
+    });
   }
   next();
 };
