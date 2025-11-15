@@ -12,6 +12,12 @@ const queueConfig = {
   // Retry logic for failed jobs
   maxRetries: 3,
   retryDelay: 5000, // 5 seconds
+  // Prioritization support
+  priority: {
+    default: 5, // Default priority (1-10, higher number = higher priority)
+    max: 10,
+    min: 1,
+  },
 };
 
 module.exports = queueConfig;

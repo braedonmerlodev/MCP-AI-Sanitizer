@@ -1,6 +1,7 @@
 const Queue = require('better-queue');
 const queueConfig = require('../config/queueConfig');
 const processJob = require('../workers/jobWorker');
+const JobStatus = require('../models/JobStatus');
 const winston = require('winston');
 
 const logger = winston.createLogger({
@@ -28,20 +29,30 @@ class QueueManager {
   /**
    * Adds a job to the queue.
    * @param {string} data - The data to process
-   * @param {Object} options - Job options
+   * @param {Object} options - Job options including priority
    * @returns {Promise<string>} - Job ID
    */
-  addJob(data, options = {}) {
-    const jobData = { data, options, id: Date.now().toString() };
+  async addJob(data, options = {}) {
+    const jobId = Date.now().toString();
+    const jobData = { data, options, id: jobId };
+
+    // Create job status entry
+    const jobStatus = new JobStatus({ jobId });
+    await jobStatus.save();
 
     return new Promise((resolve, reject) => {
-      this.getQueue().push(jobData, (err) => {
+      const queueOptions = {};
+      if (options.priority !== undefined) {
+        queueOptions.priority = options.priority;
+      }
+
+      this.getQueue().push(jobData, queueOptions, (err) => {
         if (err) {
-          logger.error('Failed to add job', { error: err.message });
+          logger.error('Failed to add job', { error: err.message, jobId });
           reject(err);
         } else {
-          logger.info('Job added to queue', { jobId: jobData.id });
-          resolve(jobData.id);
+          logger.info('Job added to queue', { jobId });
+          resolve(jobId);
         }
       });
     });
