@@ -12,7 +12,7 @@ class JobResult {
     this.result = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
     this.createdAt = data.createdAt || new Date().toISOString();
     this.expiresAt = data.expiresAt || this.calculateExpiry();
-    this.size = data.size || this.calculateSize();
+    this.size = data.size === undefined ? this.calculateSize() : data.size;
     this.dbPath = data.dbPath || path.join(__dirname, '../../data/job-status.db');
   }
 
@@ -143,7 +143,8 @@ class JobResult {
    * @returns {number} - Size in bytes
    */
   calculateSize() {
-    return JSON.stringify(this.result).length;
+    const str = JSON.stringify(this.result);
+    return str.length;
   }
 
   /**

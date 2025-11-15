@@ -13,12 +13,12 @@ const logger = winston.createLogger({
  * Job Status Controller
  * Handles job status checking and result retrieval endpoints
  */
-class JobStatusController {
+const JobStatusController = {
   /**
    * GET /api/jobs/{taskId}/status
    * Returns job status and progress information
    */
-  static async getStatus(req, res) {
+  getStatus: async (req, res) => {
     const { taskId } = req.params;
 
     try {
@@ -52,7 +52,7 @@ class JobStatusController {
 
       // Add estimated completion time for processing jobs
       if (jobStatus.status === 'processing' && jobStatus.progress > 0) {
-        const elapsed = new Date() - new Date(jobStatus.createdAt);
+        const elapsed = Date.now() - new Date(jobStatus.createdAt).getTime();
         const estimatedTotal = elapsed / (jobStatus.progress / 100);
         const remaining = estimatedTotal - elapsed;
         response.estimatedCompletion = new Date(Date.now() + remaining).toISOString();
@@ -70,13 +70,13 @@ class JobStatusController {
       logger.error('Error retrieving job status', { taskId, error: err.message });
       res.status(500).json({ error: 'Failed to retrieve job status' });
     }
-  }
+  },
 
   /**
    * GET /api/jobs/{taskId}/result
    * Returns job results when complete
    */
-  static async getResult(req, res) {
+  getResult: async (req, res) => {
     const { taskId } = req.params;
 
     try {
@@ -149,13 +149,13 @@ class JobStatusController {
       logger.error('Error retrieving job result', { taskId, error: err.message });
       res.status(500).json({ error: 'Failed to retrieve job result' });
     }
-  }
+  },
 
   /**
    * DELETE /api/jobs/{taskId}
    * Cancels a job if possible
    */
-  static async cancelJob(req, res) {
+  cancelJob: async (req, res) => {
     const { taskId } = req.params;
 
     try {
@@ -199,7 +199,7 @@ class JobStatusController {
       logger.error('Error cancelling job', { taskId, error: err.message });
       res.status(500).json({ error: 'Failed to cancel job' });
     }
-  }
-}
+  },
+};
 
 module.exports = JobStatusController;
