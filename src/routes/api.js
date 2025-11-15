@@ -19,6 +19,7 @@ const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
+const queueManager = require('../utils/queueManager');
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ const storage = multer.memoryStorage(); // Store files in memory for processing
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 25 * 1024 * 1024, // 25MB limit
+    fileSize: 26_214_400, // 25MB limit
   },
   fileFilter: (req, file, cb) => {
     // Check file extension and MIME type
@@ -106,6 +107,7 @@ const sanitizeJsonSchema = Joi.object({
   content: Joi.string().required(),
   classification: Joi.string().optional(),
   trustToken: Joi.object().optional(),
+  async: Joi.boolean().optional().default(false),
 });
 
 const adminOverrideActivateSchema = Joi.object({
@@ -147,6 +149,34 @@ router.post(
     const { error, value } = sanitizeJsonSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
+    }
+
+    // Check if async processing is requested
+    if (value.async) {
+      try {
+        const jobData = value.content;
+        const jobOptions = {
+          classification: value.classification || req.destinationTracking.classification,
+          generateTrustToken: true,
+          trustToken: value.trustToken, // Pass trust token for reuse check in job
+        };
+        const taskId = await queueManager.addJob(jobData, jobOptions);
+
+        logger.info('Async sanitization job submitted', {
+          taskId,
+          contentLength: value.content.length,
+        });
+        res.set('X-API-Version', '1.1');
+        res.set('X-Async-Processing', 'true');
+        return res.json({
+          taskId,
+          status: 'processing',
+          estimatedTime: 5000, // 5 seconds estimate
+        });
+      } catch (jobError) {
+        logger.error('Failed to submit async job', { error: jobError.message });
+        return res.status(500).json({ error: 'Failed to submit async job' });
+      }
     }
 
     let tokenValidationTime = 0;
@@ -429,6 +459,39 @@ router.post(
       }
 
       const file = req.file;
+
+      // Check for async processing: files >10MB
+      const ASYNC_THRESHOLD = 10_485_760; // 10MB
+      if (file.size > ASYNC_THRESHOLD) {
+        try {
+          const jobData = {
+            type: 'upload-pdf',
+            fileBuffer: file.buffer.toString('base64'),
+            fileName: file.originalname,
+          };
+          const jobOptions = {
+            classification: 'llm', // Force LLM classification for PDF content processing
+            generateTrustToken: true,
+          };
+          const taskId = await queueManager.addJob(jobData, jobOptions);
+
+          logger.info('Async PDF upload job submitted', {
+            taskId,
+            fileSize: file.size,
+            fileName: file.originalname,
+          });
+          res.set('X-API-Version', '1.1');
+          res.set('X-Async-Processing', 'true');
+          return res.json({
+            taskId,
+            status: 'processing',
+            estimatedTime: 10_000, // 10 seconds estimate for large PDFs
+          });
+        } catch (jobError) {
+          logger.error('Failed to submit async PDF upload job', { error: jobError.message });
+          return res.status(500).json({ error: 'Failed to submit async job' });
+        }
+      }
 
       // Additional validation using magic bytes (PDF files start with %PDF-)
       const buffer = file.buffer;

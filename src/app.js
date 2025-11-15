@@ -2,9 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
-const responseValidationMiddleware = require('./middleware/response-validation');
+const jobStatusRoutes = require('./routes/jobStatus');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
+
+const app = express();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -13,18 +15,13 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-// Create Express app
-const app = express();
-
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Response validation middleware (non-blocking)
-app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
+app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -35,6 +32,7 @@ app.get('/', (req, res) => {
       'POST /api/sanitize': 'Sanitize input data',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
       'POST /api/documents/upload': 'Upload PDF documents for processing',
+      'GET /api/jobs/{taskId}': 'Poll async job status and results',
       'GET /health': 'Health check',
     },
     documentation: 'See README.md for usage details',
@@ -59,10 +57,12 @@ app.use((err, req, res) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start server only if this file is run directly
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 module.exports = app;

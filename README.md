@@ -113,6 +113,74 @@ Content-Type: application/json
 }
 ```
 
+#### Async Sanitization (JSON)
+
+```http
+POST /api/sanitize/json
+Content-Type: application/json
+
+{
+  "content": "large content to sanitize",
+  "async": true
+}
+```
+
+**Async Response:**
+
+```json
+{
+  "taskId": "sanitize_task_123",
+  "status": "processing"
+}
+```
+
+**Sync Response (when async=false or omitted):**
+
+```json
+{
+  "sanitizedContent": "cleaned output",
+  "trustToken": {}
+}
+```
+
+#### PDF Document Upload (Async)
+
+```http
+POST /api/documents/upload
+Content-Type: multipart/form-data
+
+# File upload with 'document' field
+```
+
+**Response (auto-detects async for files >10MB):**
+
+```json
+{
+  "taskId": "upload_task_456",
+  "status": "processing"
+}
+```
+
+#### Job Status Polling
+
+```http
+GET /api/jobs/{taskId}
+```
+
+**Response:**
+
+```json
+{
+  "taskId": "task_123",
+  "status": "completed",
+  "result": {
+    "sanitizedContent": "processed content",
+    "trustToken": {}
+  },
+  "completedAt": "2025-11-15T10:05:00.000Z"
+}
+```
+
 ### Sanitization Features
 
 The API automatically handles:
