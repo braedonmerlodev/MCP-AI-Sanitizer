@@ -11,17 +11,13 @@ const logger = winston.createLogger({
 /**
  * Processes a job asynchronously.
  * @param {Object} job - The job data
- * @param {Function} cb - Callback to call when done
+ * @returns {Promise} - Promise that resolves with the result
  */
-function processJob(job, cb) {
-  if (typeof cb !== 'function') {
-    logger.error('Job worker called with invalid callback', { jobId: job.id });
-    return;
-  }
+function processJob(job) {
   const jobId = job.id;
   logger.info('Processing job', { jobId });
 
-  (async () => {
+  return (async () => {
     try {
       // Update status to processing
       const jobStatus = await JobStatus.load(jobId);
@@ -98,7 +94,7 @@ function processJob(job, cb) {
       }
 
       logger.info('Job processed successfully', { jobId });
-      cb(null, result);
+      return result;
     } catch (error) {
       // Update status to failed
       try {
@@ -111,12 +107,9 @@ function processJob(job, cb) {
       }
 
       logger.error('Job processing failed', { jobId, error: error.message });
-      cb(error);
+      throw error;
     }
-  })().catch((asyncError) => {
-    logger.error('Async job processing error', { jobId, error: asyncError.message });
-    cb(asyncError);
-  });
+  })();
 }
 
 module.exports = processJob;
