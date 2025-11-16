@@ -24,15 +24,43 @@ Set these in your Postman environment:
 
 ```
 Method: POST
+URL: {{base_url}}/api/sanitize
+Headers:
+  Content-Type: application/json
+Body:
+{
+  "data": "Sample content for token generation"
+}
+Expected: 200 with sanitizedData - This endpoint doesn't require tokens
+```
+
+### Generate Trust Token with JSON Response
+
+```
+Method: POST
 URL: {{base_url}}/api/sanitize/json
 Headers:
   Content-Type: application/json
+  x-trust-token: {{trust_token}}
 Body:
 {
   "content": "Sample content for token generation",
   "async": false
 }
+Expected: 200 with trustToken - Use this for subsequent requests
+```
+
+Method: POST
+URL: {{base_url}}/api/sanitize/json
+Headers:
+Content-Type: application/json
+Body:
+{
+"content": "Sample content for token generation",
+"async": false
+}
 Expected: 200 with trustToken - SAVE THIS TOKEN for other requests
+
 ```
 
 ---
@@ -42,60 +70,66 @@ Expected: 200 with trustToken - SAVE THIS TOKEN for other requests
 ### Basic Text Sanitization
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/sanitize
 Headers:
-  Content-Type: application/json
+Content-Type: application/json
 Body:
 {
-  "data": "Content with <script>alert('xss')</script> and unicode: ñáéíóú"
+"data": "Content with <script>alert('xss')</script> and unicode: ñáéíóú"
 }
 Expected (200):
 {
-  "sanitizedData": "Content with  and unicode: ñáéíóú"
+"sanitizedData": "Content with and unicode: ñáéíóú"
 }
+
 ```
 
 ### JSON Sanitization (Synchronous)
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/sanitize/json
 Headers:
-  Content-Type: application/json
-  x-trust-token: {{trust_token}}
+Content-Type: application/json
+x-trust-token: {{trust_token}}
 Body:
 {
-  "content": "Malicious content: <script>alert('hacked')</script>",
-  "async": false
+"content": "Malicious content: <script>alert('hacked')</script>",
+"async": false
 }
 Expected (200):
 {
-  "sanitizedContent": "Malicious content: ",
-  "trustToken": {...},
-  "metadata": {...}
+"sanitizedContent": "Malicious content: ",
+"trustToken": {...},
+"metadata": {...}
 }
+
 ```
 
 ### JSON Sanitization (Asynchronous)
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/sanitize/json
 Headers:
-  Content-Type: application/json
-  x-trust-token: {{trust_token}}
+Content-Type: application/json
+x-trust-token: {{trust_token}}
 Body:
 {
-  "content": "Large content for async processing that may take time...",
-  "async": true
+"content": "Large content for async processing that may take time...",
+"async": true
 }
 Expected (202):
 {
-  "taskId": "1234567890123",
-  "status": "processing",
-  "estimatedTime": 5000
+"taskId": "1234567890123",
+"status": "processing",
+"estimatedTime": 5000
 }
+
 ```
 
 ---
@@ -105,35 +139,39 @@ Expected (202):
 ### Validate Trust Token
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/trust-tokens/validate
 Headers:
-  Content-Type: application/json
+Content-Type: application/json
 Body: {{trust_token}}
 Expected (200):
 {
-  "valid": true,
-  "message": "Trust token is valid"
+"valid": true,
+"message": "Trust token is valid"
 }
+
 ```
 
 ### Test Invalid Token
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/trust-tokens/validate
 Headers:
-  Content-Type: application/json
+Content-Type: application/json
 Body:
 {
-  "contentHash": "invalid-hash",
-  "signature": "invalid-signature"
+"contentHash": "invalid-hash",
+"signature": "invalid-signature"
 }
 Expected (400):
 {
-  "valid": false,
-  "error": "Invalid signature"
+"valid": false,
+"error": "Invalid signature"
 }
+
 ```
 
 ---
@@ -143,59 +181,65 @@ Expected (400):
 ### PDF Upload (Synchronous)
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/documents/upload?sync=true
 Headers:
-  x-trust-token: {{trust_token}}
+x-trust-token: {{trust_token}}
 Body: form-data
-  pdf: [Select PDF file]
+pdf: [Select PDF file]
 Expected (200):
 {
-  "message": "PDF uploaded and processed successfully",
-  "fileName": "filename.pdf",
-  "size": 12345,
-  "metadata": {...},
-  "status": "processed",
-  "sanitizedContent": "Extracted and sanitized text...",
-  "trustToken": {...}
+"message": "PDF uploaded and processed successfully",
+"fileName": "filename.pdf",
+"size": 12345,
+"metadata": {...},
+"status": "processed",
+"sanitizedContent": "Extracted and sanitized text...",
+"trustToken": {...}
 }
+
 ```
 
 ### PDF Upload (Asynchronous)
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/documents/upload
 Headers:
-  x-trust-token: {{trust_token}}
+x-trust-token: {{trust_token}}
 Body: form-data
-  pdf: [Select large PDF file]
+pdf: [Select large PDF file]
 Expected (202):
 {
-  "taskId": "1234567890123",
-  "status": "processing",
-  "estimatedTime": 10000
+"taskId": "1234567890123",
+"status": "processing",
+"estimatedTime": 10000
 }
+
 ```
 
 ### Generate Clean PDF
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/documents/generate-pdf
 Headers:
-  Content-Type: application/json
-  x-trust-token: {{trust_token}}
+Content-Type: application/json
+x-trust-token: {{trust_token}}
 Body:
 {
-  "data": "Clean content for PDF generation",
-  "trustToken": {{trust_token}},
-  "metadata": {
-    "title": "Generated PDF",
-    "author": "Security Agent"
-  }
+"data": "Clean content for PDF generation",
+"trustToken": {{trust_token}},
+"metadata": {
+"title": "Generated PDF",
+"author": "Security Agent"
+}
 }
 Expected (200): [Binary PDF data]
+
 ```
 
 ---
@@ -205,51 +249,57 @@ Expected (200): [Binary PDF data]
 ### Check Job Status
 
 ```
+
 Method: GET
 URL: {{base_url}}/api/jobs/{{task_id}}/status
 Headers: (none)
 Expected (200):
 {
-  "taskId": "1234567890123",
-  "status": "processing|completed|failed|cancelled",
-  "progress": 75,
-  "message": "Processing...",
-  "createdAt": "2025-11-16T00:00:00.000Z",
-  "updatedAt": "2025-11-16T00:00:00.000Z"
+"taskId": "1234567890123",
+"status": "processing|completed|failed|cancelled",
+"progress": 75,
+"message": "Processing...",
+"createdAt": "2025-11-16T00:00:00.000Z",
+"updatedAt": "2025-11-16T00:00:00.000Z"
 }
+
 ```
 
 ### Get Job Result
 
 ```
+
 Method: GET
 URL: {{base_url}}/api/jobs/{{task_id}}/result
 Headers: (none)
 Expected (200):
 {
-  "taskId": "1234567890123",
-  "status": "completed",
-  "result": {
-    "sanitizedContent": "...",
-    "trustToken": {...},
-    "metadata": {...}
-  },
-  "completedAt": "2025-11-16T00:00:00.000Z"
+"taskId": "1234567890123",
+"status": "completed",
+"result": {
+"sanitizedContent": "...",
+"trustToken": {...},
+"metadata": {...}
+},
+"completedAt": "2025-11-16T00:00:00.000Z"
 }
+
 ```
 
 ### Cancel Job
 
 ```
+
 Method: DELETE
 URL: {{base_url}}/api/jobs/{{task_id}}
 Headers: (none)
 Expected (200):
 {
-  "taskId": "1234567890123",
-  "status": "cancelled",
-  "message": "Job cancelled successfully"
+"taskId": "1234567890123",
+"status": "cancelled",
+"message": "Job cancelled successfully"
 }
+
 ```
 
 ---
@@ -259,48 +309,52 @@ Expected (200):
 ### Get System Statistics
 
 ```
+
 Method: GET
 URL: {{base_url}}/api/monitoring/reuse-stats
 Headers:
-  x-trust-token: {{trust_token}}
+x-trust-token: {{trust_token}}
 Expected (200):
 {
-  "timestamp": "2025-11-16T00:00:00.000Z",
-  "summary": {
-    "totalRequests": 150,
-    "cacheHits": 120,
-    "cacheMisses": 30,
-    "sanitizationOperations": 45,
-    "validationFailures": 3
-  },
-  "performance": {
-    "cacheHitRate": "80.00%",
-    "failureRate": "2.00%",
-    "averageValidationTimeMs": "15.50",
-    "averageSanitizationTimeMs": "25.30",
-    "averageTimeSavedPerRequestMs": "10.20",
-    "totalTimeSavedMs": 1530
-  },
-  "health": {
-    "validationSuccessRate": "98.00%",
-    "lastUpdated": "2025-11-16T00:00:00.000Z",
-    "status": "healthy"
-  }
+"timestamp": "2025-11-16T00:00:00.000Z",
+"summary": {
+"totalRequests": 150,
+"cacheHits": 120,
+"cacheMisses": 30,
+"sanitizationOperations": 45,
+"validationFailures": 3
+},
+"performance": {
+"cacheHitRate": "80.00%",
+"failureRate": "2.00%",
+"averageValidationTimeMs": "15.50",
+"averageSanitizationTimeMs": "25.30",
+"averageTimeSavedPerRequestMs": "10.20",
+"totalTimeSavedMs": 1530
+},
+"health": {
+"validationSuccessRate": "98.00%",
+"lastUpdated": "2025-11-16T00:00:00.000Z",
+"status": "healthy"
 }
+}
+
 ```
 
 ### Export Training Data
 
 ```
+
 Method: POST
 URL: {{base_url}}/api/export/training-data
 Headers:
-  x-trust-token: {{trust_token}}
+x-trust-token: {{trust_token}}
 Body:
 {
-  "format": "json"
+"format": "json"
 }
 Expected (200): [Binary file - JSON/CSV/Parquet]
+
 ```
 
 ---
@@ -310,36 +364,40 @@ Expected (200): [Binary file - JSON/CSV/Parquet]
 ### Health Check
 
 ```
+
 Method: GET
 URL: {{base_url}}/health
 Headers: (none)
 Expected (200):
 {
-  "status": "healthy",
-  "timestamp": "2025-11-16T00:00:00.000Z"
+"status": "healthy",
+"timestamp": "2025-11-16T00:00:00.000Z"
 }
+
 ```
 
 ### Security Test - Invalid Request Body
 
 ```
+
 Method: GET
 URL: {{base_url}}/health
 Headers: (none)
 Body:
 {
-  "data": "Malicious content that should be rejected"
+"data": "Malicious content that should be rejected"
 }
 Expected (400):
 {
-  "error": "Request validation failed",
-  "details": [
-    {
-      "field": "data",
-      "message": "\"data\" is not allowed"
-    }
-  ]
+"error": "Request validation failed",
+"details": [
+{
+"field": "data",
+"message": "\"data\" is not allowed"
 }
+]
+}
+
 ```
 
 ---
@@ -400,3 +458,4 @@ Expected (400):
 
 _Generated for MCP-Security Agent API Testing - Version 1.0_</content>
 <parameter name="filePath">docs/agent-api-testing-guide.md
+```
