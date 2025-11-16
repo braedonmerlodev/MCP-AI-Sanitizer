@@ -51,41 +51,48 @@ async function processJob(job) {
         encoding: 'utf8',
       };
 
-       await jobStatus.updateProgress(40, 'Converting to Markdown');
+      await jobStatus.updateProgress(40, 'Converting to Markdown');
 
-       // Convert extracted text to Markdown
-       const markdownConverter = new MarkdownConverter();
-       let processedText = extractedText;
-       try {
-         processedText = markdownConverter.convert(extractedText);
-       } catch (convertError) {
-         // Fallback to plain text
-       }
+      // Convert extracted text to Markdown
+      const markdownConverter = new MarkdownConverter();
+      let processedText = extractedText;
+      try {
+        processedText = markdownConverter.convert(extractedText);
+      } catch (convertError) {
+        // Fallback to plain text
+      }
 
-       // Apply AI transformation if specified
-       if (job.options?.aiTransformType) {
-         await jobStatus.updateProgress(55, `Applying AI ${job.options.aiTransformType} transformation`);
+      // Apply AI transformation if specified
+      if (job.options?.aiTransformType) {
+        await jobStatus.updateProgress(
+          55,
+          `Applying AI ${job.options.aiTransformType} transformation`,
+        );
 
-         const aiTransformer = new AITextTransformer();
-         try {
-           processedText = await aiTransformer.transform(processedText, job.options.aiTransformType, {
-             sanitizerOptions: job.options,
-           });
-         } catch (aiError) {
-           logger.warn('AI transformation failed, proceeding with Markdown text', {
-             jobId,
-             aiTransformType: job.options.aiTransformType,
-             error: aiError.message,
-           });
-           // processedText remains as Markdown
-         }
-       }
+        const aiTransformer = new AITextTransformer();
+        try {
+          processedText = await aiTransformer.transform(
+            processedText,
+            job.options.aiTransformType,
+            {
+              sanitizerOptions: job.options,
+            },
+          );
+        } catch (aiError) {
+          logger.warn('AI transformation failed, proceeding with Markdown text', {
+            jobId,
+            aiTransformType: job.options.aiTransformType,
+            error: aiError.message,
+          });
+          // processedText remains as Markdown
+        }
+      }
 
-       await jobStatus.updateProgress(70, 'Sanitizing content');
+      await jobStatus.updateProgress(70, 'Sanitizing content');
 
-       // Sanitize converted text
-       const sanitizer = new ProxySanitizer();
-       result = await sanitizer.sanitize(processedText, job.options);
+      // Sanitize converted text
+      const sanitizer = new ProxySanitizer();
+      result = await sanitizer.sanitize(processedText, job.options);
 
       // Add metadata to result
       result.metadata = metadata;
