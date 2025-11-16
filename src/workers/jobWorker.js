@@ -14,8 +14,8 @@ const logger = winston.createLogger({
  * @param {Function} cb - Callback to call when done
  */
 function processJob(job, cb) {
-  if (!cb) {
-    logger.error('Job worker called without callback', { jobId: job.id });
+  if (typeof cb !== 'function') {
+    logger.error('Job worker called with invalid callback', { jobId: job.id });
     return;
   }
   const jobId = job.id;

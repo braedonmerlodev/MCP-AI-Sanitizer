@@ -173,10 +173,10 @@ router.post(
         });
         res.set('X-API-Version', '1.1');
         res.set('X-Async-Processing', 'true');
-        return res.json({
+        return res.status(202).json({
           taskId,
           status: 'processing',
-          estimatedTime: 5000, // 5 seconds estimate
+          estimatedTime: 10_000, // 10 seconds estimate for large PDFs
         });
       } catch (jobError) {
         logger.error('Failed to submit async job', { error: jobError.message });
@@ -487,10 +487,10 @@ router.post(
           });
           res.set('X-API-Version', '1.1');
           res.set('X-Async-Processing', 'true');
-          return res.json({
+          return res.status(202).json({
             taskId,
             status: 'processing',
-            estimatedTime: 10_000, // 10 seconds estimate for large PDFs
+            estimatedTime: 5000, // 5 seconds estimate
           });
         } catch (jobError) {
           logger.error('Failed to submit async PDF upload job', { error: jobError.message });

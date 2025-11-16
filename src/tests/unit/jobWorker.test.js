@@ -63,4 +63,21 @@ describe('jobWorker', () => {
       done();
     });
   });
+
+  it('should handle invalid callback gracefully', () => {
+    const MockJobStatus = {
+      load: sinon.stub().resolves(),
+    };
+
+    const processJob = proxyquire('../../workers/jobWorker', {
+      '../models/JobStatus': MockJobStatus,
+    });
+
+    const job = { id: '123', data: 'test', options: {} };
+
+    // Should not throw, just log and return
+    expect(() => processJob(job, null)).not.toThrow();
+    expect(() => processJob(job, undefined)).not.toThrow();
+    expect(() => processJob(job, 'not a function')).not.toThrow();
+  });
 });
