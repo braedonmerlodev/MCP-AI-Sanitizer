@@ -43,6 +43,15 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
           userAgent: req.get('User-Agent'),
           timestamp: new Date().toISOString(),
         });
+
+        // Reject invalid requests with 400 Bad Request
+        return res.status(400).json({
+          error: 'Request validation failed',
+          details: requestValidation.error.details.map((detail) => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+          })),
+        });
       } else {
         logger.info('Request validation passed', {
           endpoint: req.originalUrl,
