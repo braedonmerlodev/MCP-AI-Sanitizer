@@ -4,6 +4,18 @@
 
 This document provides a comprehensive implementation guide for building the autonomous security agent using DeepAgent CLI and LangSmith, integrated with the existing MCP-Security backend. The agent will learn from security data, monitor system activities, and orchestrate automated responses.
 
+### AI-Powered PDF Enhancement Integration
+
+**New Feature**: The agent will integrate Langchain and GPT models to enhance PDF text processing capabilities, transforming raw extracted text into structured, intelligent JSON outputs. This addresses the current "dumb" async endpoint limitation by adding AI-powered text transformation and structuring.
+
+**Implementation Scope**:
+
+- Langchain integration for text processing pipelines
+- GPT model integration for intelligent text transformation
+- Enhanced PDF processing endpoint with optional AI transformation
+- Structured JSON output generation from raw text
+- Double sanitization (before and after AI processing) to maintain security
+
 ## Prerequisites
 
 ### System Requirements
@@ -37,6 +49,22 @@ The backend APIs have been verified against the agent-ready checklist for optima
 #### ⚠️ **Semantic, Context-Rich Responses**: Most endpoints provide rich context (e.g., metadata with performance/rationale), but basic ones like `/api/sanitize` return minimal data. Recommendation: Enhance with rationale for full compliance.
 
 **MVP Impact**: Core endpoints (sanitization, document processing, trust tokens) are fully agent-ready. Post-MVP improvements can add richer responses to remaining endpoints.
+
+### AI Enhancement Dependencies
+
+**Additional Requirements for PDF AI Enhancement:**
+
+- **Langchain**: `pip install langchain openai`
+- **OpenAI API Access**: GPT-3.5-turbo or GPT-4 API key
+- **Enhanced Backend APIs**: PDF processing endpoint with AI transformation option
+- **Security Validation**: Double sanitization pipeline (pre and post AI processing)
+
+**Agent AI Capabilities**:
+
+- Text transformation using Langchain pipelines
+- GPT-powered content structuring and summarization
+- JSON schema generation from unstructured text
+- Quality validation of AI-generated outputs
 
 ### Development Environment
 
@@ -152,6 +180,122 @@ class SecurityAgent(Agent):
             self._create_admin_tool(),
             self._create_learning_tool()
         ]
+
+    @traceable(name="ai_pdf_enhancement")
+    def _create_ai_pdf_tool(self) -> Tool:
+        """Tool for AI-powered PDF text enhancement"""
+        def enhance_pdf_text(content: str, transformation_type: str = "structure") -> Dict[str, Any]:
+            """Enhance PDF text using Langchain and GPT models"""
+            try:
+                from langchain.chains import LLMChain
+                from langchain.prompts import PromptTemplate
+                from langchain.llms import OpenAI
+
+                # Initialize Langchain components
+                llm = OpenAI(temperature=0.1, model_name="gpt-3.5-turbo")
+                prompt = self._get_pdf_enhancement_prompt(transformation_type)
+
+                chain = LLMChain(llm=llm, prompt=prompt)
+
+                # Process content through AI pipeline
+                enhanced_content = chain.run(text=content)
+
+                # Validate and structure output
+                structured_output = self._validate_ai_output(enhanced_content, transformation_type)
+
+                return {
+                    "success": True,
+                    "original_content": content,
+                    "enhanced_content": enhanced_content,
+                    "structured_output": structured_output,
+                    "transformation_type": transformation_type,
+                    "processing_metadata": {
+                        "model_used": "gpt-3.5-turbo",
+                        "processing_time": "calculated",
+                        "confidence_score": self._calculate_confidence(structured_output)
+                    }
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": f"AI enhancement failed: {str(e)}",
+                    "fallback_content": content  # Return original if AI fails
+                }
+
+        return Tool(
+            name="ai_pdf_enhancement",
+            description="Enhance PDF text using AI for better structure and readability",
+            function=enhance_pdf_text,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "Raw PDF text to enhance"},
+                    "transformation_type": {
+                        "type": "string",
+                        "enum": ["structure", "summarize", "extract_entities", "json_schema"],
+                        "description": "Type of AI transformation to apply"
+                    }
+                },
+                "required": ["content"]
+            }
+        )
+
+    def _get_pdf_enhancement_prompt(self, transformation_type: str) -> PromptTemplate:
+        """Get appropriate prompt template for transformation type"""
+        prompts = {
+            "structure": """
+            Transform the following raw PDF text into well-structured, readable content.
+            Improve formatting, fix any OCR errors, and organize the content logically.
+            Maintain all important information while making it more readable:
+
+            Raw text: {text}
+
+            Structured output:
+            """,
+            "summarize": """
+            Create a concise summary of the following PDF content, highlighting key points and main ideas:
+
+            Content: {text}
+
+            Summary:
+            """,
+            "extract_entities": """
+            Extract and categorize key entities from the following text (people, organizations, dates, locations, etc.):
+
+            Text: {text}
+
+            Extracted entities:
+            """,
+            "json_schema": """
+            Convert the following text into a structured JSON format with appropriate keys and values.
+            Identify logical sections and create a hierarchical JSON structure:
+
+            Text: {text}
+
+            JSON output:
+            """
+        }
+        return PromptTemplate(template=prompts[transformation_type], input_variables=["text"])
+
+    def _validate_ai_output(self, output: str, transformation_type: str) -> Dict[str, Any]:
+        """Validate and structure AI output"""
+        try:
+            if transformation_type == "json_schema":
+                # Parse JSON output
+                return json.loads(output)
+            else:
+                # Return structured text
+                return {"enhanced_text": output, "word_count": len(output.split())}
+        except json.JSONDecodeError:
+            # Fallback for invalid JSON
+            return {"enhanced_text": output, "validation_error": "Invalid JSON structure"}
+
+    def _calculate_confidence(self, structured_output: Dict) -> float:
+        """Calculate confidence score for AI output"""
+        # Simple confidence calculation based on output structure
+        if isinstance(structured_output, dict) and len(structured_output) > 0:
+            return 0.8  # High confidence for structured output
+        return 0.5  # Medium confidence for text-only output
 
     @traceable(name="sanitize_content")
     def _create_sanitization_tool(self) -> Tool:
@@ -538,8 +682,9 @@ You are an autonomous security agent for the MCP-Security system. Your role is t
 
 Available Tools:
 - sanitize_content: Sanitize potentially malicious content
+- ai_pdf_enhancement: Enhance PDF text using AI for better structure and readability
 - monitor_system: Check system health and detect anomalies
-- learn_from_incidents: Analyze recent security data for patterns
+- learn_from_incidents: Analyze recent security incidents for patterns
 - orchestrate_response: Execute automated security response actions
 
 Guidelines:

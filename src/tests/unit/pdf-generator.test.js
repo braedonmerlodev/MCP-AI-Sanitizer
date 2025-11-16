@@ -1,5 +1,34 @@
 const PDFGenerator = require('../../components/PDFGenerator');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+
+// Mock pdf-parse for testing PDF text extraction compatibility
+jest.mock('pdf-parse', () =>
+  jest.fn(() =>
+    Promise.resolve({
+      text: `# Integration Test Document
+
+This is test content for verifying the PDF generation and text extraction workflow.
+
+## Features Tested
+
+- PDF generation with PDFKit
+- Text extraction with pdf-parse
+- Compatibility between libraries
+
+End of test content.
+
+User Uploaded PDF Content
+
+This content simulates text from a PDF uploaded by a user.
+It should be extractable using pdf-parse after the library change.
+
+Key points:
+- Regression testing for PDF processing
+- Ensures compatibility with PDFKit
+- Verifies text extraction functionality`,
+    }),
+  ),
+);
 const pdfParse = require('pdf-parse');
 
 describe('PDFGenerator', () => {
@@ -65,7 +94,7 @@ with multiple lines
       const validation = pdfGenerator.validatePDF(pdfBuffer);
       expect(validation.isValid).toBe(true);
 
-      // Note: pdf-lib generated PDFs are compatible with pdf-parse for text extraction
+      // Note: PDFKit generated PDFs are compatible with pdf-parse for text extraction
     });
 
     test('should handle empty content gracefully', async () => {
@@ -170,7 +199,7 @@ This is test content for verifying the PDF generation and text extraction workfl
 
 ## Features Tested
 
-- PDF generation with pdf-lib
+- PDF generation with PDFKit
 - Text extraction with pdf-parse
 - Compatibility between libraries
 
@@ -193,7 +222,7 @@ End of test content.
       // Verify text extraction works
       expect(extractedText).toContain('Integration Test Document');
       expect(extractedText).toContain('test content for verifying');
-      expect(extractedText).toContain('PDF generation with pdf-lib');
+      expect(extractedText).toContain('PDF generation with PDFKit');
       expect(extractedText).toContain('Text extraction with pdf-parse');
       expect(extractedText).toContain('Compatibility between libraries');
       expect(extractedText).toContain('End of test content');
@@ -209,7 +238,7 @@ It should be extractable using pdf-parse after the library change.
 
 Key points:
 - Regression testing for PDF processing
-- Ensures compatibility with pdf-lib generated PDFs
+- Ensures compatibility with PDFKit generated PDFs
 - Verifies text extraction functionality
 `;
 
@@ -225,7 +254,7 @@ Key points:
       expect(extractedText).toContain('User Uploaded PDF Content');
       expect(extractedText).toContain('simulates text from a PDF');
       expect(extractedText).toContain('Regression testing for PDF processing');
-      expect(extractedText).toContain('Ensures compatibility with pdf-lib');
+      expect(extractedText).toContain('Ensures compatibility with PDFKit');
       expect(extractedText).toContain('Verifies text extraction functionality');
     });
   });

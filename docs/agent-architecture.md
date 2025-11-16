@@ -4,6 +4,10 @@
 
 This document describes the architecture for integrating an autonomous security agent using DeepAgent CLI and LangSmith with the existing MCP-Security backend. The agent will learn from security data, monitor system activities, and orchestrate automated responses while leveraging the comprehensive backend API toolset.
 
+### AI-Powered PDF Enhancement
+
+**New Capability**: The agent integrates Langchain and GPT models to transform raw PDF text extraction into intelligent, structured JSON outputs. This addresses the "dumb" endpoint limitation by adding AI-powered text transformation that enhances readability and extracts structured data from PDF content.
+
 **API Reference**: All backend API endpoints are fully documented in the [OpenAPI 3.0.3 specification](../openapi-spec.yaml), which serves as the authoritative source for API integration details.
 
 ## Architecture Principles
@@ -44,19 +48,22 @@ graph TB
         A --> C[Learning Engine]
         A --> D[Monitoring Engine]
         A --> E[Orchestration Engine]
+        A --> J[AI PDF Enhancement<br/>Engine]
 
         B --> F[Graph Database]
         C --> G[Pattern Recognition]
         D --> H[Anomaly Detection]
         E --> I[Response Actions]
+        J --> K[Langchain Pipeline]
+        J --> L[GPT Model Integration]
     end
 
      subgraph "Backend API Endpoints"
          J[POST /api/sanitize] --> K[Basic Sanitization]
          L[POST /api/sanitize/json] --> M[Advanced Sanitization + Trust Tokens]
          N[POST /api/trust-tokens/validate] --> O[Token Validation]
-         P[POST /api/documents/upload] --> Q[PDF Processing]
-         R[POST /api/documents/generate-pdf] --> S[PDF Generation]
+          P[POST /api/documents/upload] --> Q[PDF Processing<br/>+ AI Enhancement]
+          R[POST /api/documents/generate-pdf] --> S[PDF Generation]
          T[POST /api/webhook/n8n] --> U[N8N Integration]
          V[POST /api/export/training-data] --> W[Data Export]
          X[GET /api/monitoring/reuse-stats] --> Y[Performance Metrics]
@@ -112,12 +119,16 @@ sequenceDiagram
     participant Agent as Autonomous Agent
     participant Monitor as GET /api/monitoring/reuse-stats
     participant Sanitize as POST /api/sanitize/json
+    participant Upload as POST /api/documents/upload
     participant Validate as POST /api/trust-tokens/validate
     participant Override as POST /api/admin/override/activate
     participant N8N as POST /api/webhook/n8n
     participant LangSmith as LangSmith Memory
 
-    Note over Agent,LangSmith: Agent detects anomalous pattern in monitoring data
+    Note over Agent,LangSmith: Agent processes PDF with AI enhancement
+
+    Agent->>Upload: Upload PDF with AI enhancement enabled
+    Upload-->>Agent: Return structured JSON from AI processing
 
     Agent->>Monitor: Check system performance metrics
     Monitor-->>Agent: Return reuse statistics & anomalies
@@ -137,7 +148,7 @@ sequenceDiagram
     Agent->>N8N: Trigger automated workflow response
     N8N-->>Agent: Workflow executed successfully
 
-    Note over Agent,LangSmith: Agent learns from response effectiveness
+    Note over Agent,LangSmith: Agent learns from response effectiveness and AI processing quality
 ```
 
 ## Component Architecture
@@ -152,6 +163,20 @@ sequenceDiagram
   - Tool orchestration and execution
   - Integration with LangSmith for monitoring
 - **Integration Points**: REST API calls to backend services
+
+#### AI PDF Enhancement Engine
+
+- **Purpose**: Intelligent text processing and structuring using Langchain and GPT
+- **Components**:
+  - Langchain Pipeline: Text processing workflows and chains
+  - GPT Model Integration: OpenAI API for content transformation
+  - Output Validation: Quality assurance for AI-generated content
+  - Security Layer: Double sanitization (pre/post AI processing)
+- **Capabilities**:
+  - Text structuring and formatting improvement
+  - Entity extraction and categorization
+  - JSON schema generation from unstructured content
+  - Content summarization and key point extraction
 
 #### LangSmith Integration
 
@@ -228,6 +253,12 @@ System Activities → Backend APIs → Agent Monitoring → Anomaly Detection �
 Threat Detection → Agent Decision → Backend API Call → Automated Action → Result Logging
 ```
 
+### AI PDF Enhancement Flow
+
+```
+Raw PDF Text → Langchain Pipeline → GPT Processing → Structured Output → Validation → Sanitization → JSON Response
+```
+
 ## Security Architecture
 
 ### Agent Security
@@ -242,6 +273,14 @@ Threat Detection → Agent Decision → Backend API Call → Automated Action �
 - **API Security**: Existing backend security controls apply to agent requests
 - **Data Protection**: Agent cannot access sensitive data directly
 - **Trust Boundaries**: Clear separation between agent and backend security domains
+
+### AI Processing Security
+
+- **Double Sanitization**: Content sanitized before and after AI processing
+- **Prompt Security**: AI prompts designed to prevent prompt injection attacks
+- **Output Validation**: AI-generated content validated for malicious patterns
+- **Rate Limiting**: AI API calls rate-limited to prevent abuse
+- **Audit Trail**: All AI processing logged for security review
 
 ## Deployment Architecture
 
@@ -301,12 +340,16 @@ Threat Detection → Agent Decision → Backend API Call → Automated Action �
 - **API Compatibility**: Changes to backend APIs affecting agent functionality
 - **Learning Accuracy**: Agent learning from incorrect or biased data
 - **Performance Impact**: Agent operations overloading backend systems
+- **AI Processing Risks**: GPT API failures, prompt injection, biased outputs
+- **Content Security**: AI transformation potentially introducing vulnerabilities
 
 ### Mitigation Strategies
 
 - **Versioned APIs**: Semantic versioning for backward compatibility
 - **Data Validation**: Agent validates learning data quality
 - **Rate Limiting**: Prevent agent from overwhelming backend services
+- **AI Security**: Double sanitization, prompt validation, output filtering
+- **Fallback Mechanisms**: Graceful degradation when AI services unavailable
 
 ## Implementation Roadmap
 
@@ -316,26 +359,35 @@ Threat Detection → Agent Decision → Backend API Call → Automated Action �
 - LangSmith configuration and memory initialization
 - Basic monitoring and logging
 
+### Phase 1.5: AI Enhancement Foundation
+
+- Langchain and OpenAI API integration
+- AI PDF enhancement tool development
+- Security validation for AI processing pipeline
+
 ### Phase 2: Learning
 
 - Data ingestion pipeline from backend sources
 - Initial learning model training
 - Performance monitoring and optimization
+- AI processing quality assessment and improvement
 
 ### Phase 3: Orchestration
 
 - Automated response implementation
 - Advanced decision-making logic
 - Integration testing and validation
+- AI-enhanced document processing workflows
 
 ### Phase 4: Production
 
 - Full deployment and scaling
 - Continuous learning and improvement
 - Operational monitoring and maintenance
+- AI processing performance optimization
 
 ## Conclusion
 
 This architecture provides a robust framework for integrating an autonomous security agent with the existing MCP-Security backend. The design leverages DeepAgent CLI and LangSmith for advanced agent capabilities while maintaining security and performance through careful API integration and monitoring.
 
-The agent will enhance the system's security posture through continuous learning and automated responses, creating an intelligent, adaptive security solution.
+The agent will enhance the system's security posture through continuous learning and automated responses, creating an intelligent, adaptive security solution. The addition of AI-powered PDF text enhancement transforms raw document processing into structured, intelligent content analysis, significantly improving the system's document intelligence capabilities.
