@@ -42,25 +42,31 @@ const JobStatusController = {
       // Generate human-readable message based on status and progress
       let message;
       switch (jobStatus.status) {
-        case 'queued':
+        case 'queued': {
           message = 'Queued for processing...';
           break;
-        case 'processing':
+        }
+        case 'processing': {
           message = jobStatus.currentStep
             ? `Processing: ${jobStatus.currentStep}...`
             : 'Processing...';
           break;
-        case 'completed':
+        }
+        case 'completed': {
           message = 'Completed successfully';
           break;
-        case 'failed':
+        }
+        case 'failed': {
           message = jobStatus.errorMessage || 'Processing failed';
           break;
-        case 'cancelled':
+        }
+        case 'cancelled': {
           message = 'Job cancelled';
           break;
-        default:
+        }
+        default: {
           message = 'Unknown status';
+        }
       }
 
       const response = {
