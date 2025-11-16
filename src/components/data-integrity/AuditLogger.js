@@ -67,7 +67,7 @@ class AuditLogger {
    */
   loadAuditTrailFromFile() {
     try {
-      const fs = require('fs');
+      const fs = require('node:fs');
       if (fs.existsSync(this.logFile)) {
         const logContent = fs.readFileSync(this.logFile, 'utf8');
         const lines = logContent
@@ -85,7 +85,7 @@ class AuditLogger {
           } catch (parseError) {
             // Skip malformed lines
             this.logger.warn('Skipping malformed audit log entry', {
-              line: line.substring(0, 100),
+              line: line.slice(0, 100),
             });
           }
         }
