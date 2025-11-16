@@ -21,7 +21,7 @@ So that async sanitization jobs complete successfully without "cb is not a funct
 
 **Functional Requirements:**
 
-1. jobWorker validates that the callback parameter is a function before processing
+1. jobWorker uses promise-based processing instead of callbacks
 2. Job processing completes without throwing "cb is not a function" TypeError
 3. Async sanitization requests return proper 202 Accepted status codes
 
@@ -37,9 +37,9 @@ So that async sanitization jobs complete successfully without "cb is not a funct
 
 #### Technical Notes
 
-- **Integration Approach:** Add type checking for callback parameter in jobWorker processJob function
-- **Existing Pattern Reference:** Follows better-queue process function signature (task, callback)
-- **Key Constraints:** Must maintain compatibility with better-queue API, cannot change function signature
+- **Integration Approach:** Switch to better-queue promise mode, return promise from processJob instead of using callbacks
+- **Existing Pattern Reference:** Uses better-queue promise API for async job processing
+- **Key Constraints:** Maintain compatibility with queueManager, update queueConfig to enable promise mode
 
 #### Definition of Done
 
@@ -83,22 +83,21 @@ So that async sanitization jobs complete successfully without "cb is not a funct
 
 #### Reference Logs
 
-The following logs demonstrate the issue where job processing starts successfully but fails with "cb is not a function":
+The following logs demonstrate the successful resolution after switching to promise mode:
 
 ```
 Server running on port 3000
 {"classification":"unclear","confidence":0.3,"indicators":["content-type:application/json"],"level":"info","message":"Request classified","method":"POST","path":"/sanitize/json"}
-{"jobId":"1763256016541","level":"info","message":"Processing job"}
+{"jobId":"1763257656290","level":"info","message":"Processing job"}
 {"classification":"unclear","level":"info","message":"Starting sanitization process","operation":"unknown","riskLevel":"medium"}
-info: Data Integrity Operation {"context":{"logger":"RiskAssessmentLogger","resourceId":"unknown","severity":"info","stage":"risk-assessment","userId":"anonymous"},"details":{"assessmentParameters":{"riskScore":0,"triggers":[]},"decisionType":"classification","resourceInfo":{"resourceId":"unknown","type":"sanitization_request"},"riskLevel":"medium"},"id":"audit_1763256016558_6v59apvof","operation":"risk_assessment_decision","timestamp":"2025-11-16T01:20:16.558Z"}
+info: Data Integrity Operation {"context":{"logger":"RiskAssessmentLogger","resourceId":"unknown","severity":"info","stage":"risk-assessment","userId":"anonymous"},"details":{"assessmentParameters":{"riskScore":0,"triggers":[]},"decisionType":"classification","resourceInfo":{"resourceId":"unknown","type":"sanitization_request"},"riskLevel":"medium"},"id":"audit_1763257656309_81rae3o4y","operation":"risk_assessment_decision","timestamp":"2025-11-16T01:47:36.309Z"}
 {"classification":"unclear","dataLength":56,"level":"info","message":"Applying full sanitization pipeline","riskLevel":"medium"}
-info: Data Integrity Operation {"context":{"dataType":"string","logger":"DataIntegrityValidator","severity":"success","source":"pre-sanitization","validationId":"val_1763256016559_n2dy4uim2"},"details":{"errors":[],"isValid":true,"summary":{},"validationType":"unknown"},"id":"audit_1763256016560_nbejwj15z","operation":"validation","timestamp":"2025-11-16T01:20:16.560Z"}
-info: Data Integrity Operation {"context":{"dataType":"string","logger":"DataIntegrityValidator","severity":"success","source":"post-sanitization","validationId":"val_1763256016561_05jpyd1og"},"details":{"errors":[],"isValid":true,"summary":{},"validationType":"unknown"},"id":"audit_1763256016562_moxrqhq71","operation":"validation","timestamp":"2025-11-16T01:20:16.562Z"}
-info: Data Integrity Operation {"context":{"logger":"HighFidelityDataLogger","resourceId":"unknown","severity":"info","stage":"data_collection","userId":"anonymous"},"details":{"contextMetadata":{"inputLength":56,"outputLength":56,"processingTime":5},"decisionOutcome":{"decision":"sanitized","reasoning":"medium","riskScore":0},"featureVector":{"decision":"sanitized","hasProcessingSteps":true,"inputLength":56,"outputLength":56,"processingStepsCount":4,"processingTime":5,"riskScore":0},"inputDataHash":"f20bd3ad714f0f34d6bef6f6dcc9a254f6efddba0cf37d0242e6d359674e6dc6","processingSteps":["UnicodeNormalization","SymbolStripping","EscapeNeutralization","PatternRedaction"]},"id":"audit_1763256016563_ly551xh6a","operation":"high_fidelity_data_collection","timestamp":"2025-11-16T01:20:16.563Z"}
-{"latency":6,"level":"info","message":"Sanitization latency measured","operation":"unknown"}
-{"auditId":"al_1763256016564_1ylq8os4a","latency":6,"level":"info","message":"Sanitization completed","operation":"unknown","wasSanitized":true}
-{"jobId":"1763256016541","level":"info","message":"Job processed successfully"}
-{"error":"cb is not a function","jobId":"1763256016541","level":"error","message":"Job processing failed"}
+info: Data Integrity Operation {"context":{"dataType":"string","logger":"DataIntegrityValidator","severity":"success","source":"pre-sanitization","validationId":"val_1763257656310_g8ujxkg3w"},"details":{"errors":[],"isValid":true,"summary":{},"validationType":"unknown"},"id":"audit_1763257656311_o1ur10723","operation":"validation","timestamp":"2025-11-16T01:47:36.311Z"}
+info: Data Integrity Operation {"context":{"dataType":"string","logger":"DataIntegrityValidator","severity":"success","source":"post-sanitization","validationId":"val_1763257656312_u9r2s7d2w"},"details":{"errors":[],"isValid":true,"summary":{},"validationType":"unknown"},"id":"audit_1763257656312_aqyr51pl1","operation":"validation","timestamp":"2025-11-16T01:47:36.312Z"}
+info: Data Integrity Operation {"context":{"logger":"HighFidelityDataLogger","resourceId":"unknown","severity":"info","stage":"data_collection","userId":"anonymous"},"details":{"contextMetadata":{"inputLength":56,"outputLength":56,"processingTime":4},"decisionOutcome":{"decision":"sanitized","reasoning":"medium","riskScore":0},"featureVector":{"decision":"sanitized","hasProcessingSteps":true,"inputLength":56,"outputLength":56,"processingStepsCount":4,"processingTime":4,"riskScore":0},"inputDataHash":"f20bd3ad714f0f34d6bef6f6dcc9a254f6efddba0cf37d0242e6d359674e6dc6","processingSteps":["UnicodeNormalization","SymbolStripping","EscapeNeutralization","PatternRedaction"]},"id":"audit_1763257656313_ruaa6ki9y","operation":"high_fidelity_data_collection","timestamp":"2025-11-16T01:47:36.313Z"}
+{"latency":5,"level":"info","message":"Sanitization latency measured","operation":"unknown"}
+{"auditId":"al_1763257656314_gyqvxn20m","latency":5,"level":"info","message":"Sanitization completed","operation":"unknown","wasSanitized":true}
+{"jobId":"1763257656290","level":"info","message":"Job processed successfully"}
 ```
 
 The issue appears to be that the callback passed to the jobWorker processJob function is not a valid function, causing the job to fail despite successful sanitization processing.
