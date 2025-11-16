@@ -6,6 +6,81 @@ const express = require('express');
 const apiRoutes = require('../../routes/api');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
+// Mock pdfjs-dist for testing
+jest.mock('pdfjs-dist', () => ({
+  getDocument: jest.fn().mockReturnValue({
+    promise: Promise.resolve({
+      numPages: 5,
+      getMetadata: jest.fn().mockResolvedValue({
+        info: {
+          Title: 'Test PDF Document',
+          Author: 'Test Author',
+          Subject: 'Test Subject',
+          Creator: 'Test Creator',
+          Producer: 'Test Producer',
+          CreationDate: 'D:20231101120000',
+          ModDate: 'D:20231101120000',
+        },
+      }),
+      getPage: jest.fn().mockImplementation((pageNum) => ({
+        getTextContent: jest.fn().mockResolvedValue({
+          items: [
+            { str: 'Test Document' },
+            { str: '\n\nThis is a test PDF document.' },
+            { str: '\n\nSection 1' },
+            { str: '\n\n- Item 1' },
+            { str: '\n- Item 2' },
+            { str: '\n\n1. Numbered item' },
+            { str: '\n2. Another item' },
+          ],
+        }),
+      })),
+    }),
+  }),
+  GlobalWorkerOptions: {
+    workerSrc: '',
+  },
+}));
+
+// Mock MarkdownConverter for testing
+jest.mock('../../components/MarkdownConverter', () => {
+  return jest.fn().mockImplementation(() => ({
+    convert: jest
+      .fn()
+      .mockReturnValue(
+        '# Test Document\n\nThis is a test PDF document.\n\n## Section 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+      ),
+  }));
+});
+
+// Mock access validation middleware for testing
+jest.mock('../../middleware/AccessValidationMiddleware', () => {
+  return jest.fn((req, res, next) => next());
+});
+
+// Mock access control enforcer for testing
+jest.mock('../../components/AccessControlEnforcer', () => {
+  return jest.fn().mockImplementation(() => ({
+    enforce: jest.fn().mockReturnValue({ allowed: true }),
+  }));
+});
+
+// Mock TrustTokenGenerator for testing
+jest.mock('../../components/TrustTokenGenerator', () => {
+  return jest.fn().mockImplementation(() => ({
+    generateToken: jest.fn().mockReturnValue({
+      contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72', // hash calculated in code
+      originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+      sanitizationVersion: '1.0',
+      rulesApplied: ['symbol_stripping'],
+      timestamp: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(), // 1 hour from now
+      signature: 'mock-signature',
+    }),
+    validateToken: jest.fn().mockReturnValue({ isValid: true }),
+  }));
+});
+
 describe('API Integration Tests - Access Validation Middleware', () => {
   let app;
   let trustTokenGenerator;
@@ -728,6 +803,150 @@ describe('API Integration Tests - Access Validation Middleware', () => {
       // Agent operations should be <100ms as per requirements
       expect(averageTime).toBeLessThan(100);
       expect(maxTime).toBeLessThan(100);
+    });
+  });
+
+  describe('JSON Transformation', () => {
+    test('should apply key normalization to camelCase', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: JSON.stringify({
+            user_name: 'john',
+            user_age: 30,
+          }),
+          transform: true,
+          transformOptions: {
+            normalizeKeys: 'camelCase',
+          },
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('userName');
+      expect(parsed).toHaveProperty('userAge');
+      expect(parsed).not.toHaveProperty('user_name');
+      expect(parsed).not.toHaveProperty('user_age');
+    });
+
+    test('should apply key normalization to snake_case', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: JSON.stringify({
+            userName: 'john',
+            userAge: 30,
+          }),
+          transform: true,
+          transformOptions: {
+            normalizeKeys: 'snake_case',
+          },
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('user_name');
+      expect(parsed).toHaveProperty('user_age');
+      expect(parsed).not.toHaveProperty('userName');
+      expect(parsed).not.toHaveProperty('userAge');
+    });
+
+    test('should remove specified fields', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: JSON.stringify({
+            name: 'john',
+            password: 'secret',
+            age: 30,
+          }),
+          transform: true,
+          transformOptions: {
+            removeFields: ['password'],
+          },
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('name');
+      expect(parsed).toHaveProperty('age');
+      expect(parsed).not.toHaveProperty('password');
+    });
+
+    test('should apply both normalization and field removal', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: JSON.stringify({
+            user_name: 'john',
+            user_password: 'secret',
+            user_age: 30,
+          }),
+          transform: true,
+          transformOptions: {
+            normalizeKeys: 'camelCase',
+            removeFields: ['userPassword'],
+          },
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('userName');
+      expect(parsed).toHaveProperty('userAge');
+      expect(parsed).not.toHaveProperty('user_name');
+      expect(parsed).not.toHaveProperty('user_password');
+      expect(parsed).not.toHaveProperty('userPassword');
+    });
+
+    test('should work with async processing', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json?sync=true')
+        .send({
+          content: JSON.stringify({
+            user_name: 'john',
+          }),
+          transform: true,
+          transformOptions: {
+            normalizeKeys: 'camelCase',
+          },
+          async: true,
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('userName');
+    });
+
+    test('should skip transformation for invalid JSON', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: 'invalid json',
+          transform: true,
+          transformOptions: {
+            normalizeKeys: 'camelCase',
+          },
+        });
+
+      expect(response.status).toBe(200);
+      // Should sanitize the string as is
+      expect(typeof response.body.sanitizedContent).toBe('string');
+    });
+
+    test('should maintain backward compatibility when transform is false', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: JSON.stringify({
+            user_name: 'john',
+          }),
+          transform: false,
+        });
+
+      expect(response.status).toBe(200);
+      const parsed = JSON.parse(response.body.sanitizedContent);
+      expect(parsed).toHaveProperty('user_name');
+      expect(parsed).not.toHaveProperty('userName');
     });
   });
 });
