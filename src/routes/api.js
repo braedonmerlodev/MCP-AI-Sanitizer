@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const pdfjsLib = require('pdfjs-dist');
 // Configure PDF.js for Node.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/build/pdf.worker.js');
+pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/build/pdf.worker.mjs');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
