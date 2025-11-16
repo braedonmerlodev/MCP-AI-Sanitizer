@@ -70,6 +70,7 @@ const JobStatusController = {
         message,
         createdAt: jobStatus.createdAt,
         updatedAt: jobStatus.updatedAt,
+        expiresAt: jobStatus.expiresAt,
       };
 
       // Add estimated completion time for processing jobs
