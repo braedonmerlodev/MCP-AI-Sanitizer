@@ -24,6 +24,7 @@ const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
 const queueManager = require('../utils/queueManager');
 const { normalizeKeys, removeFields } = require('../utils/jsonTransformer');
+const AITextTransformer = require('../components/AITextTransformer');
 
 const router = express.Router();
 
@@ -46,6 +47,8 @@ const dataExportManager = new DataExportManager({
   auditLogger,
   accessControlEnforcer,
 });
+
+const aiTransformer = new AITextTransformer();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -121,6 +124,11 @@ const sanitizeJsonSchema = Joi.object({
     normalizeKeys: Joi.string().valid('camelCase', 'snake_case').optional(),
     removeFields: Joi.array().items(Joi.string()).optional(),
   }).optional(),
+});
+
+const uploadQuerySchema = Joi.object({
+  ai_transform: Joi.boolean().optional().default(false),
+  sync: Joi.boolean().optional().default(false),
 });
 
 const adminOverrideActivateSchema = Joi.object({
@@ -488,6 +496,40 @@ router.post(
     });
   },
   async (req, res) => {
+    const { error: queryError, value: queryValue } = uploadQuerySchema.validate(req.query);
+    if (queryError) {
+      return res.status(400).json({ error: queryError.details[0].message });
+    }
+
+    // Rate limiting for AI processing
+    if (queryValue.ai_transform) {
+      const ip = req.ip;
+      const key = `${ip}_ai`;
+      const now = Date.now();
+      const windowMs = 15 * 60 * 1000;
+      const maxRequests = 5;
+      if (!globalThis.aiRateLimitMap) {
+        globalThis.aiRateLimitMap = new Map();
+      }
+      if (!globalThis.aiRateLimitMap.has(key)) {
+        globalThis.aiRateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
+      } else {
+        const data = globalThis.aiRateLimitMap.get(key);
+        if (now > data.resetTime) {
+          data.count = 1;
+          data.resetTime = now + windowMs;
+        } else if (data.count >= maxRequests) {
+          return res
+            .status(429)
+            .json({
+              error: 'Too many AI processing requests from this IP, please try again later.',
+            });
+        } else {
+          data.count++;
+        }
+      }
+    }
+
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
@@ -508,6 +550,9 @@ router.post(
             classification: 'llm', // Force LLM classification for PDF content processing
             generateTrustToken: true,
           };
+          if (queryValue.ai_transform) {
+            jobOptions.aiTransformType = 'structure';
+          }
           const taskId = await queueManager.addJob(jobData, jobOptions);
 
           logger.info('Async PDF upload job submitted', {
@@ -578,17 +623,78 @@ router.post(
         markdownText = extractedText; // Fallback to plain text
       }
 
-      // Sanitize converted text and generate trust token
-      let sanitizationResult;
-      try {
-        const options = {
-          classification: 'llm', // Force LLM classification for PDF content processing
+      // Conditionally apply AI transformation or sanitize
+      let finalContent;
+      let trustToken;
+      let processingMetadata = {};
+      if (queryValue.ai_transform) {
+        try {
+          // Apply AI transformation
+          const aiResult = await aiTransformer.transform(markdownText, 'structure', {
+            sanitizerOptions: {
+              classification: 'llm',
+              generateTrustToken: true,
+            },
+          });
+          finalContent = aiResult.text;
+          // Generate trust token for AI output
+          const tokenResult = await proxySanitizer.sanitize(aiResult.text, {
+            classification: 'llm',
+            generateTrustToken: true,
+          });
+          trustToken = tokenResult.trustToken;
+          processingMetadata = {
+            transformationType: 'ai_structure',
+            aiProcessed: true,
+            ...aiResult.metadata,
+          };
+        } catch (aiError) {
+          logger.warn('AI transformation failed, falling back to sanitization', {
+            error: aiError.message,
+          });
+          // Fallback to sanitization
+          const fallbackResult = await proxySanitizer.sanitize(markdownText, {
+            classification: 'llm',
+            generateTrustToken: true,
+          });
+          finalContent = fallbackResult.sanitizedData;
+          trustToken = fallbackResult.trustToken;
+          processingMetadata = {
+            transformationType: 'fallback_sanitization',
+            aiProcessed: false,
+            aiError: aiError.message,
+          };
+        }
+      } else {
+        // Normal sanitization
+        const sanitizationResult = await proxySanitizer.sanitize(markdownText, {
+          classification: 'llm',
           generateTrustToken: true,
+        });
+        finalContent = sanitizationResult.sanitizedData;
+        trustToken = sanitizationResult.trustToken;
+        processingMetadata = {
+          transformationType: 'sanitization',
+          aiProcessed: false,
         };
-        sanitizationResult = await proxySanitizer.sanitize(markdownText, options);
-      } catch (sanitizeError) {
-        logger.error('Text sanitization failed', { error: sanitizeError.message });
-        return res.status(500).json({ error: 'Failed to sanitize extracted text' });
+      }
+
+      // Parse AI output as JSON if applicable
+      let sanitizedContent;
+      if (
+        processingMetadata.aiProcessed &&
+        processingMetadata.transformationType === 'ai_structure'
+      ) {
+        try {
+          sanitizedContent = JSON.parse(finalContent);
+        } catch (e) {
+          logger.warn('Failed to parse AI structured output as JSON, returning as string', {
+            error: e.message,
+          });
+          sanitizedContent = finalContent;
+        }
+      } else {
+        sanitizedContent = finalContent;
       }
 
       // Return enhanced response
@@ -598,8 +704,9 @@ router.post(
         size: file.size,
         metadata: metadata,
         status: 'processed',
-        sanitizedContent: sanitizationResult.sanitizedData,
-        trustToken: sanitizationResult.trustToken,
+        sanitizedContent: sanitizedContent,
+        trustToken: trustToken,
+        processingMetadata: processingMetadata,
       });
     } catch (error) {
       logger.error('Upload error', { error: error.message });

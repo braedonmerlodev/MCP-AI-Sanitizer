@@ -2,22 +2,37 @@ const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
 
-// Mock pdf-parse for testing
-jest.mock('pdf-parse', () =>
-  jest.fn().mockResolvedValue({
-    text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
-    numpages: 5,
-    info: {
-      Title: 'Test PDF Document',
-      Author: 'Test Author',
-      Subject: 'Test Subject',
-      Creator: 'Test Creator',
-      Producer: 'Test Producer',
-      CreationDate: 'D:20231101120000',
-      ModDate: 'D:20231101120000',
-    },
+// Mock pdfjs-dist for testing
+jest.mock('pdfjs-dist', () => ({
+  GlobalWorkerOptions: {
+    workerSrc: '',
+  },
+  getDocument: jest.fn().mockReturnValue({
+    promise: Promise.resolve({
+      numPages: 5,
+      getMetadata: jest.fn().mockResolvedValue({
+        info: {
+          Title: 'Test PDF Document',
+          Author: 'Test Author',
+          Subject: 'Test Subject',
+          Creator: 'Test Creator',
+          Producer: 'Test Producer',
+          CreationDate: 'D:20231101120000',
+          ModDate: 'D:20231101120000',
+        },
+      }),
+      getPage: jest.fn().mockImplementation((pageNum) => ({
+        getTextContent: jest.fn().mockResolvedValue({
+          items: [
+            {
+              str: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+            },
+          ],
+        }),
+      })),
+    }),
   }),
-);
+}));
 
 // Mock MarkdownConverter for testing
 jest.mock('../../components/MarkdownConverter', () => {
@@ -189,6 +204,73 @@ describe('API Routes', () => {
       const response = await request(app).post('/api/documents/upload').expect(400);
 
       expect(response.body).toHaveProperty('error', 'No file uploaded');
+    });
+
+    test('should accept valid ai_transform=true query parameter', async () => {
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      const response = await request(app)
+        .post('/api/documents/upload?ai_transform=true')
+        .attach('pdf', pdfBuffer, 'test.pdf')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('message', 'PDF uploaded and processed successfully');
+    });
+
+    test('should accept ai_transform=false query parameter', async () => {
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      const response = await request(app)
+        .post('/api/documents/upload?ai_transform=false')
+        .attach('pdf', pdfBuffer, 'test.pdf')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('message', 'PDF uploaded and processed successfully');
+    });
+
+    test('should reject invalid ai_transform query parameter', async () => {
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      const response = await request(app)
+        .post('/api/documents/upload?ai_transform=invalid')
+        .attach('pdf', pdfBuffer, 'test.pdf')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('ai_transform');
+    });
+
+    test('should accept valid sync query parameter', async () => {
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      const response = await request(app)
+        .post('/api/documents/upload?sync=true')
+        .attach('pdf', pdfBuffer, 'test.pdf')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('message', 'PDF uploaded and processed successfully');
+    });
+
+    test('should reject invalid sync query parameter', async () => {
+      const pdfBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n/Contents 4 0 R\n>>\nendobj\n4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n72 720 Td\n/F0 12 Tf\n(Hello World) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000200 00000 n \ntrailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n284\n%%EOF',
+      );
+
+      const response = await request(app)
+        .post('/api/documents/upload?sync=maybe')
+        .attach('pdf', pdfBuffer, 'test.pdf')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('sync');
     });
   });
 

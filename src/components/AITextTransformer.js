@@ -29,7 +29,7 @@ class AITextTransformer {
     // Define prompt templates for each transformation type
     this.prompts = {
       structure: PromptTemplate.fromTemplate(
-        'Please structure this raw text into a well-formatted, readable format with proper paragraphs and headings if appropriate: {text}',
+        'Structure this raw text into a JSON object with keys like "title", "summary", "content", "key_points" (as array), and any other relevant sections. Return only valid JSON: {text}',
       ),
       summarize: PromptTemplate.fromTemplate(
         'Provide a concise summary of the following text: {text}',
@@ -104,7 +104,18 @@ class AITextTransformer {
         },
       });
 
-      return sanitizedOutput;
+      return {
+        text: sanitizedOutput,
+        metadata: {
+          processingTime,
+          cost: totalCost,
+          tokens: {
+            prompt: promptTokens,
+            completion: completionTokens,
+            total: totalTokens,
+          },
+        },
+      };
     } catch (error) {
       // Log the error
       const processingTime = Date.now() - startTime;
@@ -118,7 +129,10 @@ class AITextTransformer {
 
       // Fallback: return the sanitized original text
       const fallbackOutput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
-      return fallbackOutput;
+      return {
+        text: fallbackOutput,
+        metadata: null,
+      };
     }
   }
 }

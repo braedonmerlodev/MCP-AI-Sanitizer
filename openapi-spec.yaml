@@ -177,20 +177,27 @@ paths:
   /api/documents/upload:
     post:
       summary: PDF document upload and sanitization
-      description: |
-        Uploads PDF documents, extracts text, and sanitizes content.
-        Supports synchronous processing for agents.
+       description: |
+         Uploads PDF documents, extracts text, and sanitizes content.
+         Optionally applies AI transformation for structured JSON output.
+         Supports synchronous processing for agents.
       operationId: uploadDocument
-      tags:
-        - Documents
-      parameters:
-        - name: sync
-          in: query
-          description: Force synchronous processing (agents use this automatically)
-          schema:
-            type: string
-            enum: [true]
-      requestBody:
+       tags:
+         - Documents
+       parameters:
+         - name: sync
+           in: query
+           description: Force synchronous processing (agents use this automatically)
+           schema:
+             type: string
+             enum: [true]
+         - name: ai_transform
+           in: query
+           description: Enable AI-powered content structuring (returns structured JSON instead of raw text)
+           schema:
+             type: boolean
+             default: false
+       requestBody:
         required: true
         content:
           multipart/form-data:
@@ -225,11 +232,39 @@ paths:
                   status:
                     type: string
                     enum: [processed]
-                  sanitizedContent:
-                    type: string
-                    description: Sanitized extracted text
-                  trustToken:
-                    $ref: "#/components/schemas/TrustToken"
+                   sanitizedContent:
+                     oneOf:
+                       - type: string
+                         description: Sanitized extracted text (when AI disabled)
+                       - type: object
+                         description: Structured JSON content (when AI enabled)
+                     description: Processed content (text or JSON)
+                   trustToken:
+                     $ref: "#/components/schemas/TrustToken"
+                   processingMetadata:
+                     type: object
+                     description: Processing metadata
+                     properties:
+                       transformationType:
+                         type: string
+                         enum: [sanitization, ai_structure, fallback_sanitization]
+                       aiProcessed:
+                         type: boolean
+                       processingTime:
+                         type: number
+                         description: Processing time in ms (for AI)
+                       cost:
+                         type: number
+                         description: AI cost in USD (for AI)
+                       tokens:
+                         type: object
+                         properties:
+                           prompt:
+                             type: number
+                           completion:
+                             type: number
+                           total:
+                             type: number
         "202":
           description: Async processing started for large files
           content:
