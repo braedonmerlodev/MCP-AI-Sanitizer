@@ -3,6 +3,7 @@ const JobStatus = require('../models/JobStatus');
 const JobResult = require('../models/JobResult');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
+const AITextTransformer = require('../components/AITextTransformer');
 const pdfParse = require('pdf-parse');
 
 const logger = winston.createLogger({
@@ -54,18 +55,44 @@ async function processJob(job) {
 
       // Convert extracted text to Markdown
       const markdownConverter = new MarkdownConverter();
-      let markdownText = extractedText;
+      let processedText = extractedText;
       try {
-        markdownText = markdownConverter.convert(extractedText);
+        processedText = markdownConverter.convert(extractedText);
       } catch (convertError) {
         // Fallback to plain text
+      }
+
+      // Apply AI transformation if specified
+      if (job.options?.aiTransformType) {
+        await jobStatus.updateProgress(
+          55,
+          `Applying AI ${job.options.aiTransformType} transformation`,
+        );
+
+        const aiTransformer = new AITextTransformer();
+        try {
+          processedText = await aiTransformer.transform(
+            processedText,
+            job.options.aiTransformType,
+            {
+              sanitizerOptions: job.options,
+            },
+          );
+        } catch (aiError) {
+          logger.warn('AI transformation failed, proceeding with Markdown text', {
+            jobId,
+            aiTransformType: job.options.aiTransformType,
+            error: aiError.message,
+          });
+          // processedText remains as Markdown
+        }
       }
 
       await jobStatus.updateProgress(70, 'Sanitizing content');
 
       // Sanitize converted text
       const sanitizer = new ProxySanitizer();
-      result = await sanitizer.sanitize(markdownText, job.options);
+      result = await sanitizer.sanitize(processedText, job.options);
 
       // Add metadata to result
       result.metadata = metadata;

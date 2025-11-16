@@ -54,7 +54,7 @@ describe('jobWorker', () => {
     const job = { id: '123', data: 'test', options: {} };
 
     const result = await processJob(job);
-    expect(result.sanitizedData).toBe('sanitized data');
+    expect(result.sanitizedContent).toBe('sanitized data');
     expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
     expect(mockJobStatus.updateStatus.calledWith('completed')).toBe(true);
   });
@@ -100,5 +100,42 @@ describe('jobWorker', () => {
     expect(result.status).toBe('processed');
     expect(result.fileName).toBe('test.pdf');
     expect(result.metadata.pages).toBe(2);
+  });
+
+  it('should process PDF upload job with AI transformation', async () => {
+    const MockProxySanitizer = class {
+      constructor() {
+        this.sanitize = sinon.stub().resolves({ sanitizedData: 'sanitized ai transformed text' });
+      }
+    };
+
+    const MockAITextTransformer = class {
+      constructor() {
+        this.transform = sinon.stub().resolves('ai transformed text');
+      }
+    };
+
+    jobWorker.__set__('ProxySanitizer', MockProxySanitizer);
+    jobWorker.__set__('AITextTransformer', MockAITextTransformer);
+
+    const processJob = jobWorker.__get__('processJob');
+
+    const job = {
+      id: '123',
+      data: {
+        type: 'upload-pdf',
+        fileBuffer: Buffer.from('pdf data').toString('base64'),
+        fileName: 'test.pdf',
+      },
+      options: { aiTransformType: 'structure' },
+    };
+
+    const result = await processJob(job);
+    expect(result.status).toBe('processed');
+    expect(result.fileName).toBe('test.pdf');
+    expect(result.metadata.pages).toBe(2);
+    expect(
+      mockJobStatus.updateProgress.calledWith(55, 'Applying AI structure transformation'),
+    ).toBe(true);
   });
 });
