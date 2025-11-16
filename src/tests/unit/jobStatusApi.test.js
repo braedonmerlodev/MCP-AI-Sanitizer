@@ -199,20 +199,27 @@ describe('Job Status API Routes', () => {
 
       expect(response.body.taskId).toBe('1234567890123');
       expect(response.body.status).toBe('cancelled');
+      expect(response.body.message).toBe('Job cancelled successfully');
       expect(mockJob.cancel.calledOnce).toBe(true);
     });
 
-    it('should return 409 for non-cancellable job', async () => {
+    it('should allow deleting completed jobs', async () => {
       const mockJob = {
         jobId: '1234567890124',
         status: 'completed',
+        updatedAt: '2025-11-15T10:00:00.000Z',
+        save: sinon.stub().resolves(),
         isExpired: () => false,
       };
       JobStatus.load.resolves(mockJob);
+      JobResult.load.resolves(null); // No cached result
 
-      const response = await request(app).delete('/api/jobs/1234567890124').expect(409);
+      const response = await request(app).delete('/api/jobs/1234567890124').expect(200);
 
-      expect(response.body.error).toBe('Job cannot be cancelled');
+      expect(response.body.taskId).toBe('1234567890124');
+      expect(response.body.status).toBe('cancelled');
+      expect(response.body.message).toBe('Job deleted successfully');
+      expect(mockJob.save.calledOnce).toBe(true);
     });
   });
 
