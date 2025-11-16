@@ -57,6 +57,61 @@ class QueueManager {
   getStats() {
     return this.getQueue().getStats();
   }
+
+  /**
+   * Gets job status by job ID.
+   * @param {string} jobId - The job ID
+   * @returns {Promise<Object|null>} - Job status or null
+   */
+  async getJobStatus(jobId) {
+    const jobStatus = await JobStatus.load(jobId);
+    if (!jobStatus) {
+      return null;
+    }
+    return {
+      taskId: jobStatus.jobId,
+      status: jobStatus.status,
+      progress: jobStatus.progress,
+      currentStep: jobStatus.currentStep,
+      totalSteps: jobStatus.totalSteps,
+      createdAt: jobStatus.createdAt,
+      updatedAt: jobStatus.updatedAt,
+      expiresAt: jobStatus.expiresAt,
+    };
+  }
+
+  /**
+   * Gets job result by job ID.
+   * @param {string} jobId - The job ID
+   * @returns {Promise<Object|null>} - Job result or null
+   */
+  async getJobResult(jobId) {
+    const JobResult = require('../models/JobResult');
+    const jobResult = await JobResult.load(jobId);
+    if (!jobResult) return null;
+    const jobStatus = await JobStatus.load(jobId);
+    if (!jobStatus || jobStatus.status !== 'completed') return null;
+    return {
+      taskId: jobId,
+      status: jobStatus.status,
+      result: jobResult.result,
+      completedAt: jobStatus.updatedAt,
+    };
+  }
+
+  /**
+   * Cancels a job by job ID.
+   * @param {string} jobId - The job ID
+   * @returns {Promise<boolean>} - True if cancelled
+   */
+  async cancelJob(jobId) {
+    const jobStatus = await JobStatus.load(jobId);
+    if (!jobStatus) {
+      return false;
+    }
+    await jobStatus.cancel();
+    return true;
+  }
 }
 
 module.exports = new QueueManager();

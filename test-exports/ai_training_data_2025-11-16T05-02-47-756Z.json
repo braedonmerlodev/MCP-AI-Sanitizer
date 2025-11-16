@@ -1,6 +1,6 @@
 {
   "exportMetadata": {
-    "timestamp": "2025-11-16T00:35:54.730Z",
+    "timestamp": "2025-11-16T05:02:47.756Z",
     "recordCount": 1,
     "format": "json",
     "version": "1.0"
@@ -9,7 +9,7 @@
     {
       "id": "record-1",
       "timestamp": "2023-01-01T00:00:00.000Z",
-      "inputDataHash": "hash123",
+      "inputDataHash": "abc123",
       "processingSteps": [],
       "decisionOutcome": {
         "decision": "sanitized",
@@ -19,7 +19,11 @@
       "featureVector": {
         "contentLength": 12
       },
-      "contextMetadata": {},
+      "contextMetadata": {
+        "inputLength": 10,
+        "outputLength": 10,
+        "processingTime": 5
+      },
       "contentLength": 12
     }
   ]

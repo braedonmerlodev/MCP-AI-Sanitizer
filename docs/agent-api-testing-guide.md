@@ -135,7 +135,17 @@ Method: POST
 URL: {{base_url}}/api/trust-tokens/validate
 Headers:
 Content-Type: application/json
-Body: {{trust_token}}
+Body: [Replace {{trust_token}} with the actual trustToken object from a sanitization response]
+Example:
+{
+"contentHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+"originalHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+"sanitizationVersion": "1.0",
+"rulesApplied": ["UnicodeNormalization", "SymbolStripping", "EscapeNeutralization", "PatternRedaction"],
+"timestamp": "2025-11-16T02:16:21.674Z",
+"expiresAt": "2025-11-17T02:16:21.674Z",
+"signature": "818ec8287f79e8b49e9c3a79fe0b79d384f3605df1da5be910598d15e370f004"
+}
 Expected (200):
 {
 "valid": true,
@@ -155,12 +165,17 @@ Content-Type: application/json
 Body:
 {
 "contentHash": "invalid-hash",
+"originalHash": "invalid-hash",
+"sanitizationVersion": "1.0",
+"rulesApplied": ["UnicodeNormalization"],
+"timestamp": "2025-11-16T02:16:21.674Z",
+"expiresAt": "2025-11-17T02:16:21.674Z",
 "signature": "invalid-signature"
 }
 Expected (400):
 {
 "valid": false,
-"error": "Invalid signature"
+"error": "Invalid token signature"
 }
 
 ```
