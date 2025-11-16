@@ -3,34 +3,23 @@ const express = require('express');
 const apiRoutes = require('../../routes/api');
 
 // Mock pdf-parse for testing
-jest.mock('pdf-parse', () => ({
-  PDFParse: jest.fn().mockImplementation(() => ({
-    getText: jest.fn().mockResolvedValue({
-      text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
-      pages: [
-        {
-          text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
-          num: 1,
-        },
-      ],
-      total: 5,
-    }),
-    getInfo: jest.fn().mockResolvedValue({
-      total: 5,
-      info: {
-        Title: 'Test PDF Document',
-        Author: 'Test Author',
-        Subject: 'Test Subject',
-        Creator: 'Test Creator',
-        Producer: 'Test Producer',
-        CreationDate: 'D:20231101120000',
-        ModDate: 'D:20231101120000',
-      },
-      metadata: {},
-      pages: [],
-    }),
-  })),
-}));
+jest.mock('pdf-parse', () =>
+  jest.fn().mockResolvedValue({
+    text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+    numpages: 5,
+    info: {
+      Title: 'Test PDF Document',
+      Author: 'Test Author',
+      Subject: 'Test Subject',
+      Creator: 'Test Creator',
+      Producer: 'Test Producer',
+      CreationDate: 'D:20231101120000',
+      ModDate: 'D:20231101120000',
+    },
+    metadata: {},
+    pages: [],
+  }),
+);
 
 // Mock MarkdownConverter for testing
 jest.mock('../../components/MarkdownConverter', () => {

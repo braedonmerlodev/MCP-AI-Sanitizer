@@ -3,7 +3,7 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const { PDFParse } = require('pdf-parse');
+const PDFParse = require('pdf-parse');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
@@ -578,18 +578,17 @@ router.post(
       // Extract text and metadata from PDF using pdf-parse
       let extractedText, metadata;
       try {
-        const pdfParser = new PDFParse({ data: buffer });
-        const [textData, infoData] = await Promise.all([pdfParser.getText(), pdfParser.getInfo()]);
-        extractedText = textData.text;
+        const pdfData = await PDFParse(buffer);
+        extractedText = pdfData.text;
         metadata = {
-          pages: infoData.total,
-          title: infoData.info?.Title || null,
-          author: infoData.info?.Author || null,
-          subject: infoData.info?.Subject || null,
-          creator: infoData.info?.Creator || null,
-          producer: infoData.info?.Producer || null,
-          creationDate: infoData.info?.CreationDate || null,
-          modificationDate: infoData.info?.ModDate || null,
+          pages: pdfData.numpages,
+          title: pdfData.info?.Title || null,
+          author: pdfData.info?.Author || null,
+          subject: pdfData.info?.Subject || null,
+          creator: pdfData.info?.Creator || null,
+          producer: pdfData.info?.Producer || null,
+          creationDate: pdfData.info?.CreationDate || null,
+          modificationDate: pdfData.info?.ModDate || null,
           encoding: 'utf8', // pdf-parse extracts text as UTF-8
         };
       } catch (pdfError) {
