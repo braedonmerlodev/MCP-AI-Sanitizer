@@ -19,7 +19,9 @@ class QueueManager {
 
   getQueue() {
     if (!QueueManager.queue) {
+      logger.info('Creating better-queue with promise mode', { config: queueConfig });
       QueueManager.queue = new Queue(processJob, queueConfig);
+      logger.info('Queue created successfully');
     }
     return QueueManager.queue;
   }
@@ -38,22 +40,14 @@ class QueueManager {
     const jobStatus = new JobStatus({ jobId });
     await jobStatus.save();
 
-    return new Promise((resolve, reject) => {
-      const queueOptions = {};
-      if (options.priority !== undefined) {
-        queueOptions.priority = options.priority;
-      }
+    const queueOptions = {};
+    if (options.priority !== undefined) {
+      queueOptions.priority = options.priority;
+    }
 
-      this.getQueue().push(jobData, queueOptions, (err) => {
-        if (err) {
-          logger.error('Failed to add job', { error: err.message, jobId });
-          reject(err);
-        } else {
-          logger.info('Job added to queue', { jobId });
-          resolve(jobId);
-        }
-      });
-    });
+    await this.getQueue().push(jobData, queueOptions);
+    logger.info('Job added to queue', { jobId });
+    return jobId;
   }
 
   /**

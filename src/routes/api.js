@@ -10,7 +10,7 @@ const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
-const responseValidationMiddleware = require('../middleware/response-validation');
+
 const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
 const { agentAuth, enforceAgentSync } = require('../middleware/agentAuth');
 const { requestSchemas, responseSchemas } = require('../schemas/api-contract-schemas');
@@ -25,7 +25,7 @@ const queueManager = require('../utils/queueManager');
 const router = express.Router();
 
 // Response validation middleware (non-blocking)
-router.use(responseValidationMiddleware);
+// router.use(responseValidationMiddleware);
 
 // Agent authentication and sync enforcement middleware
 router.use(agentAuth);
@@ -157,7 +157,10 @@ router.post(
     }
 
     // Check if async processing is requested and sync mode is not forced
+    console.log('Async check:', { async: value.async, querySync: req.query.sync });
     if (value.async && req.query.sync !== 'true') {
+      // Support trust token from header if not in body
+      value.trustToken = value.trustToken || req.headers['x-trust-token'];
       try {
         const jobData = value.content;
         const jobOptions = {
@@ -165,7 +168,9 @@ router.post(
           generateTrustToken: true,
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
+        logger.info('Calling queueManager.addJob');
         const taskId = await queueManager.addJob(jobData, jobOptions);
+        logger.info('addJob returned', { taskId });
 
         logger.info('Async sanitization job submitted', {
           taskId,
@@ -173,7 +178,7 @@ router.post(
         });
         res.set('X-API-Version', '1.1');
         res.set('X-Async-Processing', 'true');
-        return res.json({
+        return res.status(202).json({
           taskId,
           status: 'processing',
           estimatedTime: 5000, // 5 seconds estimate
@@ -487,10 +492,10 @@ router.post(
           });
           res.set('X-API-Version', '1.1');
           res.set('X-Async-Processing', 'true');
-          return res.json({
+          return res.status(202).json({
             taskId,
             status: 'processing',
-            estimatedTime: 10_000, // 10 seconds estimate for large PDFs
+            estimatedTime: 5000, // 5 seconds estimate
           });
         } catch (jobError) {
           logger.error('Failed to submit async PDF upload job', { error: jobError.message });

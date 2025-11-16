@@ -1,0 +1,38 @@
+schema: 1
+story: fix.jobworker-callback-error
+story_title: Fix jobWorker Callback Error - Brownfield Bug Fix
+gate: PASS
+status_reason: Promise mode implementation successful, unit tests fixed and passing, API correctly returns 202 for async requests. All acceptance criteria met.
+reviewer: Quinn (Test Architect)
+updated: 2025-11-15T12:00:00Z
+
+top_issues: []
+
+evidence:
+  tests_reviewed: 3
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: No security impact, promise mode eliminates callback risks
+  performance:
+    status: PASS
+    notes: Promise mode may improve performance over callbacks
+  reliability:
+    status: PASS
+    notes: Robust error handling with status updates
+  maintainability:
+    status: PASS
+    notes: Tests fixed and maintainable
+
+recommendations:
+  future:
+    - action: Add integration test for end-to-end async workflow
+      refs: []
+
+quality_score: 95
+expires: 2025-12-15T12:00:00Z

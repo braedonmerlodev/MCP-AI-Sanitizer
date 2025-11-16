@@ -1,66 +1,104 @@
-const proxyquire = require('proxyquire');
+const rewire = require('rewire');
 const sinon = require('sinon');
 
 describe('jobWorker', () => {
+  let jobWorker;
   let mockJobStatus;
 
   beforeEach(() => {
+    jobWorker = rewire('../../workers/jobWorker');
+
     mockJobStatus = {
       updateStatus: sinon.stub().resolves(),
+      updateProgress: sinon.stub().resolves(),
     };
-  });
 
-  it('should process job successfully', (done) => {
-    const mockSanitize = sinon.stub().resolves('sanitized data');
     const MockProxySanitizer = class {
-      sanitize = mockSanitize;
+      constructor() {
+        this.sanitize = sinon.stub().resolves({ sanitizedData: 'sanitized data' });
+      }
     };
 
-    const MockJobStatus = {
+    const MockMarkdownConverter = class {
+      constructor() {
+        this.convert = sinon.stub().returns('markdown text');
+      }
+    };
+
+    const mockJobStatusModule = {
       load: sinon.stub().resolves(mockJobStatus),
     };
 
-    const processJob = proxyquire('../../workers/jobWorker', {
-      '../components/proxy-sanitizer': MockProxySanitizer,
-      '../models/JobStatus': MockJobStatus,
+    const mockPdfParse = sinon.stub().resolves({
+      text: 'extracted text',
+      numpages: 2,
+      info: { Title: 'Test PDF', Author: 'Test Author' },
     });
 
-    const job = { id: '123', data: 'test', options: {} };
+    const mockJobResult = {
+      save: sinon.stub().resolves(),
+    };
 
-    processJob(job, (err, result) => {
-      expect(err).toBeNull();
-      expect(result).toBe('sanitized data');
-      expect(mockSanitize.calledOnce).toBe(true);
-      expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
-      expect(mockJobStatus.updateStatus.calledWith('completed')).toBe(true);
-      done();
-    });
+    const MockJobResult = sinon.stub().returns(mockJobResult);
+
+    jobWorker.__set__('ProxySanitizer', MockProxySanitizer);
+    jobWorker.__set__('JobStatus', mockJobStatusModule);
+    jobWorker.__set__('MarkdownConverter', MockMarkdownConverter);
+    jobWorker.__set__('pdfParse', mockPdfParse);
+    jobWorker.__set__('JobResult', MockJobResult);
   });
 
-  it('should handle job processing error', (done) => {
-    const mockSanitize = sinon.stub().rejects(new Error('processing error'));
-    const MockProxySanitizer = class {
-      sanitize = mockSanitize;
-    };
-
-    const MockJobStatus = {
-      load: sinon.stub().resolves(mockJobStatus),
-    };
-
-    const processJob = proxyquire('../../workers/jobWorker', {
-      '../components/proxy-sanitizer': MockProxySanitizer,
-      '../models/JobStatus': MockJobStatus,
-    });
+  it('should process job successfully', async () => {
+    const processJob = jobWorker.__get__('processJob');
 
     const job = { id: '123', data: 'test', options: {} };
 
-    processJob(job, (err, result) => {
-      expect(err).toBeInstanceOf(Error);
-      expect(err.message).toBe('processing error');
-      expect(result).toBeUndefined();
-      expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
-      expect(mockJobStatus.updateStatus.calledWith('failed', 'processing error')).toBe(true);
-      done();
-    });
+    const result = await processJob(job);
+    expect(result.sanitizedData).toBe('sanitized data');
+    expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
+    expect(mockJobStatus.updateStatus.calledWith('completed')).toBe(true);
+  });
+
+  it('should handle job processing error', async () => {
+    const MockProxySanitizer = class {
+      constructor() {
+        this.sanitize = sinon.stub().rejects(new Error('processing error'));
+      }
+    };
+    jobWorker.__set__('ProxySanitizer', MockProxySanitizer);
+
+    const processJob = jobWorker.__get__('processJob');
+
+    const job = { id: '123', data: 'test', options: {} };
+
+    await expect(processJob(job)).rejects.toThrow('processing error');
+    expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
+    expect(mockJobStatus.updateStatus.calledWith('failed', 'processing error')).toBe(true);
+  });
+
+  it('should process PDF upload job', async () => {
+    const MockProxySanitizer = class {
+      constructor() {
+        this.sanitize = sinon.stub().resolves({ sanitizedData: 'sanitized markdown' });
+      }
+    };
+    jobWorker.__set__('ProxySanitizer', MockProxySanitizer);
+
+    const processJob = jobWorker.__get__('processJob');
+
+    const job = {
+      id: '123',
+      data: {
+        type: 'upload-pdf',
+        fileBuffer: Buffer.from('pdf data').toString('base64'),
+        fileName: 'test.pdf',
+      },
+      options: {},
+    };
+
+    const result = await processJob(job);
+    expect(result.status).toBe('processed');
+    expect(result.fileName).toBe('test.pdf');
+    expect(result.metadata.pages).toBe(2);
   });
 });
