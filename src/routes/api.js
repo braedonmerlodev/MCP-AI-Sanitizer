@@ -137,7 +137,10 @@ const adminOverrideActivateSchema = Joi.object({
 /**
  * POST /api/sanitize
  * Sanitizes input data.
+ * NOTE: This endpoint is deprecated. Use /api/sanitize/json instead for better functionality.
  */
+/*
+// Commented out - redundant with /api/sanitize/json which has trust tokens and async support
 router.post('/sanitize', destinationTracking, async (req, res) => {
   const { error, value } = sanitizeSchema.validate(req.body);
   if (error) {
@@ -152,6 +155,7 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
     res.status(500).json({ error: 'Sanitization failed' });
   }
 });
+*/
 
 /**
  * POST /api/sanitize/json
