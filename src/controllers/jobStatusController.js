@@ -80,13 +80,16 @@ const JobStatusController = {
     const { taskId } = req.params;
 
     try {
+      logger.info('Loading job status for result', { taskId });
       const jobStatus = await JobStatus.load(taskId);
       if (!jobStatus) {
+        logger.warn('Job status not found', { taskId });
         return res.status(404).json({
           error: 'Job not found',
           taskId,
         });
       }
+      logger.info('Job status loaded', { taskId, status: jobStatus.status });
 
       // Check if job has expired
       if (jobStatus.isExpired()) {

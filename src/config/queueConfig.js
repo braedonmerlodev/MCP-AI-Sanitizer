@@ -1,8 +1,8 @@
 /**
- * Configuration for job queue using better-queue with in-memory storage.
+ * Configuration for job queue using better-queue with promise mode.
  */
 const queueConfig = {
-  // Use promise mode instead of callback
+  // Enable promise mode for better async handling
   promise: true,
   // Retry logic for failed jobs
   maxRetries: 3,
