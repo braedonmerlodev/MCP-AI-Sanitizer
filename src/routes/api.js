@@ -87,10 +87,6 @@ const sanitizeLimiter = rateLimit({
 });
 
 // Validation schemas
-const sanitizeSchema = Joi.object({
-  data: Joi.string().required(),
-});
-
 const pdfGenerationSchema = Joi.object({
   data: Joi.string().required(),
   trustToken: Joi.object().required(),
