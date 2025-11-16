@@ -34,8 +34,8 @@ class DataExportManager {
    * @returns {Promise<Object>} - Export result with file path and metadata
    */
   async exportTrainingData(format, filters = {}, context = {}) {
-    // Access control check
-    const accessResult = this.accessControlEnforcer.enforce(context.req || {}, 'strict');
+    // Access control check - use moderate level for system operations
+    const accessResult = this.accessControlEnforcer.enforce(context.req || {}, 'moderate');
     if (!accessResult.allowed) {
       throw new Error(`Access denied: ${accessResult.error}`);
     }

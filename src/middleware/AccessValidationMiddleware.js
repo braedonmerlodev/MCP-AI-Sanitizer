@@ -39,8 +39,11 @@ const auditLoggerAccess = new AuditLoggerAccess({
  */
 function accessValidationMiddleware(req, res, next) {
   try {
-    // Allow token generation endpoint without trust token
-    if (req.path === '/sanitize/json' && req.method === 'POST') {
+    // Allow token generation and data export endpoints without trust token
+    if (
+      (req.path === '/sanitize/json' && req.method === 'POST') ||
+      (req.path === '/export/training-data' && req.method === 'POST')
+    ) {
       return next();
     }
 

@@ -57,6 +57,50 @@ class AuditLogger {
     // In-memory audit trail for quick access (in production, this would be limited)
     this.auditTrail = [];
     this.maxTrailSize = options.maxTrailSize || 1000;
+
+    // Load existing audit entries from file on startup
+    this.loadAuditTrailFromFile();
+  }
+
+  /**
+   * Loads existing audit entries from the log file into memory
+   */
+  loadAuditTrailFromFile() {
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(this.logFile)) {
+        const logContent = fs.readFileSync(this.logFile, 'utf8');
+        const lines = logContent
+          .trim()
+          .split('\n')
+          .filter((line) => line.trim());
+
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line);
+            // Only load entries that match our expected structure
+            if (entry.id && entry.timestamp && entry.operation) {
+              this.auditTrail.push(entry);
+            }
+          } catch (parseError) {
+            // Skip malformed lines
+            this.logger.warn('Skipping malformed audit log entry', {
+              line: line.substring(0, 100),
+            });
+          }
+        }
+
+        // Sort by timestamp (newest first) and limit size
+        this.auditTrail.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        if (this.auditTrail.length > this.maxTrailSize) {
+          this.auditTrail = this.auditTrail.slice(0, this.maxTrailSize);
+        }
+
+        this.logger.info('Loaded audit trail from file', { entryCount: this.auditTrail.length });
+      }
+    } catch (error) {
+      this.logger.error('Failed to load audit trail from file', { error: error.message });
+    }
   }
 
   /**
