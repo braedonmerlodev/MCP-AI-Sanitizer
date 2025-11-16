@@ -1,7 +1,5 @@
 const request = require('supertest');
 const app = require('../../app');
-const fs = require('fs');
-const path = require('path');
 
 describe('PDF AI Workflow Integration Tests', () => {
   describe('POST /api/documents/upload with AI transformation', () => {
@@ -30,7 +28,7 @@ describe('PDF AI Workflow Integration Tests', () => {
       // Test with invalid PDF or mock failure
       const invalidPdfBuffer = Buffer.from('not a pdf');
 
-      const response = await request(app)
+      await request(app)
         .post('/api/documents/upload?ai_transform=true&sync=true')
         .attach('pdf', invalidPdfBuffer, 'invalid.pdf')
         .expect(400); // Or 500 depending on error

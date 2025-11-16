@@ -511,22 +511,20 @@ router.post(
       if (!globalThis.aiRateLimitMap) {
         globalThis.aiRateLimitMap = new Map();
       }
-      if (!globalThis.aiRateLimitMap.has(key)) {
-        globalThis.aiRateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
-      } else {
+      if (globalThis.aiRateLimitMap.has(key)) {
         const data = globalThis.aiRateLimitMap.get(key);
         if (now > data.resetTime) {
           data.count = 1;
           data.resetTime = now + windowMs;
         } else if (data.count >= maxRequests) {
-          return res
-            .status(429)
-            .json({
-              error: 'Too many AI processing requests from this IP, please try again later.',
-            });
+          return res.status(429).json({
+            error: 'Too many AI processing requests from this IP, please try again later.',
+          });
         } else {
           data.count++;
         }
+      } else {
+        globalThis.aiRateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
       }
     }
 
