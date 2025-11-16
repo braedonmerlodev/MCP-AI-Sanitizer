@@ -2,39 +2,34 @@ const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
 
-// Mock pdfjs-dist for testing
-jest.mock('pdfjs-dist', () => ({
-  GlobalWorkerOptions: {
-    workerSrc: '',
-  },
-  getDocument: jest.fn().mockReturnValue({
-    promise: Promise.resolve({
-      numPages: 5,
-      getMetadata: jest.fn().mockResolvedValue({
-        info: {
-          Title: 'Test PDF Document',
-          Author: 'Test Author',
-          Subject: 'Test Subject',
-          Creator: 'Test Creator',
-          Producer: 'Test Producer',
-          CreationDate: 'D:20231101120000',
-          ModDate: 'D:20231101120000',
+// Mock pdf-parse for testing
+jest.mock('pdf-parse', () => ({
+  PDFParse: jest.fn().mockImplementation(() => ({
+    getText: jest.fn().mockResolvedValue({
+      text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+      pages: [
+        {
+          text: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+          num: 1,
         },
-      }),
-      getPage: jest.fn().mockImplementation((pageNum) => {
-        void pageNum; // Parameter is required by API but not used in mock
-        return {
-          getTextContent: jest.fn().mockResolvedValue({
-            items: [
-              {
-                str: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
-              },
-            ],
-          }),
-        };
-      }),
+      ],
+      total: 5,
     }),
-  }),
+    getInfo: jest.fn().mockResolvedValue({
+      total: 5,
+      info: {
+        Title: 'Test PDF Document',
+        Author: 'Test Author',
+        Subject: 'Test Subject',
+        Creator: 'Test Creator',
+        Producer: 'Test Producer',
+        CreationDate: 'D:20231101120000',
+        ModDate: 'D:20231101120000',
+      },
+      metadata: {},
+      pages: [],
+    }),
+  })),
 }));
 
 // Mock MarkdownConverter for testing

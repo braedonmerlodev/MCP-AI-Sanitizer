@@ -2,9 +2,9 @@ const PDFGenerator = require('../../components/PDFGenerator');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
 // Mock pdf-parse for testing PDF text extraction compatibility
-jest.mock('pdf-parse', () =>
-  jest.fn(() =>
-    Promise.resolve({
+jest.mock('pdf-parse', () => ({
+  PDFParse: jest.fn().mockImplementation(() => ({
+    getText: jest.fn().mockResolvedValue({
       text: `# Integration Test Document
 
 This is test content for verifying the PDF generation and text extraction workflow.
@@ -26,10 +26,18 @@ Key points:
 - Regression testing for PDF processing
 - Ensures compatibility with PDFKit
 - Verifies text extraction functionality`,
+      pages: [],
+      total: 1,
     }),
-  ),
-);
-const pdfParse = require('pdf-parse');
+    getInfo: jest.fn().mockResolvedValue({
+      total: 1,
+      info: {},
+      metadata: {},
+      pages: [],
+    }),
+  })),
+}));
+const { PDFParse } = require('pdf-parse');
 
 describe('PDFGenerator', () => {
   let pdfGenerator;
@@ -216,8 +224,9 @@ End of test content.
       expect(pdfBuffer.length).toBeGreaterThan(0);
 
       // Extract text using pdf-parse
-      const pdfData = await pdfParse(pdfBuffer);
-      const extractedText = pdfData.text;
+      const pdfParser = new PDFParse({ data: pdfBuffer });
+      const textData = await pdfParser.getText();
+      const extractedText = textData.text;
 
       // Verify text extraction works
       expect(extractedText).toContain('Integration Test Document');
@@ -247,8 +256,9 @@ Key points:
       });
 
       // Extract text
-      const pdfData = await pdfParse(userPdfBuffer);
-      const extractedText = pdfData.text;
+      const pdfParser = new PDFParse({ data: userPdfBuffer });
+      const textData = await pdfParser.getText();
+      const extractedText = textData.text;
 
       // Verify extraction
       expect(extractedText).toContain('User Uploaded PDF Content');

@@ -3,9 +3,7 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const pdfjsLib = require('pdfjs-dist');
-// Configure PDF.js for Node.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/build/pdf.worker.mjs');
+const { PDFParse } = require('pdf-parse');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
@@ -577,33 +575,22 @@ router.post(
         return res.status(400).json({ error: 'Invalid file type. Only PDF files are allowed.' });
       }
 
-      // Extract text and metadata from PDF
+      // Extract text and metadata from PDF using pdf-parse
       let extractedText, metadata;
       try {
-        const loadingTask = pdfjsLib.getDocument({ data: buffer });
-        const pdf = await loadingTask.promise;
-
-        // Extract text from all pages
-        extractedText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item) => item.str).join(' ');
-          extractedText += pageText + '\n';
-        }
-
-        // Extract metadata
-        const pdfInfo = await pdf.getMetadata();
+        const pdfParser = new PDFParse({ data: buffer });
+        const [textData, infoData] = await Promise.all([pdfParser.getText(), pdfParser.getInfo()]);
+        extractedText = textData.text;
         metadata = {
-          pages: pdf.numPages,
-          title: pdfInfo.info?.Title || null,
-          author: pdfInfo.info?.Author || null,
-          subject: pdfInfo.info?.Subject || null,
-          creator: pdfInfo.info?.Creator || null,
-          producer: pdfInfo.info?.Producer || null,
-          creationDate: pdfInfo.info?.CreationDate || null,
-          modificationDate: pdfInfo.info?.ModDate || null,
-          encoding: 'utf8', // pdfjs-dist extracts text as UTF-8
+          pages: infoData.total,
+          title: infoData.info?.Title || null,
+          author: infoData.info?.Author || null,
+          subject: infoData.info?.Subject || null,
+          creator: infoData.info?.Creator || null,
+          producer: infoData.info?.Producer || null,
+          creationDate: infoData.info?.CreationDate || null,
+          modificationDate: infoData.info?.ModDate || null,
+          encoding: 'utf8', // pdf-parse extracts text as UTF-8
         };
       } catch (pdfError) {
         logger.error('PDF text extraction failed', { error: pdfError.message });
