@@ -23,6 +23,7 @@ const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
 const queueManager = require('../utils/queueManager');
+const { normalizeKeys, removeFields } = require('../utils/jsonTransformer');
 
 const router = express.Router();
 
@@ -115,6 +116,11 @@ const sanitizeJsonSchema = Joi.object({
   classification: Joi.string().optional(),
   trustToken: Joi.object().optional(),
   async: Joi.boolean().optional().default(false),
+  transform: Joi.boolean().optional().default(false),
+  transformOptions: Joi.object({
+    normalizeKeys: Joi.string().valid('camelCase', 'snake_case').optional(),
+    removeFields: Joi.array().items(Joi.string()).optional(),
+  }).optional(),
 });
 
 const adminOverrideActivateSchema = Joi.object({
@@ -158,13 +164,30 @@ router.post(
       return res.status(400).json({ error: error.details[0].message });
     }
 
+    // Apply smart transformation if requested
+    let contentToSanitize = value.content;
+    if (value.transform) {
+      try {
+        let jsonObj = JSON.parse(value.content);
+        if (value.transformOptions?.normalizeKeys) {
+          jsonObj = normalizeKeys(jsonObj, value.transformOptions.normalizeKeys);
+        }
+        if (value.transformOptions?.removeFields) {
+          jsonObj = removeFields(jsonObj, value.transformOptions.removeFields);
+        }
+        contentToSanitize = JSON.stringify(jsonObj);
+      } catch (e) {
+        logger.warn('Invalid JSON for transformation, skipping', { error: e.message });
+      }
+    }
+
     // Check if async processing is requested and sync mode is not forced
     console.log('Async check:', { async: value.async, querySync: req.query.sync });
     if (value.async && req.query.sync !== 'true') {
       // Support trust token from header if not in body
       value.trustToken = value.trustToken || req.headers['x-trust-token'];
       try {
-        const jobData = value.content;
+        const jobData = contentToSanitize;
         const jobOptions = {
           classification: value.classification || req.destinationTracking.classification,
           generateTrustToken: true,
@@ -337,7 +360,7 @@ router.post(
         classification: value.classification || req.destinationTracking.classification,
         generateTrustToken: true,
       };
-      const result = await proxySanitizer.sanitize(value.content, options);
+      const result = await proxySanitizer.sanitize(contentToSanitize, options);
 
       const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
       const metadata = {

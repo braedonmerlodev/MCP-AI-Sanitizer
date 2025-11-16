@@ -68,10 +68,11 @@ paths:
   /api/sanitize/json:
     post:
       summary: JSON content sanitization with trust tokens
-      description: |
-        Sanitizes JSON content and returns sanitized data with trust token.
-        Supports both synchronous and asynchronous processing modes.
-        Agents automatically use synchronous mode.
+       description: |
+         Sanitizes JSON content and returns sanitized data with trust token.
+         Supports both synchronous and asynchronous processing modes.
+         Agents automatically use synchronous mode.
+         Optional smart transformation can normalize keys and remove sensitive fields.
       operationId: sanitizeJson
       tags:
         - Sanitization
@@ -101,10 +102,27 @@ paths:
                   example: "llm"
                 trustToken:
                   $ref: "#/components/schemas/TrustToken"
-                async:
-                  type: boolean
-                  description: Request asynchronous processing (ignored if sync=true)
-                  default: false
+                 async:
+                   type: boolean
+                   description: Request asynchronous processing (ignored if sync=true)
+                   default: false
+                 transform:
+                   type: boolean
+                   description: Enable smart JSON transformation
+                   default: false
+                 transformOptions:
+                   type: object
+                   description: Options for JSON transformation
+                   properties:
+                     normalizeKeys:
+                       type: string
+                       enum: [camelCase, snake_case]
+                       description: Normalize object keys to specified case
+                     removeFields:
+                       type: array
+                       items:
+                         type: string
+                       description: List of field names to remove from JSON
       responses:
         "200":
           description: Sanitization completed successfully
