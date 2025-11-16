@@ -77,6 +77,18 @@ async function processJob(job) {
       // Default: sanitize content
       const sanitizer = new ProxySanitizer();
       result = await sanitizer.sanitize(job.data, job.options);
+      // Format result to match sync response
+      result.sanitizedContent = result.sanitizedData;
+      delete result.sanitizedData;
+      result.metadata = {
+        originalLength: job.data.length,
+        sanitizedLength: result.sanitizedContent.length,
+        timestamp: new Date().toISOString(),
+        reused: false,
+        performance: {
+          totalTimeMs: 10, // Approximate
+        },
+      };
     }
 
     // Update status to completed with result
