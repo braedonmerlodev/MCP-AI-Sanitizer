@@ -4,7 +4,7 @@ const JobResult = require('../models/JobResult');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
-const { PDFParse } = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -37,20 +37,30 @@ async function processJob(job) {
       const buffer = Buffer.from(job.data.fileBuffer, 'base64');
 
       // Extract text and metadata from PDF
-      const pdfParser = new PDFParse({ data: buffer });
-      const [textData, infoData] = await Promise.all([pdfParser.getText(), pdfParser.getInfo()]);
-      const extractedText = textData.text;
-      const metadata = {
-        pages: infoData.total,
-        title: infoData.info?.Title || null,
-        author: infoData.info?.Author || null,
-        subject: infoData.info?.Subject || null,
-        creator: infoData.info?.Creator || null,
-        producer: infoData.info?.Producer || null,
-        creationDate: infoData.info?.CreationDate || null,
-        modificationDate: infoData.info?.ModDate || null,
-        encoding: 'utf8',
-      };
+      let extractedText, metadata;
+      try {
+        const data = await pdfParse(buffer);
+        extractedText = data.text;
+        metadata = {
+          pages: data.numpages,
+          title: data.info?.Title || null,
+          author: data.info?.Author || null,
+          subject: data.info?.Subject || null,
+          creator: data.info?.Creator || null,
+          producer: data.info?.Producer || null,
+          creationDate: data.info?.CreationDate || null,
+          modificationDate: data.info?.ModDate || null,
+          encoding: 'utf8',
+        };
+      } catch (pdfError) {
+        logger.error('PDF text extraction failed in async job', {
+          jobId,
+          error: pdfError.message,
+          bufferLength: buffer.length,
+          bufferStart: buffer.slice(0, 10).toString('hex'),
+        });
+        throw new Error(`Failed to extract text from PDF: ${pdfError.message}`);
+      }
 
       await jobStatus.updateProgress(40, 'Converting to Markdown');
 

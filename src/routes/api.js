@@ -3,7 +3,7 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const { PDFParse } = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
@@ -87,10 +87,6 @@ const sanitizeLimiter = rateLimit({
 });
 
 // Validation schemas
-const sanitizeSchema = Joi.object({
-  data: Joi.string().required(),
-});
-
 const pdfGenerationSchema = Joi.object({
   data: Joi.string().required(),
   trustToken: Joi.object().required(),
@@ -122,10 +118,15 @@ const sanitizeJsonSchema = Joi.object({
     normalizeKeys: Joi.string().valid('camelCase', 'snake_case').optional(),
     removeFields: Joi.array().items(Joi.string()).optional(),
   }).optional(),
+  ai_transform: Joi.boolean().optional().default(false), // Add AI processing for JSON content
+  ai_transform_type: Joi.string()
+    .valid('structure', 'summarize', 'analyze')
+    .optional()
+    .default('structure'),
 });
 
 const uploadQuerySchema = Joi.object({
-  ai_transform: Joi.boolean().optional().default(false),
+  ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for all PDFs
   sync: Joi.boolean().optional().default(false),
 });
 
@@ -137,7 +138,10 @@ const adminOverrideActivateSchema = Joi.object({
 /**
  * POST /api/sanitize
  * Sanitizes input data.
+ * NOTE: This endpoint is deprecated. Use /api/sanitize/json instead for better functionality.
  */
+/*
+// Commented out - redundant with /api/sanitize/json which has trust tokens and async support
 router.post('/sanitize', destinationTracking, async (req, res) => {
   const { error, value } = sanitizeSchema.validate(req.body);
   if (error) {
@@ -152,11 +156,12 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
     res.status(500).json({ error: 'Sanitization failed' });
   }
 });
+*/
 
 /**
  * POST /api/sanitize/json
- * Sanitizes JSON content and returns sanitized data with trust token.
- * Supports reuse via trust token validation.
+ * Sanitizes JSON content with optional AI enhancement and returns data with trust token.
+ * Supports reuse via trust token validation, AI transformation, and async processing.
  */
 router.post(
   '/sanitize/json',
@@ -199,6 +204,11 @@ router.post(
           generateTrustToken: true,
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
+
+        // Add AI processing options if requested
+        if (value.ai_transform) {
+          jobOptions.aiTransformType = value.ai_transform_type || 'structure';
+        }
         logger.info('Calling queueManager.addJob');
         const taskId = await queueManager.addJob(jobData, jobOptions);
         logger.info('addJob returned', { taskId });
@@ -362,11 +372,48 @@ router.post(
       }
 
       // Normal sanitization path
+      let contentForSanitization = contentToSanitize;
+      let aiProcessingMetadata = {};
+
+      // Apply AI transformation if requested
+      if (value.ai_transform) {
+        try {
+          const aiTransformer = new AITextTransformer();
+          const aiResult = await aiTransformer.transform(
+            contentToSanitize,
+            value.ai_transform_type || 'structure',
+            {
+              sanitizerOptions: {
+                classification: value.classification || req.destinationTracking.classification,
+              },
+            },
+          );
+          contentForSanitization = aiResult.text;
+          aiProcessingMetadata = {
+            aiProcessed: true,
+            aiTransformType: value.ai_transform_type || 'structure',
+            ...aiResult.metadata,
+          };
+        } catch (aiError) {
+          logger.warn(
+            'AI transformation failed in JSON sanitization, proceeding with original content',
+            {
+              error: aiError.message,
+              aiTransformType: value.ai_transform_type,
+            },
+          );
+          aiProcessingMetadata = {
+            aiProcessed: false,
+            aiError: aiError.message,
+          };
+        }
+      }
+
       const options = {
         classification: value.classification || req.destinationTracking.classification,
         generateTrustToken: true,
       };
-      const result = await proxySanitizer.sanitize(contentToSanitize, options);
+      const result = await proxySanitizer.sanitize(contentForSanitization, options);
 
       const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
       const metadata = {
@@ -374,6 +421,7 @@ router.post(
         sanitizedLength: result.sanitizedData.length,
         timestamp: new Date().toISOString(),
         reused: false,
+        aiProcessing: aiProcessingMetadata,
         performance: {
           totalTimeMs: totalTime,
           tokenValidationTimeMs: tokenValidationTime,
@@ -466,7 +514,8 @@ router.post(
 
 /**
  * POST /api/documents/upload
- * Uploads and validates PDF documents.
+ * Uploads and validates PDF documents with automatic AI enhancement.
+ * All PDFs are processed with AI to convert unstructured text into structured JSON.
  */
 router.post(
   '/documents/upload',
@@ -578,18 +627,17 @@ router.post(
       // Extract text and metadata from PDF using pdf-parse
       let extractedText, metadata;
       try {
-        const pdfParser = new PDFParse({ data: buffer });
-        const [textData, infoData] = await Promise.all([pdfParser.getText(), pdfParser.getInfo()]);
-        extractedText = textData.text;
+        const data = await pdfParse(buffer);
+        extractedText = data.text;
         metadata = {
-          pages: infoData.total,
-          title: infoData.info?.Title || null,
-          author: infoData.info?.Author || null,
-          subject: infoData.info?.Subject || null,
-          creator: infoData.info?.Creator || null,
-          producer: infoData.info?.Producer || null,
-          creationDate: infoData.info?.CreationDate || null,
-          modificationDate: infoData.info?.ModDate || null,
+          pages: data.numpages,
+          title: data.info?.Title || null,
+          author: data.info?.Author || null,
+          subject: data.info?.Subject || null,
+          creator: data.info?.Creator || null,
+          producer: data.info?.Producer || null,
+          creationDate: data.info?.CreationDate || null,
+          modificationDate: data.info?.ModDate || null,
           encoding: 'utf8', // pdf-parse extracts text as UTF-8
         };
       } catch (pdfError) {
