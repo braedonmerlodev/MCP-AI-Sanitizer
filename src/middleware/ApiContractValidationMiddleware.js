@@ -25,6 +25,9 @@ const logger = winston.createLogger({
  */
 function apiContractValidationMiddleware(requestSchema, responseSchema) {
   return (req, res, next) => {
+    // Store original res.json method BEFORE any validation
+    const originalJson = res.json;
+
     // Validate request body if schema provided
     if (requestSchema) {
       const requestValidation = requestSchema.validate(req.body, { abortEarly: false });
@@ -44,8 +47,9 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
           timestamp: new Date().toISOString(),
         });
 
-        // Reject invalid requests with 400 Bad Request
-        return res.status(400).json({
+        // Reject invalid requests with 400 Bad Request using original json method
+        res.status(400);
+        return originalJson.call(res, {
           error: 'Request validation failed',
           details: requestValidation.error.details.map((detail) => ({
             field: detail.path.join('.'),
@@ -59,9 +63,6 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
         });
       }
     }
-
-    // Store original res.json method
-    const originalJson = res.json;
 
     // Override res.json to validate response
     res.json = function (data) {
