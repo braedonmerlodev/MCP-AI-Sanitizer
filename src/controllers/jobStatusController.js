@@ -166,7 +166,7 @@ const JobStatusController = {
 
       logger.info('Job result retrieved', {
         taskId,
-        resultSize: JSON.stringify(jobStatus.result).length,
+        resultSize: JSON.stringify(resultData)?.length || 0,
       });
       res.set('X-API-Version', '1.1');
       res.set('X-Async-Processing', 'true');
