@@ -1,4 +1,4 @@
-const PDFDocument = require('pdfkit');
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const winston = require('winston');
 
 // Initialize logger
@@ -35,48 +35,47 @@ class PDFGenerator {
     let memoryUsage = process.memoryUsage();
 
     try {
+      if (!trustToken) {
+        throw new Error('Trust token is required for PDF generation');
+      }
+
       logger.info('Starting PDF generation', {
         contentLength: sanitizedContent.length,
         trustTokenPresent: !!trustToken,
       });
 
       // Create PDF document
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: this.options.margin,
-        info: {
-          Title: metadata.title || 'Sanitized Document',
-          Author: metadata.author || 'MCP Security System',
-          Subject: metadata.subject || 'Verified Sanitized Content',
-          Creator: 'MCP-Security PDF Generator',
-          Producer: 'PDFKit',
-          CreationDate: new Date(),
-          ModDate: new Date(),
-          Keywords: metadata.keywords || 'sanitized,verified,trust-token',
-          // Embed trust token in custom metadata
-          Custom: {
-            TrustToken: JSON.stringify(trustToken),
-            SanitizationTimestamp: new Date().toISOString(),
-            ContentHash: trustToken?.contentHash || '',
-            ValidationStatus: 'verified',
-          },
-        },
-      });
+      const pdfDoc = await PDFDocument.create();
+      let page = pdfDoc.addPage();
+      const { height } = page.getSize();
 
-      // Collect PDF data in buffer
-      const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        logger.info('PDF document stream ended');
-      });
+      const font = await pdfDoc.embedStandardFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedStandardFont(StandardFonts.HelveticaBold);
+      const obliqueFont = await pdfDoc.embedStandardFont(StandardFonts.HelveticaOblique);
+      const courierFont = await pdfDoc.embedStandardFont(StandardFonts.Courier);
+
+      // Set metadata
+      pdfDoc.setTitle(metadata.title || 'Sanitized Document');
+      pdfDoc.setAuthor(metadata.author || 'MCP Security System');
+      pdfDoc.setSubject(metadata.subject || 'Verified Sanitized Content');
+      pdfDoc.setCreator('MCP-Security PDF Generator');
+      pdfDoc.setProducer('pdf-lib');
+      pdfDoc.setCreationDate(new Date());
+      pdfDoc.setModificationDate(new Date());
+      pdfDoc.setKeywords([
+        metadata.keywords || 'sanitized,verified,trust-token',
+        JSON.stringify(trustToken),
+      ]);
 
       // Add title
-      doc.fontSize(18).font('Helvetica-Bold');
-      doc.text(metadata.title || 'Sanitized Document', { align: 'center' });
-      doc.moveDown(2);
-
-      // Reset to normal font
-      doc.fontSize(this.options.fontSize).font('Helvetica');
+      page.drawText(metadata.title || 'Sanitized Document', {
+        x: 50,
+        y: height - 50,
+        font: boldFont,
+        size: 18,
+        color: rgb(0, 0, 0),
+      });
+      let y = height - 80;
 
       // Process content line by line
       const lines = sanitizedContent.split('\n');
@@ -90,13 +89,14 @@ class PDFGenerator {
             if (inCodeBlock) {
               // End code block
               const code = codeBlockContent.join('\n');
-              doc.font('Courier').fontSize(10);
-              doc.text(code, {
-                width: this.options.maxWidth,
-                lineGap: 2,
+              page.drawText(code, {
+                x: 50,
+                y,
+                font: courierFont,
+                size: 10,
+                color: rgb(0, 0, 0),
               });
-              doc.font('Helvetica').fontSize(this.options.fontSize);
-              doc.moveDown(0.5);
+              y -= 12;
               inCodeBlock = false;
               codeBlockContent = [];
             } else {
@@ -107,51 +107,75 @@ class PDFGenerator {
             codeBlockContent.push(line);
           } else if (line.startsWith('# ')) {
             // H1 heading
-            doc.moveDown(0.5);
-            doc.fontSize(16).font('Helvetica-Bold');
-            doc.text(line.slice(2), { lineGap: 5 });
-            doc.fontSize(this.options.fontSize).font('Helvetica');
-            doc.moveDown(0.5);
+            y -= 10;
+            page.drawText(line.slice(2), {
+              x: 50,
+              y,
+              font: boldFont,
+              size: 16,
+              color: rgb(0, 0, 0),
+            });
+            y -= 18;
           } else if (line.startsWith('## ')) {
             // H2 heading
-            doc.moveDown(0.5);
-            doc.fontSize(14).font('Helvetica-Bold');
-            doc.text(line.slice(3), { lineGap: 3 });
-            doc.fontSize(this.options.fontSize).font('Helvetica');
-            doc.moveDown(0.3);
+            y -= 5;
+            page.drawText(line.slice(3), {
+              x: 50,
+              y,
+              font: boldFont,
+              size: 14,
+              color: rgb(0, 0, 0),
+            });
+            y -= 16;
           } else if (line.startsWith('### ')) {
             // H3 heading
-            doc.fontSize(12).font('Helvetica-Bold');
-            doc.text(line.slice(4), { lineGap: 2 });
-            doc.fontSize(this.options.fontSize).font('Helvetica');
-            doc.moveDown(0.3);
+            page.drawText(line.slice(4), {
+              x: 50,
+              y,
+              font: boldFont,
+              size: 12,
+              color: rgb(0, 0, 0),
+            });
+            y -= 14;
           } else if (line.startsWith('- ') || line.startsWith('* ')) {
             // List items
-            doc.text('• ' + line.slice(2), {
-              width: this.options.maxWidth,
-              indent: 10,
+            page.drawText('• ' + line.slice(2), {
+              x: 60,
+              y,
+              font,
+              size: this.options.fontSize,
+              color: rgb(0, 0, 0),
             });
+            y -= this.options.lineHeight;
           } else if (/^\d+\.\s/.test(line)) {
             // Numbered lists
-            doc.text(line, {
-              width: this.options.maxWidth,
-              indent: 10,
+            page.drawText(line, {
+              x: 60,
+              y,
+              font,
+              size: this.options.fontSize,
+              color: rgb(0, 0, 0),
             });
+            y -= this.options.lineHeight;
           } else if (line.trim() === '') {
             // Empty lines
-            doc.moveDown(0.5);
+            y -= this.options.lineHeight;
           } else {
             // Regular paragraphs
-            doc.text(line, {
-              width: this.options.maxWidth,
-              lineGap: 2,
-              align: 'left',
+            page.drawText(line, {
+              x: 50,
+              y,
+              font,
+              size: this.options.fontSize,
+              color: rgb(0, 0, 0),
             });
+            y -= this.options.lineHeight;
           }
 
           // Check if we need a new page
-          if (doc.y > 700) {
-            doc.addPage();
+          if (y < 50) {
+            page = pdfDoc.addPage();
+            y = height - 50;
           }
         } catch (lineError) {
           logger.warn('Error processing line in PDF generation', {
@@ -163,24 +187,41 @@ class PDFGenerator {
       }
 
       // Add trust token verification footer
-      doc.moveDown(2);
-      doc.fontSize(8).font('Helvetica-Oblique');
-      doc.text('--- Document Verification ---', { align: 'center' });
-      doc.text(`Trust Token: ${trustToken?.signature?.slice(0, 16)}...`, { align: 'center' });
-      doc.text(`Generated: ${new Date().toISOString()}`, { align: 'center' });
-      doc.text('This document has been sanitized and verified for secure AI processing.', {
-        align: 'center',
+      y -= 20;
+      page.drawText('--- Document Verification ---', {
+        x: 50,
+        y,
+        font: obliqueFont,
+        size: 10,
+        color: rgb(0, 0, 0),
+      });
+      y -= 12;
+      page.drawText(`Trust Token: ${trustToken?.signature?.slice(0, 16)}...`, {
+        x: 50,
+        y,
+        font,
+        size: 10,
+        color: rgb(0, 0, 0),
+      });
+      y -= 12;
+      page.drawText(`Generated: ${new Date().toISOString()}`, {
+        x: 50,
+        y,
+        font,
+        size: 10,
+        color: rgb(0, 0, 0),
+      });
+      y -= 12;
+      page.drawText('This document has been sanitized and verified for secure AI processing.', {
+        x: 50,
+        y,
+        font,
+        size: 10,
+        color: rgb(0, 0, 0),
       });
 
-      // Finalize PDF
-      doc.end();
-
-      // Wait for PDF generation to complete
-      await new Promise((resolve) => {
-        doc.on('end', resolve);
-      });
-
-      const pdfBuffer = Buffer.concat(buffers);
+      const pdfBytes = await pdfDoc.save();
+      const pdfBuffer = Buffer.from(pdfBytes);
       const endTime = Date.now();
       const finalMemoryUsage = process.memoryUsage();
 
@@ -188,7 +229,7 @@ class PDFGenerator {
         generationTime: endTime - startTime,
         pdfSize: pdfBuffer.length,
         memoryDelta: finalMemoryUsage.heapUsed - memoryUsage.heapUsed,
-        pages: doc.page,
+        pages: pdfDoc.getPageCount(),
       });
 
       return pdfBuffer;
@@ -219,10 +260,11 @@ class PDFGenerator {
         return { isValid: false, error: 'Invalid PDF header' };
       }
 
-      // Check for trust token metadata (basic check)
+      // Check for trust token in content (basic check)
       const pdfContent = pdfBuffer.toString();
-      const hasTrustToken = pdfContent.includes('TrustToken');
-      const hasValidationStatus = pdfContent.includes('ValidationStatus');
+      const hasTrustToken = pdfContent.includes('Trust Token');
+      const hasValidationStatus =
+        pdfContent.includes('Document Verification') || pdfContent.includes('verified');
 
       return {
         isValid: true,

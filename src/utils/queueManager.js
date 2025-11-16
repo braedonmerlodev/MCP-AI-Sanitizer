@@ -2,7 +2,6 @@ const Queue = require('better-queue');
 const queueConfig = require('../config/queueConfig');
 const processJob = require('../workers/jobWorker');
 const JobStatus = require('../models/JobStatus');
-const JobResult = require('../models/JobResult');
 const winston = require('winston');
 
 const logger = winston.createLogger({

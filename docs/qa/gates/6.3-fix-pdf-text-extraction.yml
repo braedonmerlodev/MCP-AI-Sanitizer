@@ -1,0 +1,42 @@
+schema: 1
+story: '6.3'
+story_title: 'Fix PDF Text Extraction Issue'
+gate: PASS
+status_reason: 'All previous QA concerns have been addressed with the addition of integration and regression tests for the PDF generate -> upload -> extract workflow.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-15T12:00:00.000Z'
+
+top_issues: []
+
+waiver:
+  active: false
+
+quality_score: 100
+expires: '2025-12-15T00:00:00Z'
+
+evidence:
+  tests_reviewed: 5
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Trust tokens properly embedded in PDF metadata'
+  performance:
+    status: PASS
+    notes: 'PDF generation includes performance logging, no issues identified'
+  reliability:
+    status: PASS
+    notes: 'Good error handling and validation in PDF generation'
+  maintainability:
+    status: PASS
+    notes: 'Code is well-structured and documented'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Add performance benchmarks for PDF generation'
+      refs: ['src/components/PDFGenerator.js']
