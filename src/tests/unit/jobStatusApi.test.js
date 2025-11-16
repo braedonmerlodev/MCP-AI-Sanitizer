@@ -84,8 +84,12 @@ describe('Job Status API Routes', () => {
       expect(response.body.taskId).toBe('1234567890123');
       expect(response.body.status).toBe('processing');
       expect(response.body.progress).toBe(50);
-      expect(response.body.currentStep).toBe('Sanitizing content');
-      expect(response.body.estimatedCompletion).toBeDefined();
+      expect(response.body.message).toBe('Processing: Sanitizing content...');
+      expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+      expect(response.body.updatedAt).toBe('2025-11-15T10:02:30.000Z');
+      expect(response.body).not.toHaveProperty('currentStep');
+      expect(response.body).not.toHaveProperty('totalSteps');
+      expect(response.body).not.toHaveProperty('expiresAt');
     });
 
     it('should return job status for completed job', async () => {
@@ -105,6 +109,9 @@ describe('Job Status API Routes', () => {
       expect(response.body.taskId).toBe('1234567890124');
       expect(response.body.status).toBe('completed');
       expect(response.body.progress).toBe(100);
+      expect(response.body.message).toBe('Completed successfully');
+      expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+      expect(response.body.updatedAt).toBe('2025-11-15T10:05:00.000Z');
     });
   });
 
