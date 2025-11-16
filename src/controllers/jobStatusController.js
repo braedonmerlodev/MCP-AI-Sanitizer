@@ -170,9 +170,17 @@ const JobStatusController = {
         processingTime: new Date(jobStatus.updatedAt) - new Date(jobStatus.createdAt),
       };
 
+      let resultSize = 0;
+      try {
+        const str = JSON.stringify(resultData);
+        resultSize = str ? str.length : 0;
+      } catch (error) {
+        resultSize = 0;
+      }
+
       logger.info('Job result retrieved', {
         taskId,
-        resultSize: JSON.stringify(resultData)?.length || 0,
+        resultSize,
       });
       res.set('X-API-Version', '1.1');
       res.set('X-Async-Processing', 'true');

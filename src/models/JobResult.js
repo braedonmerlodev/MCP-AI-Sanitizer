@@ -143,8 +143,13 @@ class JobResult {
    * @returns {number} - Size in bytes
    */
   calculateSize() {
-    const str = JSON.stringify(this.result);
-    return str.length;
+    try {
+      const str = JSON.stringify(this.result);
+      return str ? str.length : 0;
+    } catch (error) {
+      // If JSON.stringify fails (circular references, etc.), return 0
+      return 0;
+    }
   }
 
   /**
