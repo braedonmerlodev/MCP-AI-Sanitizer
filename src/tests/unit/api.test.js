@@ -21,15 +21,18 @@ jest.mock('pdfjs-dist', () => ({
           ModDate: 'D:20231101120000',
         },
       }),
-      getPage: jest.fn().mockImplementation((pageNum) => ({
-        getTextContent: jest.fn().mockResolvedValue({
-          items: [
-            {
-              str: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
-            },
-          ],
-        }),
-      })),
+      getPage: jest.fn().mockImplementation((pageNum) => {
+        void pageNum; // Parameter is required by API but not used in mock
+        return {
+          getTextContent: jest.fn().mockResolvedValue({
+            items: [
+              {
+                str: 'Test Document\n\nThis is a test PDF document.\n\nSection 1\n\n- Item 1\n- Item 2\n\n1. Numbered item\n2. Another item',
+              },
+            ],
+          }),
+        };
+      }),
     }),
   }),
 }));

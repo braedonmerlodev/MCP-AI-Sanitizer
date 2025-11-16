@@ -17,10 +17,7 @@ function normalizeKeys(obj, targetCase) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       let newKey = key;
       if (targetCase === 'camelCase') {
-        newKey = key
-          .replaceAll('_', '')
-          .replaceAll(/([a-z])([A-Z])/g, '$1_$2')
-          .toLowerCase();
+        newKey = key.replaceAll(/_([a-z])/, (match, letter) => letter.toUpperCase());
       } else if (targetCase === 'snake_case') {
         newKey = key.replaceAll(/([A-Z])/g, '_$1').toLowerCase();
       }
