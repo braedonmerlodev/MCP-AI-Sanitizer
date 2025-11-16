@@ -122,6 +122,11 @@ const sanitizeJsonSchema = Joi.object({
     normalizeKeys: Joi.string().valid('camelCase', 'snake_case').optional(),
     removeFields: Joi.array().items(Joi.string()).optional(),
   }).optional(),
+  ai_transform: Joi.boolean().optional().default(false), // Add AI processing for JSON content
+  ai_transform_type: Joi.string()
+    .valid('structure', 'summarize', 'analyze')
+    .optional()
+    .default('structure'),
 });
 
 const uploadQuerySchema = Joi.object({
@@ -159,8 +164,8 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
 
 /**
  * POST /api/sanitize/json
- * Sanitizes JSON content and returns sanitized data with trust token.
- * Supports reuse via trust token validation.
+ * Sanitizes JSON content with optional AI enhancement and returns data with trust token.
+ * Supports reuse via trust token validation, AI transformation, and async processing.
  */
 router.post(
   '/sanitize/json',
@@ -203,6 +208,11 @@ router.post(
           generateTrustToken: true,
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
+
+        // Add AI processing options if requested
+        if (value.ai_transform) {
+          jobOptions.aiTransformType = value.ai_transform_type || 'structure';
+        }
         logger.info('Calling queueManager.addJob');
         const taskId = await queueManager.addJob(jobData, jobOptions);
         logger.info('addJob returned', { taskId });
@@ -366,11 +376,48 @@ router.post(
       }
 
       // Normal sanitization path
+      let contentForSanitization = contentToSanitize;
+      let aiProcessingMetadata = {};
+
+      // Apply AI transformation if requested
+      if (value.ai_transform) {
+        try {
+          const aiTransformer = new AITextTransformer();
+          const aiResult = await aiTransformer.transform(
+            contentToSanitize,
+            value.ai_transform_type || 'structure',
+            {
+              sanitizerOptions: {
+                classification: value.classification || req.destinationTracking.classification,
+              },
+            },
+          );
+          contentForSanitization = aiResult.text;
+          aiProcessingMetadata = {
+            aiProcessed: true,
+            aiTransformType: value.ai_transform_type || 'structure',
+            ...aiResult.metadata,
+          };
+        } catch (aiError) {
+          logger.warn(
+            'AI transformation failed in JSON sanitization, proceeding with original content',
+            {
+              error: aiError.message,
+              aiTransformType: value.ai_transform_type,
+            },
+          );
+          aiProcessingMetadata = {
+            aiProcessed: false,
+            aiError: aiError.message,
+          };
+        }
+      }
+
       const options = {
         classification: value.classification || req.destinationTracking.classification,
         generateTrustToken: true,
       };
-      const result = await proxySanitizer.sanitize(contentToSanitize, options);
+      const result = await proxySanitizer.sanitize(contentForSanitization, options);
 
       const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
       const metadata = {
@@ -378,6 +425,7 @@ router.post(
         sanitizedLength: result.sanitizedData.length,
         timestamp: new Date().toISOString(),
         reused: false,
+        aiProcessing: aiProcessingMetadata,
         performance: {
           totalTimeMs: totalTime,
           tokenValidationTimeMs: tokenValidationTime,
