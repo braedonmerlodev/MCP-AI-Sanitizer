@@ -21,33 +21,6 @@ security:
   - apiKey: []
 
 paths:
-  /api/sanitize:
-    post:
-      summary: Basic text sanitization
-      description: Sanitizes input text data synchronously
-      operationId: sanitizeText
-      tags:
-        - Sanitization
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - data
-              properties:
-                data:
-                  type: string
-                  description: Text content to sanitize
-                  example: "Sample text to sanitize"
-      responses:
-        "200":
-          description: Sanitization successful
-          content:
-            application/json:
-              schema:
-                type: object
                 properties:
                   sanitizedData:
                     type: string
@@ -68,11 +41,12 @@ paths:
   /api/sanitize/json:
     post:
       summary: JSON content sanitization with trust tokens
-       description: |
-         Sanitizes JSON content and returns sanitized data with trust token.
-         Supports both synchronous and asynchronous processing modes.
-         Agents automatically use synchronous mode.
-         Optional smart transformation can normalize keys and remove sensitive fields.
+        description: |
+          Sanitizes JSON content with optional AI enhancement and returns data with trust token.
+          Supports both synchronous and asynchronous processing modes.
+          Agents automatically use synchronous mode.
+          Optional AI processing can structure, summarize, or analyze content.
+          Optional smart transformation can normalize keys and remove sensitive fields.
       operationId: sanitizeJson
       tags:
         - Sanitization
@@ -110,19 +84,28 @@ paths:
                    type: boolean
                    description: Enable smart JSON transformation
                    default: false
-                 transformOptions:
-                   type: object
-                   description: Options for JSON transformation
-                   properties:
-                     normalizeKeys:
-                       type: string
-                       enum: [camelCase, snake_case]
-                       description: Normalize object keys to specified case
-                     removeFields:
-                       type: array
-                       items:
-                         type: string
-                       description: List of field names to remove from JSON
+                  transformOptions:
+                    type: object
+                    description: Options for JSON transformation
+                    properties:
+                      normalizeKeys:
+                        type: string
+                        enum: [camelCase, snake_case]
+                        description: Normalize object keys to specified case
+                      removeFields:
+                        type: array
+                        items:
+                          type: string
+                        description: List of field names to remove from JSON
+                  ai_transform:
+                    type: boolean
+                    description: Enable AI processing to enhance content structure
+                    default: false
+                  ai_transform_type:
+                    type: string
+                    enum: [structure, summarize, analyze]
+                    description: Type of AI transformation to apply
+                    default: structure
       responses:
         "200":
           description: Sanitization completed successfully
@@ -177,10 +160,11 @@ paths:
   /api/documents/upload:
     post:
       summary: PDF document upload and sanitization
-       description: |
-         Uploads PDF documents, extracts text, and sanitizes content.
-         Optionally applies AI transformation for structured JSON output.
-         Supports synchronous processing for agents.
+        description: |
+          Uploads PDF documents, extracts text, and automatically applies AI enhancement.
+          Transforms unstructured PDF content into intelligent structured JSON.
+          AI processing is enabled by default for optimal content understanding.
+          Supports synchronous processing for agents.
       operationId: uploadDocument
        tags:
          - Documents
@@ -191,12 +175,12 @@ paths:
            schema:
              type: string
              enum: [true]
-         - name: ai_transform
-           in: query
-           description: Enable AI-powered content structuring (returns structured JSON instead of raw text)
-           schema:
-             type: boolean
-             default: false
+          - name: ai_transform
+            in: query
+            description: Enable AI-powered content structuring (returns structured JSON instead of raw text)
+            schema:
+              type: boolean
+              default: true
        requestBody:
         required: true
         content:
