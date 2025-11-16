@@ -125,7 +125,7 @@ const sanitizeJsonSchema = Joi.object({
 });
 
 const uploadQuerySchema = Joi.object({
-  ai_transform: Joi.boolean().optional().default(false),
+  ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for all PDFs
   sync: Joi.boolean().optional().default(false),
 });
 
@@ -470,7 +470,8 @@ router.post(
 
 /**
  * POST /api/documents/upload
- * Uploads and validates PDF documents.
+ * Uploads and validates PDF documents with automatic AI enhancement.
+ * All PDFs are processed with AI to convert unstructured text into structured JSON.
  */
 router.post(
   '/documents/upload',
