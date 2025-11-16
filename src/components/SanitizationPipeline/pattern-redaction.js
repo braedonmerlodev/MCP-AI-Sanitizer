@@ -9,9 +9,22 @@ class PatternRedaction {
    * @returns {string} - The redacted string.
    */
   sanitize(data) {
-    // TODO: Implement pattern redaction logic
-    // For now, return data unchanged
-    return data;
+    let result = data;
+
+    // Remove HTML script tags and their content
+    result = result.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+    // Remove other HTML tags but keep content
+    result = result.replace(/<[^>]*>/g, '');
+
+    // Remove potential XSS vectors
+    result = result.replace(/javascript:/gi, '');
+    result = result.replace(/on\w+\s*=/gi, '');
+
+    // Remove data URLs that might contain scripts
+    result = result.replace(/data:\s*text\/html[^,]+,/gi, '');
+
+    return result;
   }
 }
 
