@@ -14,7 +14,7 @@ Set these in your Postman environment:
 - `base_url`: `http://localhost:3000`
 - `trust_token`: (generated from first request)
 - `task_id`: (from async responses)
-- `api_key`: Your API key
+- `api_key`: (optional - for agent authentication if needed)
 
 ---
 
@@ -262,7 +262,7 @@ Expected (200):
 Method: GET
 URL: {{base_url}}/api/monitoring/reuse-stats
 Headers:
-  x-api-key: {{api_key}}
+  x-trust-token: {{trust_token}}
 Expected (200):
 {
   "timestamp": "2025-11-16T00:00:00.000Z",
@@ -295,7 +295,7 @@ Expected (200):
 Method: POST
 URL: {{base_url}}/api/export/training-data
 Headers:
-  x-api-key: {{api_key}}
+  x-trust-token: {{trust_token}}
 Body:
 {
   "format": "json"
