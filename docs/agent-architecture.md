@@ -4,9 +4,14 @@
 
 This document describes the architecture for integrating an autonomous security agent using DeepAgent CLI and LangSmith with the existing MCP-Security backend. The agent will learn from security data, monitor system activities, and orchestrate automated responses while leveraging the comprehensive backend API toolset.
 
-### AI-Powered PDF Enhancement
+### Bi-Directional AI Processing Pipeline
 
-**New Capability**: The agent integrates Langchain and GPT models to transform raw PDF text extraction into intelligent, structured JSON outputs. This addresses the "dumb" endpoint limitation by adding AI-powered text transformation that enhances readability and extracts structured data from PDF content.
+**New Capability**: Complete bi-directional AI intelligence for both inbound and outbound MCP traffic. The agent integrates Langchain and GPT models to transform unstructured data into intelligent, structured JSON outputs in both directions:
+
+- **Inbound (Client → Server)**: PDF uploads automatically get AI enhancement → structured JSON
+- **Outbound (Server → Client)**: JSON responses can optionally get AI enhancement → intelligent data
+
+This transforms the entire sanitization pipeline from "dumb" text processing into an intelligent system that understands and structures content contextually.
 
 **API Reference**: All backend API endpoints are fully documented in the [OpenAPI 3.0.3 specification](../openapi-spec.yaml), which serves as the authoritative source for API integration details.
 
@@ -58,20 +63,19 @@ graph TB
         J --> L[GPT Model Integration]
     end
 
-     subgraph "Backend API Endpoints"
-         J[POST /api/sanitize] --> K[Basic Sanitization]
-         L[POST /api/sanitize/json] --> M[Advanced Sanitization + Trust Tokens]
-         N[POST /api/trust-tokens/validate] --> O[Token Validation]
-          P[POST /api/documents/upload] --> Q[PDF Processing<br/>+ AI Enhancement]
-          R[POST /api/documents/generate-pdf] --> S[PDF Generation]
-         T[POST /api/webhook/n8n] --> U[N8N Integration]
-         V[POST /api/export/training-data] --> W[Data Export]
-         X[GET /api/monitoring/reuse-stats] --> Y[Performance Metrics]
-         Z[GET /health] --> AA[System Health]
-         BB[POST /api/admin/override/activate] --> CC[Admin Controls]
-         DD[GET /api/jobs/{taskId}/status] --> EE[Async Job Status]
-         FF[GET /api/jobs/{taskId}/result] --> GG[Async Job Results]
-     end
+      subgraph "Backend API Endpoints"
+          L[POST /api/sanitize/json] --> M[Bi-Directional AI<br/>Sanitization + Trust Tokens]
+          N[POST /api/trust-tokens/validate] --> O[Token Validation]
+           P[POST /api/documents/upload] --> Q[AI-First PDF Processing<br/>(Default AI Enabled)]
+           R[POST /api/documents/generate-pdf] --> S[PDF Generation]
+          T[POST /api/webhook/n8n] --> U[N8N Integration]
+          V[POST /api/export/training-data] --> W[Data Export]
+          X[GET /api/monitoring/reuse-stats] --> Y[Performance Metrics]
+          Z[GET /health] --> AA[System Health]
+          BB[POST /api/admin/override/activate] --> CC[Admin Controls]
+          DD[GET /api/jobs/{taskId}/status] --> EE[Async Job Status]
+          FF[GET /api/jobs/{taskId}/result] --> GG[Async Job Results]
+      end
 
     subgraph "Data Sources for Learning"
         DD[Risk Assessment Logs<br/>Story 9.1] --> EE[Structured Risk Data]
@@ -125,10 +129,10 @@ sequenceDiagram
     participant N8N as POST /api/webhook/n8n
     participant LangSmith as LangSmith Memory
 
-    Note over Agent,LangSmith: Agent processes PDF with AI enhancement
+    Note over Agent,LangSmith: Agent processes PDF with automatic AI enhancement
 
-    Agent->>Upload: Upload PDF with AI enhancement enabled
-    Upload-->>Agent: Return structured JSON from AI processing
+    Agent->>Upload: Upload PDF (AI enhancement enabled by default)
+    Upload-->>Agent: Return intelligent structured JSON from AI processing
 
     Agent->>Monitor: Check system performance metrics
     Monitor-->>Agent: Return reuse statistics & anomalies

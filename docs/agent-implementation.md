@@ -4,16 +4,18 @@
 
 This document provides a comprehensive implementation guide for building the autonomous security agent using DeepAgent CLI and LangSmith, integrated with the existing MCP-Security backend. The agent will learn from security data, monitor system activities, and orchestrate automated responses.
 
-### AI-Powered PDF Enhancement Integration
+### Bi-Directional AI Processing Pipeline
 
-**New Feature**: The agent will integrate Langchain and GPT models to enhance PDF text processing capabilities, transforming raw extracted text into structured, intelligent JSON outputs. This addresses the current "dumb" async endpoint limitation by adding AI-powered text transformation and structuring.
+**New Feature**: Complete bi-directional AI intelligence for the entire MCP sanitization pipeline. The agent integrates Langchain and GPT models to transform unstructured data into intelligent, structured JSON outputs in both directions of traffic flow.
 
 **Implementation Scope**:
 
-- Langchain integration for text processing pipelines
-- GPT model integration for intelligent text transformation
-- Enhanced PDF processing endpoint with optional AI transformation
-- Structured JSON output generation from raw text
+- **Inbound AI Processing**: PDF uploads automatically get AI enhancement → structured JSON
+- **Outbound AI Processing**: JSON responses can optionally get AI enhancement → intelligent data
+- Langchain integration for comprehensive text processing pipelines
+- GPT model integration for intelligent content transformation and structuring
+- Bi-directional sanitization with AI enhancement (structure, summarize, analyze)
+- Automatic AI processing for PDFs, optional AI processing for JSON responses
 - Double sanitization (before and after AI processing) to maintain security
 
 ## Prerequisites
@@ -46,25 +48,75 @@ The backend APIs have been verified against the agent-ready checklist for optima
 
 #### ✅ **Agent-Aware Security**: Uses trust tokens and API keys for per-user authentication.
 
-#### ⚠️ **Semantic, Context-Rich Responses**: Most endpoints provide rich context (e.g., metadata with performance/rationale), but basic ones like `/api/sanitize` return minimal data. Recommendation: Enhance with rationale for full compliance.
+#### ✅ **Bi-Directional AI Processing**: Complete AI intelligence for both inbound (PDF) and outbound (JSON) traffic flows.
 
-**MVP Impact**: Core endpoints (sanitization, document processing, trust tokens) are fully agent-ready. Post-MVP improvements can add richer responses to remaining endpoints.
+#### ✅ **Semantic, Context-Rich Responses**: All active endpoints provide rich context with metadata, performance metrics, and AI processing information.
+
+**MVP Impact**: All core endpoints are fully agent-ready with bi-directional AI processing. The deprecated `/api/sanitize` endpoint has been removed for cleaner API surface.
 
 ### AI Enhancement Dependencies
 
-**Additional Requirements for PDF AI Enhancement:**
+**Requirements for Bi-Directional AI Processing:**
 
 - **Langchain**: `pip install langchain openai`
 - **OpenAI API Access**: GPT-3.5-turbo or GPT-4 API key
-- **Enhanced Backend APIs**: PDF processing endpoint with AI transformation option
+- **Enhanced Backend APIs**: Bi-directional AI processing (PDF upload + JSON sanitization)
 - **Security Validation**: Double sanitization pipeline (pre and post AI processing)
+- **Automatic AI for PDFs**: AI processing enabled by default for all PDF uploads
+- **Optional AI for JSON**: Configurable AI enhancement for JSON responses
 
 **Agent AI Capabilities**:
 
+- **Bi-directional AI processing**: Intelligent transformation for both inbound and outbound traffic
+- **Automatic PDF enhancement**: All PDF uploads get AI processing by default
+- **Flexible JSON processing**: Optional AI enhancement for JSON responses (structure/summarize/analyze)
 - Text transformation using Langchain pipelines
 - GPT-powered content structuring and summarization
 - JSON schema generation from unstructured text
 - Quality validation of AI-generated outputs
+- Context-aware content understanding and transformation
+
+### AI Processing Usage Guide
+
+#### PDF Upload with Automatic AI Enhancement
+
+```python
+# AI processing is enabled by default - no parameters needed
+response = requests.post(
+    f"{backend_url}/api/documents/upload",
+    files={"pdf": open("document.pdf", "rb")},
+    headers={"Authorization": f"Bearer {api_key}"}
+)
+# Returns: Intelligent structured JSON from AI processing
+```
+
+#### JSON Sanitization with Optional AI Enhancement
+
+```python
+# Basic sanitization (no AI)
+response = requests.post(
+    f"{backend_url}/api/sanitize/json",
+    json={"content": "raw json data"},
+    headers={"Authorization": f"Bearer {api_key}"}
+)
+
+# AI-enhanced sanitization
+response = requests.post(
+    f"{backend_url}/api/sanitize/json",
+    json={
+        "content": "raw json data",
+        "ai_transform": true,
+        "ai_transform_type": "structure"  # or "summarize" or "analyze"
+    },
+    headers={"Authorization": f"Bearer {api_key}"}
+)
+```
+
+#### AI Transform Types
+
+- **`structure`**: Convert unstructured data to structured JSON schema
+- **`summarize`**: Generate intelligent summaries of content
+- **`analyze`**: Provide detailed content analysis and insights
 
 ### Development Environment
 
@@ -116,10 +168,9 @@ BACKEND_CONFIG = {
     "base_url": "https://your-mcp-security-backend.com",
     "api_key": "your-backend-api-key",
     "endpoints": {
-        "sanitize": "/api/sanitize",
-        "sanitize_json": "/api/sanitize/json",
+        "sanitize_json": "/api/sanitize/json",  # Bi-directional AI processing available
         "validate_token": "/api/trust-tokens/validate",
-        "upload_document": "/api/documents/upload",
+        "upload_document": "/api/documents/upload",  # AI processing enabled by default
         "generate_pdf": "/api/documents/generate-pdf",
         "n8n_webhook": "/api/webhook/n8n",
         "export_data": "/api/export/training-data",
@@ -133,7 +184,8 @@ BACKEND_CONFIG = {
         "job_cancel": "/api/jobs/{taskId}"
     },
     "rate_limits": {
-        "sanitize": 100,  # requests per minute
+        "sanitize_json": 100,  # requests per minute (bi-directional AI processing)
+        "upload_document": 25,  # lower for AI processing (resource intensive)
         "monitoring": 60,
         "export": 10,
         "job_status": 120  # higher for status checks
