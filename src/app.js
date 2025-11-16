@@ -52,7 +52,7 @@ app.get(
 );
 
 // Error handling
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   logger.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });
