@@ -10,7 +10,7 @@ const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
-const responseValidationMiddleware = require('../middleware/response-validation');
+
 const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
 const { agentAuth, enforceAgentSync } = require('../middleware/agentAuth');
 const { requestSchemas, responseSchemas } = require('../schemas/api-contract-schemas');
