@@ -22,7 +22,7 @@ jest.mock('pdfjs-dist', () => ({
           ModDate: 'D:20231101120000',
         },
       }),
-      getPage: jest.fn().mockImplementation((pageNum) => ({
+      getPage: jest.fn().mockImplementation(() => ({
         getTextContent: jest.fn().mockResolvedValue({
           items: [
             { str: 'Test Document' },

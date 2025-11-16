@@ -14,12 +14,15 @@ function normalizeKeys(obj, targetCase) {
 
   const normalized = {};
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
       let newKey = key;
       if (targetCase === 'camelCase') {
-        newKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        newKey = key
+          .replaceAll('_', '')
+          .replaceAll(/([a-z])([A-Z])/g, '$1_$2')
+          .toLowerCase();
       } else if (targetCase === 'snake_case') {
-        newKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        newKey = key.replaceAll(/([A-Z])/g, '_$1').toLowerCase();
       }
       normalized[newKey] = normalizeKeys(obj[key], targetCase);
     }
@@ -39,10 +42,11 @@ function removeFields(obj, patterns) {
 
   const filtered = {};
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      if (!patterns.includes(key)) {
-        filtered[key] = removeFields(obj[key], patterns);
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      if (patterns.includes(key)) {
+        continue;
       }
+      filtered[key] = removeFields(obj[key], patterns);
     }
   }
   return filtered;
