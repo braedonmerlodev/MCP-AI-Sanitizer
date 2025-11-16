@@ -20,7 +20,22 @@ Set these in your Postman environment:
 
 ## 1. 🔐 Authentication & Token Generation
 
-### Generate Trust Token (Helper Request)
+### Generate Initial Trust Token
+
+```
+Method: POST
+URL: {{base_url}}/api/sanitize/json
+Headers:
+  Content-Type: application/json
+Body:
+{
+  "content": "Sample content for token generation",
+  "async": false
+}
+Expected: 200 with trustToken - SAVE THIS TOKEN for other requests (no existing token required)
+```
+
+### Basic Text Sanitization (No Trust Token)
 
 ```
 Method: POST
@@ -29,37 +44,13 @@ Headers:
   Content-Type: application/json
 Body:
 {
-  "data": "Sample content for token generation"
+  "data": "Content with <script>alert('xss')</script> and unicode: ñáéíóú"
 }
-Expected: 200 with sanitizedData - This endpoint doesn't require tokens
-```
-
-### Generate Trust Token with JSON Response
-
-```
-Method: POST
-URL: {{base_url}}/api/sanitize/json
-Headers:
-  Content-Type: application/json
-  x-trust-token: {{trust_token}}
-Body:
+Expected (200):
 {
-  "content": "Sample content for token generation",
-  "async": false
+  "sanitizedData": "Content with and unicode: ñáéíóú"
 }
-Expected: 200 with trustToken - Use this for subsequent requests
 ```
-
-Method: POST
-URL: {{base_url}}/api/sanitize/json
-Headers:
-Content-Type: application/json
-Body:
-{
-"content": "Sample content for token generation",
-"async": false
-}
-Expected: 200 with trustToken - SAVE THIS TOKEN for other requests
 
 ```
 
