@@ -4,7 +4,7 @@ const JobResult = require('../models/JobResult');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -37,17 +37,18 @@ async function processJob(job) {
       const buffer = Buffer.from(job.data.fileBuffer, 'base64');
 
       // Extract text and metadata from PDF
-      const pdfData = await pdfParse(buffer);
-      const extractedText = pdfData.text;
+      const pdfParser = new PDFParse({ data: buffer });
+      const [textData, infoData] = await Promise.all([pdfParser.getText(), pdfParser.getInfo()]);
+      const extractedText = textData.text;
       const metadata = {
-        pages: pdfData.numpages,
-        title: pdfData.info?.Title || null,
-        author: pdfData.info?.Author || null,
-        subject: pdfData.info?.Subject || null,
-        creator: pdfData.info?.Creator || null,
-        producer: pdfData.info?.Producer || null,
-        creationDate: pdfData.info?.CreationDate || null,
-        modificationDate: pdfData.info?.ModDate || null,
+        pages: infoData.total,
+        title: infoData.info?.Title || null,
+        author: infoData.info?.Author || null,
+        subject: infoData.info?.Subject || null,
+        creator: infoData.info?.Creator || null,
+        producer: infoData.info?.Producer || null,
+        creationDate: infoData.info?.CreationDate || null,
+        modificationDate: infoData.info?.ModDate || null,
         encoding: 'utf8',
       };
 

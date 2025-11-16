@@ -39,12 +39,41 @@ const JobStatusController = {
         });
       }
 
+      // Generate human-readable message based on status and progress
+      let message;
+      switch (jobStatus.status) {
+        case 'queued': {
+          message = 'Queued for processing...';
+          break;
+        }
+        case 'processing': {
+          message = jobStatus.currentStep
+            ? `Processing: ${jobStatus.currentStep}...`
+            : 'Processing...';
+          break;
+        }
+        case 'completed': {
+          message = 'Completed successfully';
+          break;
+        }
+        case 'failed': {
+          message = jobStatus.errorMessage || 'Processing failed';
+          break;
+        }
+        case 'cancelled': {
+          message = 'Job cancelled';
+          break;
+        }
+        default: {
+          message = 'Unknown status';
+        }
+      }
+
       const response = {
         taskId: jobStatus.jobId,
         status: jobStatus.status,
         progress: jobStatus.progress,
-        currentStep: jobStatus.currentStep,
-        totalSteps: jobStatus.totalSteps,
+        message,
         createdAt: jobStatus.createdAt,
         updatedAt: jobStatus.updatedAt,
         expiresAt: jobStatus.expiresAt,
@@ -143,7 +172,7 @@ const JobStatusController = {
 
       logger.info('Job result retrieved', {
         taskId,
-        resultSize: JSON.stringify(jobStatus.result).length,
+        resultSize: JSON.stringify(resultData)?.length || 0,
       });
       res.set('X-API-Version', '1.1');
       res.set('X-Async-Processing', 'true');
