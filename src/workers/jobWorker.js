@@ -71,13 +71,14 @@ async function processJob(job) {
 
         const aiTransformer = new AITextTransformer();
         try {
-          processedText = await aiTransformer.transform(
+          const aiResult = await aiTransformer.transform(
             processedText,
             job.options.aiTransformType,
             {
               sanitizerOptions: job.options,
             },
           );
+          processedText = aiResult.text;
         } catch (aiError) {
           logger.warn('AI transformation failed, proceeding with Markdown text', {
             jobId,
@@ -93,6 +94,18 @@ async function processJob(job) {
       // Sanitize converted text
       const sanitizer = new ProxySanitizer();
       result = await sanitizer.sanitize(processedText, job.options);
+
+      // If AI structure was applied, parse as JSON
+      if (job.options?.aiTransformType === 'structure') {
+        try {
+          result.sanitizedData = JSON.parse(result.sanitizedData);
+        } catch (e) {
+          logger.warn('Failed to parse AI structured output as JSON in async job', {
+            jobId,
+            error: e.message,
+          });
+        }
+      }
 
       // Add metadata to result
       result.metadata = metadata;
