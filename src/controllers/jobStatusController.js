@@ -193,7 +193,7 @@ const JobStatusController = {
 
   /**
    * DELETE /api/jobs/{taskId}
-   * Cancels a job if possible
+   * Cancels or deletes a job
    */
   cancelJob: async (req, res) => {
     const { taskId } = req.params;
@@ -216,28 +216,44 @@ const JobStatusController = {
         });
       }
 
-      // Only allow cancellation of queued or processing jobs
-      if (jobStatus.status !== 'queued' && jobStatus.status !== 'processing') {
-        return res.status(409).json({
-          error: 'Job cannot be cancelled',
-          taskId,
-          status: jobStatus.status,
-        });
+      let action;
+      if (jobStatus.status === 'queued' || jobStatus.status === 'processing') {
+        // Cancel active jobs
+        await jobStatus.cancel();
+        action = 'cancelled';
+      } else {
+        // For completed, failed, or already cancelled jobs, treat as deletion
+        // Mark as cancelled to indicate it's been removed
+        jobStatus.status = 'cancelled';
+        jobStatus.updatedAt = new Date().toISOString();
+        await jobStatus.save();
+        action = 'deleted';
       }
 
-      await jobStatus.cancel();
+      // Also try to delete the job result if it exists
+      try {
+        const jobResult = await JobResult.load(taskId);
+        if (jobResult) {
+          // Note: JobResult doesn't have a delete method, so we just mark it as expired
+          jobResult.expiresAt = new Date().toISOString();
+          await jobResult.save();
+        }
+      } catch (resultError) {
+        // Ignore errors when deleting job result
+        logger.warn('Could not delete job result', { taskId, error: resultError.message });
+      }
 
-      logger.info('Job cancelled', { taskId });
+      logger.info(`Job ${action}`, { taskId, previousStatus: jobStatus.status });
       res.set('X-API-Version', '1.1');
       res.set('X-Async-Processing', 'true');
       res.json({
         taskId: jobStatus.jobId,
         status: 'cancelled',
-        cancelledAt: jobStatus.updatedAt,
+        message: action === 'cancelled' ? 'Job cancelled successfully' : 'Job deleted successfully',
       });
     } catch (err) {
-      logger.error('Error cancelling job', { taskId, error: err.message });
-      res.status(500).json({ error: 'Failed to cancel job' });
+      logger.error('Error cancelling/deleting job', { taskId, error: err.message });
+      res.status(500).json({ error: 'Failed to cancel/delete job' });
     }
   },
 };
