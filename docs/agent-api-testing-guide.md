@@ -35,71 +35,6 @@ Body:
 Expected: 200 with trustToken - SAVE THIS TOKEN for other requests (no existing token required)
 ```
 
-### Basic Text Sanitization (No Trust Token)
-
-```
-Method: POST
-URL: {{base_url}}/api/sanitize
-Headers:
-  Content-Type: application/json
-Body:
-{
-  "data": "Content with <script>alert('xss')</script> and unicode: ñáéíóú"
-}
-Expected (200):
-{
-  "sanitizedData": "Content with and unicode: ñáéíóú"
-}
-```
-
-```
-
----
-
-## 2. 🧹 Content Sanitization APIs
-
-### Basic Text Sanitization
-
-```
-
-Method: POST
-URL: {{base_url}}/api/sanitize
-Headers:
-Content-Type: application/json
-Body:
-{
-"data": "Content with <script>alert('xss')</script> and unicode: ñáéíóú"
-}
-Expected (200):
-{
-"sanitizedData": "Content with and unicode: ñáéíóú"
-}
-
-```
-
-### JSON Sanitization (Synchronous)
-
-```
-
-Method: POST
-URL: {{base_url}}/api/sanitize/json
-Headers:
-Content-Type: application/json
-x-trust-token: {{trust_token}}
-Body:
-{
-"content": "Malicious content: <script>alert('hacked')</script>",
-"async": false
-}
-Expected (200):
-{
-"sanitizedContent": "Malicious content: ",
-"trustToken": {...},
-"metadata": {...}
-}
-
-```
-
 ### JSON Sanitization (Asynchronous)
 
 ```
@@ -123,9 +58,36 @@ Expected (202):
 
 ```
 
+### JSON Sanitization with Smart Transformation
+
+```
+
+Method: POST
+URL: {{base_url}}/api/sanitize/json
+Headers:
+Content-Type: application/json
+x-trust-token: {{trust_token}}
+Body:
+{
+"content": "{\"userName\": \"john_doe\", \"emailAddress\": \"john@example.com\", \"phoneNumber\": \"555-1234\", \"internalNotes\": \"This should be removed\"}",
+"transform": true,
+"keyCase": "snake",
+"removeFields": ["internalNotes", "phoneNumber"]
+}
+Expected (200):
+{
+"sanitizedContent": {
+  "user_name": "john_doe",
+  "email_address": "[EMAIL_REDACTED]",
+  "trustToken": {...}
+}
+}
+
+```
+
 ---
 
-## 3. 🔒 Trust Token Validation
+## 3. 🔒 Trust Token Validation (COMEBACK)
 
 ### Validate Trust Token
 
@@ -184,7 +146,123 @@ Expected (400):
 
 ## 4. 📄 Document Processing APIs
 
-### PDF Upload (Synchronous)
+### PDF Upload (Synchronous) - Standard Processing
+
+```
+
+Method: POST
+URL: {{base_url}}/api/documents/upload?sync=true
+Headers:
+x-trust-token: {{trust_token}}
+Body: form-data
+pdf: [Select PDF file]
+Expected (200):
+{
+"message": "PDF uploaded and processed successfully",
+"fileName": "filename.pdf",
+"size": 12345,
+"metadata": {...},
+"status": "processed",
+"sanitizedContent": "Extracted and sanitized text...",
+"trustToken": {...}
+}
+
+```
+
+### PDF Upload (Synchronous) - AI Enhanced Processing
+
+```
+
+Method: POST
+URL: {{base_url}}/api/documents/upload?sync=true&ai_transform=true
+Headers:
+x-trust-token: {{trust_token}}
+Body: form-data
+pdf: [Select PDF file]
+Expected (200):
+{
+"message": "PDF uploaded and AI-enhanced successfully",
+"fileName": "filename.pdf",
+"size": 12345,
+"metadata": {...},
+"status": "processed",
+"aiTransformed": true,
+"transformationType": "structure",
+"processingMetadata": {
+  "processingTime": 8500,
+  "apiCost": 0.023,
+  "confidence": 0.92,
+  "inputTokens": 1250,
+  "outputTokens": 890
+},
+"structuredContent": {
+  "title": "Document Title",
+  "sections": [...],
+  "entities": [...],
+  "summary": "..."
+},
+"trustToken": {...}
+}
+
+```
+
+### PDF Upload (Asynchronous) - Standard Processing
+
+```
+
+Method: POST
+URL: {{base_url}}/api/documents/upload
+Headers:
+x-trust-token: {{trust_token}}
+Body: form-data
+pdf: [Select PDF file]
+Expected (202):
+{
+"taskId": "1234567890123",
+"status": "processing",
+"estimatedTime": 10000
+}
+
+```
+
+### PDF Upload (Asynchronous) - AI Enhanced Processing
+
+```
+
+Method: POST
+URL: {{base_url}}/api/documents/upload?ai_transform=true
+Headers:
+x-trust-token: {{trust_token}}
+Body: form-data
+pdf: [Select PDF file]
+Expected (202):
+{
+"taskId": "1234567890123",
+"status": "processing",
+"aiTransform": true,
+"estimatedTime": 15000
+}
+
+```
+
+**Note:** AI transformation is rate-limited to 5 requests per 15 minutes per IP address to control costs.
+
+### PDF Upload - AI Transformation Rate Limit Test
+
+```
+
+Method: POST
+URL: {{base_url}}/api/documents/upload?ai_transform=true
+Headers:
+x-trust-token: {{trust_token}}
+Body: form-data
+pdf: [Select PDF file]
+Expected (429) after exceeding rate limit:
+{
+"error": "AI transformation rate limit exceeded",
+"message": "Too many AI transformation requests. Please try again later.",
+"retryAfter": 900
+}
 
 ```
 
@@ -249,33 +327,15 @@ Expected (200): [Binary PDF data]
 ```
 
 ---
+```
 
-## 5. ⚙️ Async Job Management
+### Get Job Result (ONLY for ASYNC Jobs)
 
-### Check Job Status
+Bottom Line: Since your PDF was processed synchronously, you already have the results from the upload response. The /api/jobs/{taskId}/result endpoint is only for async jobs that were queued for background processing.
 
 ```
 
-Method: GET
-URL: {{base_url}}/api/jobs/{{task_id}}/status
-Headers: (none)
-Expected (200):
-{
-"taskId": "1234567890123",
-"status": "processing|completed|failed|cancelled",
-"progress": 75,
-"message": "Processing...",
-"createdAt": "2025-11-16T00:00:00.000Z",
-"updatedAt": "2025-11-16T00:00:00.000Z"
-}
-
-```
-
-### Get Job Result
-
-```
-
-Method: GET
+Method: GET (ASYNC Only)  (PASSED)
 URL: {{base_url}}/api/jobs/{{task_id}}/result
 Headers: (none)
 Expected (200):
@@ -292,7 +352,7 @@ Expected (200):
 
 ```
 
-### Cancel Job
+### Cancel Job (PASSED)
 
 ```
 
@@ -316,7 +376,7 @@ Expected (200):
 
 ```
 
-Method: GET
+Method: GET (PASSED)
 URL: {{base_url}}/api/monitoring/reuse-stats
 Headers:
 x-trust-token: {{trust_token}}
@@ -351,7 +411,7 @@ Expected (200):
 
 ```
 
-Method: POST
+Method: POST (PASSED)
 URL: {{base_url}}/api/export/training-data
 Headers:
 x-trust-token: {{trust_token}}
@@ -367,7 +427,7 @@ Expected (200): [Binary file - JSON/CSV/Parquet]
 
 ## 7. 🩺 Health & Security Tests
 
-### Health Check
+### Health Check (PASSED)
 
 ```
 
@@ -386,7 +446,7 @@ Expected (200):
 
 ```
 
-Method: GET
+Method: GET (PASSED)
 URL: {{base_url}}/health
 Headers: (none)
 Body:
@@ -464,4 +524,7 @@ Expected (400):
 
 _Generated for MCP-Security Agent API Testing - Version 1.0_</content>
 <parameter name="filePath">docs/agent-api-testing-guide.md
+
+```
+
 ```
