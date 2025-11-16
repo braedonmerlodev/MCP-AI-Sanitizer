@@ -3,7 +3,7 @@ const Joi = require('joi');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const PDFParse = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
@@ -578,17 +578,17 @@ router.post(
       // Extract text and metadata from PDF using pdf-parse
       let extractedText, metadata;
       try {
-        const pdfData = await PDFParse(buffer);
-        extractedText = pdfData.text;
+        const data = await pdfParse(buffer);
+        extractedText = data.text;
         metadata = {
-          pages: pdfData.numpages,
-          title: pdfData.info?.Title || null,
-          author: pdfData.info?.Author || null,
-          subject: pdfData.info?.Subject || null,
-          creator: pdfData.info?.Creator || null,
-          producer: pdfData.info?.Producer || null,
-          creationDate: pdfData.info?.CreationDate || null,
-          modificationDate: pdfData.info?.ModDate || null,
+          pages: data.numpages,
+          title: data.info?.Title || null,
+          author: data.info?.Author || null,
+          subject: data.info?.Subject || null,
+          creator: data.info?.Creator || null,
+          producer: data.info?.Producer || null,
+          creationDate: data.info?.CreationDate || null,
+          modificationDate: data.info?.ModDate || null,
           encoding: 'utf8', // pdf-parse extracts text as UTF-8
         };
       } catch (pdfError) {

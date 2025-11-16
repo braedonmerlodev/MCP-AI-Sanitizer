@@ -4,7 +4,7 @@ const JobResult = require('../models/JobResult');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
-const PDFParse = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -37,19 +37,30 @@ async function processJob(job) {
       const buffer = Buffer.from(job.data.fileBuffer, 'base64');
 
       // Extract text and metadata from PDF
-      const pdfData = await PDFParse(buffer);
-      const extractedText = pdfData.text;
-      const metadata = {
-        pages: pdfData.numpages,
-        title: pdfData.info?.Title || null,
-        author: pdfData.info?.Author || null,
-        subject: pdfData.info?.Subject || null,
-        creator: pdfData.info?.Creator || null,
-        producer: pdfData.info?.Producer || null,
-        creationDate: pdfData.info?.CreationDate || null,
-        modificationDate: pdfData.info?.ModDate || null,
-        encoding: 'utf8',
-      };
+      let extractedText, metadata;
+      try {
+        const data = await pdfParse(buffer);
+        extractedText = data.text;
+        metadata = {
+          pages: data.numpages,
+          title: data.info?.Title || null,
+          author: data.info?.Author || null,
+          subject: data.info?.Subject || null,
+          creator: data.info?.Creator || null,
+          producer: data.info?.Producer || null,
+          creationDate: data.info?.CreationDate || null,
+          modificationDate: data.info?.ModDate || null,
+          encoding: 'utf8',
+        };
+      } catch (pdfError) {
+        logger.error('PDF text extraction failed in async job', {
+          jobId,
+          error: pdfError.message,
+          bufferLength: buffer.length,
+          bufferStart: buffer.slice(0, 10).toString('hex'),
+        });
+        throw new Error(`Failed to extract text from PDF: ${pdfError.message}`);
+      }
 
       await jobStatus.updateProgress(40, 'Converting to Markdown');
 
