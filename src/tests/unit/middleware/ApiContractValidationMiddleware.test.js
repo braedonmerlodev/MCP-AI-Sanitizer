@@ -41,6 +41,7 @@ describe('ApiContractValidationMiddleware', () => {
     };
     res = {
       json: jest.fn(),
+      status: jest.fn().mockReturnThis(),
     };
     next = jest.fn();
 
@@ -48,6 +49,7 @@ describe('ApiContractValidationMiddleware', () => {
     warnSpy.mockClear();
     infoSpy.mockClear();
     res.json.mockClear();
+    res.status.mockClear();
     next.mockClear();
   });
 
