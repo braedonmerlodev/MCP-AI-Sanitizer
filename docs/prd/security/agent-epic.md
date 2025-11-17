@@ -1,8 +1,8 @@
-# Additional MVP Agent Critical Blockers Epic
+# Agent Epic
 
 ## Epic Overview
 
-**Epic Title:** Additional MVP Agent Critical Blockers
+**Epic Title:** Agent Implementation
 
 **Epic Goal:** Implement the core autonomous security agent functionality and infrastructure required for MVP demonstration, building on the stable foundation established by the Quality & Security Hardening epic.
 
