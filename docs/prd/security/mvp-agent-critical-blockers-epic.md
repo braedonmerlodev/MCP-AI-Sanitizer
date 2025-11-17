@@ -15,6 +15,8 @@
 - Agent can manage async job queues for processing workflows
 - Core agent functionality has adequate test coverage (60-70%)
 - DeepAgent CLI can perform basic deploy/configure/monitor operations
+- PDF AI workflow integration tests ensure reliable PDF processing
+- Advanced HITL escalation features provide human oversight for critical decisions
 
 ## Epic Stories
 
@@ -99,6 +101,40 @@
 **Estimate:** 8-12 hours
 **Dependencies:** Stories 1.1-1.4
 
+### Story 1.6: PDF AI Workflow Integration Tests
+
+**As a** developer,
+**I want to** have comprehensive integration tests for PDF AI workflows,
+**so that** I can ensure the agent handles PDF processing and AI transformations reliably.
+
+**Acceptance Criteria:**
+1.1: End-to-end tests for PDF ingestion to sanitized output
+1.2: AI transformation integration tests with trust token validation
+1.3: Async PDF processing workflow tests
+1.4: Error handling and recovery tests for PDF workflows
+1.5: Performance benchmarks for PDF AI operations
+
+**Priority:** Critical
+**Estimate:** 6-8 hours
+**Dependencies:** Stories 1.1-1.3
+
+### Story 1.7: Advanced HITL Escalation Features
+
+**As a** security agent,
+**I want to** escalate complex or suspicious content to human review,
+**so that** critical decisions require human oversight while maintaining automation for routine tasks.
+
+**Acceptance Criteria:**
+1.1: HITL escalation triggers for high-risk content patterns
+1.2: Human review queue with prioritization
+1.3: Escalation decision integration with sanitization pipeline
+1.4: Audit trail for HITL interventions
+1.5: Configurable escalation thresholds and rules
+
+**Priority:** Critical
+**Estimate:** 8-10 hours
+**Dependencies:** Stories 1.1-1.4
+
 ## Epic Dependencies
 
 - **Blocks:** Full autonomous security agent functionality
@@ -112,10 +148,12 @@
 - Queue management supports async agent workflows
 - 60-70% test coverage on agent-critical code
 - DeepAgent CLI provides basic deploy/configure/monitor functionality
-- Agent can perform core security monitoring and response
+- PDF AI workflow integration tests pass reliably
+- Advanced HITL escalation features are operational
+- Agent can perform core security monitoring and response with human oversight
 
 ## Epic Timeline
 
-**Estimated Total Effort:** 25-36 hours
-**Suggested Sprint:** 1-2 weeks
+**Estimated Total Effort:** 39-54 hours
+**Suggested Sprint:** 2-3 weeks
 **Priority:** Critical (enables MVP agent demonstration)
