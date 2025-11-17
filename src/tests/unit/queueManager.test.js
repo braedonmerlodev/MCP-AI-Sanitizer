@@ -12,7 +12,7 @@ describe('QueueManager', () => {
       getStats: sinon.stub().returns({ total: 0 }),
     };
 
-    const MockQueue = sinon.stub().callsFake((processJob, config) => mockQueue);
+    const MockQueue = sinon.stub().callsFake(() => mockQueue);
 
     mockJobStatus = {
       save: sinon.stub().resolves(),
