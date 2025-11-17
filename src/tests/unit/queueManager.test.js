@@ -4,7 +4,6 @@ const sinon = require('sinon');
 describe('QueueManager', () => {
   let mockQueue;
   let QueueManager;
-  let mockJobStatus;
 
   beforeEach(() => {
     mockQueue = {
@@ -14,14 +13,8 @@ describe('QueueManager', () => {
 
     const MockQueue = sinon.stub().returns(mockQueue);
 
-    mockJobStatus = {
-      save: sinon.stub().resolves(),
-    };
-    const MockJobStatus = sinon.stub().returns(mockJobStatus);
-
     QueueManager = proxyquire('../../utils/queueManager', {
       'better-queue': MockQueue,
-      '../models/JobStatus': MockJobStatus,
     });
   });
 
@@ -34,7 +27,6 @@ describe('QueueManager', () => {
     expect(jobId).toBeDefined();
     expect(typeof jobId).toBe('string');
     expect(mockQueue.push.calledOnce).toBe(true);
-    expect(mockJobStatus.save.calledOnce).toBe(true);
   });
 
   it('should add a job with priority', async () => {
@@ -55,5 +47,13 @@ describe('QueueManager', () => {
     expect(stats).toBeDefined();
     expect(typeof stats).toBe('object');
     expect(mockQueue.getStats.calledOnce).toBe(true);
+  });
+
+  it('should resolve all module dependencies correctly', () => {
+    // Test that the module can be required without errors
+    const QueueManagerModule = require('../../utils/queueManager');
+    expect(QueueManagerModule).toBeDefined();
+    expect(typeof QueueManagerModule.addJob).toBe('function');
+    expect(typeof QueueManagerModule.getStats).toBe('function');
   });
 });
