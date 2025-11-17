@@ -21,7 +21,7 @@ describe('QueueManager', () => {
 
     QueueManager = proxyquire('../../utils/queueManager', {
       'better-queue': MockQueue,
-      '../models/JobStatus': { default: MockJobStatus },
+      '../models/JobStatus': MockJobStatus,
     });
   });
 

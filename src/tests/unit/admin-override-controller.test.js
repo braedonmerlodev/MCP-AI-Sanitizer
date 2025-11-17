@@ -252,24 +252,27 @@ describe('AdminOverrideController', () => {
       expect(controller.isOverrideActive()).toBe(true);
     });
 
-    it('should return false after override expires', () => {
-      // Create controller with very short duration
-      const shortController = new AdminOverrideController({
+    it('should return false after manual expiration simulation', () => {
+      // Create a fresh controller for this test
+      const testController = new AdminOverrideController({
         logger: mockLogger,
-        defaultDuration: 100, // 100ms
         adminAuthSecret: 'test-admin-secret',
       });
-      shortController.auditLogger = mockAuditLogger;
+      testController.auditLogger = mockAuditLogger;
 
       mockReq.body = { justification: 'Expiration test' };
-      shortController.activateOverride(mockReq, mockRes);
+      testController.activateOverride(mockReq, mockRes);
 
-      expect(shortController.isOverrideActive()).toBe(true);
+      // Verify override is active initially
+      expect(testController.isOverrideActive()).toBe(true);
 
-      // Wait for expiration
-      setTimeout(() => {
-        expect(shortController.isOverrideActive()).toBe(false);
-      }, 150);
+      // Manually expire the override by setting endTime to past
+      const overrideId = testController.activeOverrides.keys().next().value;
+      const override = testController.activeOverrides.get(overrideId);
+      override.endTime = new Date(Date.now() - 1000); // Set to 1 second ago
+
+      // Check again - should clean up expired override
+      expect(testController.isOverrideActive()).toBe(false);
     });
   });
 
@@ -294,24 +297,28 @@ describe('AdminOverrideController', () => {
   });
 
   describe('automatic expiration', () => {
-    it('should automatically clean expired overrides', () => {
-      const shortController = new AdminOverrideController({
+    it('should clean expired overrides when _cleanExpiredOverrides is called', () => {
+      const testController = new AdminOverrideController({
         logger: mockLogger,
-        defaultDuration: 100, // 100ms
         adminAuthSecret: 'test-admin-secret',
       });
-      shortController.auditLogger = mockAuditLogger;
+      testController.auditLogger = mockAuditLogger;
 
-      mockReq.body = { justification: 'Auto expire test' };
-      shortController.activateOverride(mockReq, mockRes);
+      mockReq.body = { justification: 'Cleanup test' };
+      testController.activateOverride(mockReq, mockRes);
 
-      expect(shortController.activeOverrides.size).toBe(1);
+      expect(testController.activeOverrides.size).toBe(1);
 
-      // Wait and check cleanup
-      setTimeout(() => {
-        shortController._cleanExpiredOverrides();
-        expect(shortController.activeOverrides.size).toBe(0);
-      }, 150);
+      // Manually expire the override
+      const overrideId = testController.activeOverrides.keys().next().value;
+      const override = testController.activeOverrides.get(overrideId);
+      override.endTime = new Date(Date.now() - 1000); // Set to expired
+
+      // Call cleanup method
+      testController._cleanExpiredOverrides();
+
+      // Verify expired override was cleaned up
+      expect(testController.activeOverrides.size).toBe(0);
     });
   });
 });

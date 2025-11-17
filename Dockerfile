@@ -13,7 +13,11 @@ COPY . .
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+# Support for CLI mode
+ARG MODE=api
+ENV MODE=${MODE}
 
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD if [ "$MODE" = "api" ]; then curl -f http://localhost:3000/health || exit 1; else exit 0; fi
+
+CMD if [ "$MODE" = "cli" ]; then node tools/cli.js; else npm start; fi
