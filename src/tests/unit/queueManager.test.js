@@ -4,6 +4,7 @@ const sinon = require('sinon');
 describe('QueueManager', () => {
   let mockQueue;
   let QueueManager;
+  let mockJobStatus;
 
   beforeEach(() => {
     mockQueue = {
@@ -11,10 +12,17 @@ describe('QueueManager', () => {
       getStats: sinon.stub().returns({ total: 0 }),
     };
 
-    const MockQueue = sinon.stub().returns(mockQueue);
+    const MockQueue = sinon.stub().callsFake(() => mockQueue);
 
+    mockJobStatus = {
+      save: sinon.stub().resolves(),
+    };
+    const MockJobStatus = sinon.stub().returns(mockJobStatus);
+
+    const jobStatusPath = require.resolve('../../models/JobStatus');
     QueueManager = proxyquire('../../utils/queueManager', {
       'better-queue': MockQueue,
+      [jobStatusPath]: MockJobStatus,
     });
   });
 
