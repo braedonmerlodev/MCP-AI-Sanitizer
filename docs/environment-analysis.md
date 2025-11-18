@@ -29,6 +29,59 @@
 - **Husky**: For git hooks
 - **Jest**: For testing
 
+## Security Requirements
+
+### Security Testing Tools
+
+- **npm audit**: Integrated vulnerability scanning (must show 0 vulnerabilities)
+- **Snyk**: Optional advanced vulnerability scanning
+- **OWASP ZAP**: Dynamic security testing for API endpoints
+
+### Security Development Setup
+
+#### Environment Variables
+
+```bash
+# Required security environment variables
+TRUST_TOKEN_SECRET=your-secure-random-secret-key
+OPENAI_API_KEY=your-openai-api-key  # For AI features
+```
+
+#### Security Dependencies
+
+- **helmet**: Security headers middleware
+- **express-rate-limit**: Rate limiting protection
+- **joi**: Input validation and sanitization
+- **winston**: Secure logging practices
+
+#### Development Security Checks
+
+- **Pre-commit Hooks**: Automated security linting
+- **Dependency Scanning**: Weekly npm audit checks
+- **Code Security Review**: ESLint security plugin enabled
+
+### Security Testing in Development
+
+#### Unit Test Security Coverage
+
+- Input validation test cases
+- Authentication/authorization tests
+- Data sanitization verification
+- Trust token validation tests
+
+#### Integration Test Security
+
+- API security testing with trust tokens
+- Access control validation
+- Security header verification
+- Rate limiting effectiveness
+
+#### Security Documentation
+
+- Security requirements in README.md
+- API security guidelines
+- Development security checklist
+
 ## Production Environment Requirements
 
 ### Infrastructure
