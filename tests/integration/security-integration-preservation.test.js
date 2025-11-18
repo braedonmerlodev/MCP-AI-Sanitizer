@@ -64,12 +64,9 @@ const jobStatusRoutes = require('../../src/routes/jobStatus');
 
 describe('Security Integration Preservation Tests - Story 1.1.4', () => {
   let app;
-  let trustTokenGenerator;
 
   beforeAll(() => {
-    // Initialize trust token generator
-    const TrustTokenGenerator = require('../../src/components/TrustTokenGenerator');
-    trustTokenGenerator = new TrustTokenGenerator();
+    // No initialization needed for these tests
   });
 
   beforeEach(() => {
