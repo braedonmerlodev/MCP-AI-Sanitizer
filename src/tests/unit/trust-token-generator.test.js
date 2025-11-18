@@ -9,7 +9,7 @@ describe('TrustTokenGenerator', () => {
   });
 
   describe('constructor', () => {
-    it('should throw error if no secret provided', () => {
+    it('should throw error if no secret provided via options or environment', () => {
       // Temporarily unset environment variable for this test
       const originalSecret = process.env.TRUST_TOKEN_SECRET;
       delete process.env.TRUST_TOKEN_SECRET;
@@ -24,6 +24,53 @@ describe('TrustTokenGenerator', () => {
       }
     });
 
+    it('should accept secret via options.secret', () => {
+      const optionsSecret = 'options-provided-secret';
+      const generator = new TrustTokenGenerator({ secret: optionsSecret });
+
+      // Verify the secret is set (internal check)
+      expect(generator.secret).toBe(optionsSecret);
+    });
+
+    it('should accept secret via environment variable', () => {
+      const envSecret = 'environment-variable-secret';
+      const originalSecret = process.env.TRUST_TOKEN_SECRET;
+
+      // Set environment variable
+      process.env.TRUST_TOKEN_SECRET = envSecret;
+
+      const generator = new TrustTokenGenerator();
+
+      expect(generator.secret).toBe(envSecret);
+
+      // Restore
+      if (originalSecret !== undefined) {
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
+      } else {
+        delete process.env.TRUST_TOKEN_SECRET;
+      }
+    });
+
+    it('should prioritize options.secret over environment variable', () => {
+      const optionsSecret = 'options-secret';
+      const envSecret = 'environment-secret';
+      const originalSecret = process.env.TRUST_TOKEN_SECRET;
+
+      // Set environment variable
+      process.env.TRUST_TOKEN_SECRET = envSecret;
+
+      const generator = new TrustTokenGenerator({ secret: optionsSecret });
+
+      expect(generator.secret).toBe(optionsSecret); // Options should take precedence
+
+      // Restore
+      if (originalSecret !== undefined) {
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
+      } else {
+        delete process.env.TRUST_TOKEN_SECRET;
+      }
+    });
+
     it('should accept custom options', () => {
       const customGenerator = new TrustTokenGenerator({
         secret: testSecret,
@@ -32,6 +79,27 @@ describe('TrustTokenGenerator', () => {
       });
       expect(customGenerator.defaultExpirationHours).toBe(48);
       expect(customGenerator.defaultVersion).toBe('2.0');
+    });
+
+    it('should work across different deployment environments', () => {
+      // Test with various secret formats (simulating different environments)
+      const secrets = [
+        'simple-secret',
+        'complex-secret-with-dashes-and-123',
+        'Base64EncodedSecretHere==',
+        'a'.repeat(32), // 32 character secret
+        'very-long-secret-key-that-might-be-used-in-production-environments-for-maximum-security',
+      ];
+
+      secrets.forEach((secret) => {
+        const generator = new TrustTokenGenerator({ secret });
+        expect(generator.secret).toBe(secret);
+
+        // Verify it can generate and validate tokens
+        const token = generator.generateToken('test', 'test', ['test']);
+        const validation = generator.validateToken(token);
+        expect(validation.isValid).toBe(true);
+      });
     });
   });
 
