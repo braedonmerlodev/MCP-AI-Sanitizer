@@ -1,8 +1,17 @@
-# Story 1.1: Setup Project Repository and Dependencies
+# Epic 1.1: Setup Project Repository and Dependencies
 
 ## Status
 
 Done
+
+## Epic Breakdown
+
+This epic has been broken down into the following sub-stories for systematic project initialization:
+
+- **1.1.1**: Initialize Node.js Project Structure and Package Management - Establish project foundation
+- **1.1.2**: Install Core Dependencies for API Endpoints and Unicode Handling - Set up essential libraries
+- **1.1.3**: Configure Basic CI/CD Pipeline - Enable automated builds and deployments
+- **1.1.4**: Include Documentation for Setup - Provide comprehensive onboarding materials
 
 ## Story
 
