@@ -9,10 +9,46 @@ describe('TrustTokenGenerator', () => {
   });
 
   describe('constructor', () => {
-    it('should throw error if no secret provided', () => {
+    it('should throw error if no secret provided via options or environment', () => {
+      // Temporarily unset environment variable for this test
+      const originalSecret = process.env.TRUST_TOKEN_SECRET;
+      delete process.env.TRUST_TOKEN_SECRET;
+
       expect(() => new TrustTokenGenerator()).toThrow(
         'TRUST_TOKEN_SECRET environment variable must be set',
       );
+
+      // Restore environment variable
+      if (originalSecret !== undefined) {
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
+      }
+    });
+
+    it('should accept secret via options.secret', () => {
+      const optionsSecret = 'options-provided-secret';
+      const generator = new TrustTokenGenerator({ secret: optionsSecret });
+
+      // Verify the secret is set (internal check)
+      expect(generator.secret).toBe(optionsSecret);
+    });
+
+    it('should accept secret via environment variable', () => {
+      const envSecret = 'environment-variable-secret';
+      const originalSecret = process.env.TRUST_TOKEN_SECRET;
+
+      // Set environment variable
+      process.env.TRUST_TOKEN_SECRET = envSecret;
+
+      const generator = new TrustTokenGenerator();
+
+      expect(generator.secret).toBe(envSecret);
+
+      // Restore
+      if (originalSecret === undefined) {
+        delete process.env.TRUST_TOKEN_SECRET;
+      } else {
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
+      }
     });
 
     it('should accept custom options', () => {
@@ -23,6 +59,27 @@ describe('TrustTokenGenerator', () => {
       });
       expect(customGenerator.defaultExpirationHours).toBe(48);
       expect(customGenerator.defaultVersion).toBe('2.0');
+    });
+
+    it('should work across different deployment environments', () => {
+      // Test with various secret formats (simulating different environments)
+      const secrets = [
+        'simple-secret',
+        'complex-secret-with-dashes-and-123',
+        'Base64EncodedSecretHere==',
+        'a'.repeat(32), // 32 character secret
+        'very-long-secret-key-that-might-be-used-in-production-environments-for-maximum-security',
+      ];
+
+      for (const secret of secrets) {
+        const generator = new TrustTokenGenerator({ secret });
+        expect(generator.secret).toBe(secret);
+
+        // Verify it can generate and validate tokens
+        const token = generator.generateToken('test', 'test', ['test']);
+        const validation = generator.validateToken(token);
+        expect(validation.isValid).toBe(true);
+      }
     });
   });
 
