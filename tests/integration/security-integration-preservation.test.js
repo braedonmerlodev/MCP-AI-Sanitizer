@@ -25,7 +25,7 @@ jest.mock('pdfjs-dist', () => ({
   GlobalWorkerOptions: { workerSrc: '' },
 }));
 
-jest.mock('../../components/MarkdownConverter', () => {
+jest.mock('../../src/components/MarkdownConverter', () => {
   const MockMarkdownConverter = jest.fn();
   MockMarkdownConverter.mockImplementation(() => ({
     convert: jest
@@ -35,12 +35,14 @@ jest.mock('../../components/MarkdownConverter', () => {
   return MockMarkdownConverter;
 });
 
-jest.mock('../../middleware/AccessValidationMiddleware', () => jest.fn((req, res, next) => next()));
-jest.mock('../../components/AccessControlEnforcer', () => ({
+jest.mock('../../src/middleware/AccessValidationMiddleware', () =>
+  jest.fn((req, res, next) => next()),
+);
+jest.mock('../../src/components/AccessControlEnforcer', () => ({
   enforce: jest.fn().mockReturnValue({ allowed: true }),
 }));
 
-jest.mock('../../components/TrustTokenGenerator', () => {
+jest.mock('../../src/components/TrustTokenGenerator', () => {
   return jest.fn().mockImplementation(() => ({
     generateToken: jest.fn().mockReturnValue({
       contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
@@ -57,39 +59,8 @@ jest.mock('../../components/TrustTokenGenerator', () => {
 
 const request = require('supertest');
 const express = require('express');
-const apiRoutes = require('../../routes/api');
-const jobStatusRoutes = require('../../routes/jobStatus');
-
-jest.mock('../../middleware/AccessValidationMiddleware', () => jest.fn((req, res, next) => next()));
-jest.mock('../../components/AccessControlEnforcer', () => ({
-  enforce: jest.fn().mockReturnValue({ allowed: true }),
-}));
-
-jest.mock('../../components/TrustTokenGenerator', () => {
-  return jest.fn().mockImplementation(() => ({
-    generateToken: jest.fn().mockReturnValue({
-      contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
-      originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
-      sanitizationVersion: '1.0',
-      rulesApplied: ['symbol_stripping'],
-      timestamp: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-      signature: 'mock-signature',
-    }),
-    validateToken: jest.fn().mockReturnValue({ isValid: true }),
-  }));
-});
-
-jest.mock('../../components/MarkdownConverter', () => ({
-  convert: jest
-    .fn()
-    .mockReturnValue('# Test PDF Content\n\nThis is test PDF content for integration testing.'),
-}));
-
-jest.mock('../../middleware/AccessValidationMiddleware', () => jest.fn((req, res, next) => next()));
-jest.mock('../../components/AccessControlEnforcer', () => ({
-  enforce: jest.fn().mockReturnValue({ allowed: true }),
-}));
+const apiRoutes = require('../../src/routes/api');
+const jobStatusRoutes = require('../../src/routes/jobStatus');
 
 describe('Security Integration Preservation Tests - Story 1.1.4', () => {
   let app;
@@ -97,7 +68,7 @@ describe('Security Integration Preservation Tests - Story 1.1.4', () => {
 
   beforeAll(() => {
     // Initialize trust token generator
-    const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+    const TrustTokenGenerator = require('../../src/components/TrustTokenGenerator');
     trustTokenGenerator = new TrustTokenGenerator();
   });
 
