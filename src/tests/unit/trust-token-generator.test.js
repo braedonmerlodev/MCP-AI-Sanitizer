@@ -10,9 +10,18 @@ describe('TrustTokenGenerator', () => {
 
   describe('constructor', () => {
     it('should throw error if no secret provided', () => {
+      // Temporarily unset environment variable for this test
+      const originalSecret = process.env.TRUST_TOKEN_SECRET;
+      delete process.env.TRUST_TOKEN_SECRET;
+
       expect(() => new TrustTokenGenerator()).toThrow(
         'TRUST_TOKEN_SECRET environment variable must be set',
       );
+
+      // Restore environment variable
+      if (originalSecret !== undefined) {
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
+      }
     });
 
     it('should accept custom options', () => {
