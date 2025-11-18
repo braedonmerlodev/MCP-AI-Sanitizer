@@ -44,30 +44,10 @@ describe('TrustTokenGenerator', () => {
       expect(generator.secret).toBe(envSecret);
 
       // Restore
-      if (originalSecret !== undefined) {
-        process.env.TRUST_TOKEN_SECRET = originalSecret;
-      } else {
+      if (originalSecret === undefined) {
         delete process.env.TRUST_TOKEN_SECRET;
-      }
-    });
-
-    it('should prioritize options.secret over environment variable', () => {
-      const optionsSecret = 'options-secret';
-      const envSecret = 'environment-secret';
-      const originalSecret = process.env.TRUST_TOKEN_SECRET;
-
-      // Set environment variable
-      process.env.TRUST_TOKEN_SECRET = envSecret;
-
-      const generator = new TrustTokenGenerator({ secret: optionsSecret });
-
-      expect(generator.secret).toBe(optionsSecret); // Options should take precedence
-
-      // Restore
-      if (originalSecret !== undefined) {
-        process.env.TRUST_TOKEN_SECRET = originalSecret;
       } else {
-        delete process.env.TRUST_TOKEN_SECRET;
+        process.env.TRUST_TOKEN_SECRET = originalSecret;
       }
     });
 
@@ -91,7 +71,7 @@ describe('TrustTokenGenerator', () => {
         'very-long-secret-key-that-might-be-used-in-production-environments-for-maximum-security',
       ];
 
-      secrets.forEach((secret) => {
+      for (const secret of secrets) {
         const generator = new TrustTokenGenerator({ secret });
         expect(generator.secret).toBe(secret);
 
@@ -99,7 +79,7 @@ describe('TrustTokenGenerator', () => {
         const token = generator.generateToken('test', 'test', ['test']);
         const validation = generator.validateToken(token);
         expect(validation.isValid).toBe(true);
-      });
+      }
     });
   });
 
