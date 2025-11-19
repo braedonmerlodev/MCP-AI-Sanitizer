@@ -75,6 +75,9 @@ class AdminOverrideController {
    */
   activateOverride(req, res) {
     try {
+      // Clean expired overrides first
+      this._cleanExpiredOverrides();
+
       // Authenticate admin
       const auth = this.authenticateAdmin(req);
       if (!auth.isValid) {
@@ -238,6 +241,20 @@ class AdminOverrideController {
         return res.status(404).json({
           error: 'Override not found',
           message: 'The specified override does not exist or has expired',
+        });
+      }
+
+      // Check if override has expired
+      if (override.endTime <= new Date()) {
+        this.logger.info('Attempted deactivation of expired override', {
+          overrideId,
+          adminId,
+          endTime: override.endTime,
+        });
+        this.activeOverrides.delete(overrideId);
+        return res.status(404).json({
+          error: 'Override expired',
+          message: 'The specified override has expired',
         });
       }
 
