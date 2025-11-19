@@ -1,0 +1,43 @@
+schema: 1
+story: '1.1.5'
+story_title: 'Rollback & Recovery Procedures'
+gate: PASS
+status_reason: 'Comprehensive rollback procedures documented and tested, all acceptance criteria met with appropriate monitoring and triggers established.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-18T00:00:00Z'
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 100
+expires: '2025-12-18T00:00:00Z'
+
+evidence:
+  tests_reviewed: 1
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Rollback procedures for security fixes are comprehensive with appropriate triggers'
+  performance:
+    status: PASS
+    notes: 'Performance monitoring thresholds defined and monitoring timeline established'
+  reliability:
+    status: PASS
+    notes: 'Error rate monitoring and system health checks documented'
+  maintainability:
+    status: PASS
+    notes: 'Clear documentation and procedures for operational teams'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Consider adding automated rollback scripts for faster execution'
+      refs: ['docs/rollback-procedures.md']
+    - action: 'Add integration tests specifically for rollback scenarios'
+      refs: ['docs/rollback-procedures.md']

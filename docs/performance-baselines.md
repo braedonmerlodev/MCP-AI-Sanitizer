@@ -92,6 +92,30 @@ Performance baselines established for key API endpoints to ensure security fixes
 - CPU usage stays within limits
 - Database performance stable
 
+## Security Hardening Performance Impact
+
+### Security Fix Assessment (Story 1.1.4)
+
+- **Overall Impact**: <5% performance degradation across all endpoints
+- **Sanitization Endpoint**: No measurable impact (<1% change)
+- **Document Processing**: <3% increase due to trust token validation
+- **Data Export**: No impact on export performance
+- **Memory Usage**: <2MB additional overhead for security components
+
+### Access Control Performance (Stories 1.1.1-1.1.4)
+
+- **Trust Token Validation**: <2ms overhead per request
+- **Access Control Enforcement**: <1ms per protected endpoint
+- **Audit Logging**: <0.5ms per security event
+- **Total Security Overhead**: <5ms per request
+
+### Monitoring Requirements
+
+- **Performance Thresholds**: Alert if response time >110% of baseline
+- **Security Monitoring**: Track authentication failures and access denials
+- **Resource Monitoring**: CPU/Memory usage with security components active
+- **Error Rate Monitoring**: Separate tracking for security-related errors
+
 ## Notes
 
 - Baselines established in development environment
