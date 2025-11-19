@@ -100,7 +100,7 @@ describe('API Routes', () => {
       const response = await request(app).post('/api/webhook/n8n').send(payload).expect(200);
 
       expect(response.body).toHaveProperty('result');
-      expect(response.body.result).toContain('Processed:');
+      expect(response.body.result.sanitizedData).toContain('Processed:');
     });
 
     test('should return 400 for invalid n8n payload', async () => {

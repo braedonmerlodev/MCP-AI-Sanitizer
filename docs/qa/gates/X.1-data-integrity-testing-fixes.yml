@@ -1,0 +1,12 @@
+schema: 1
+story: X.1
+gate: CONCERNS
+status_reason: Acceptance criteria met but test isolation issues pose reliability risks for CI/CD.
+reviewer: Quinn
+updated: 2025-11-19T01:00:00Z
+top_issues:
+  - id: TEST-001
+    severity: medium
+    finding: Test isolation problems causing unreliable test runs due to persisted audit data.
+    suggested_action: Implement test cleanup or isolated test environments.
+waiver: { active: false }

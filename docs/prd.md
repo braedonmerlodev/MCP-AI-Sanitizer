@@ -221,6 +221,175 @@ Acceptance Criteria:
 3: Performance tests confirm <5% overhead and 100 RPS throughput.
 4: All tests pass before deployment.
 
+### Story 3.4 Data Integrity Testing Fixes
+
+As a developer, I want to fix data integrity testing issues in TrainingDataCollector.test.js, so that data collection, entropy calculation, and feature vector issues are resolved.
+
+Acceptance Criteria:
+
+1. Data collection issues in TrainingDataCollector.test.js are fixed.
+2. Entropy calculation testing is corrected.
+3. Feature vector issues are resolved.
+
+Story Points: 2
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to TrainingDataCollector.test.js
+- Restore previous test configurations
+
+Risk Assessment:
+
+- Medium risk: Potential for introducing bugs in data handling
+- Mitigation: Thorough testing before deployment
+
+Monitoring:
+
+- Monitor test execution times
+- Track data integrity metrics
+
+### Story 3.5 AI Configuration Testing Fixes
+
+As a developer, I want to fix AI configuration testing issues in ai-config.test.js, so that environment variable testing and dotenv mocking are corrected.
+
+Acceptance Criteria:
+
+1. Environment variable testing in ai-config.test.js is fixed.
+2. Dotenv mocking issues are resolved.
+
+Story Points: 1
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to ai-config.test.js
+- Restore previous environment configurations
+
+Risk Assessment:
+
+- Medium risk: Configuration changes could affect deployment
+- Mitigation: Test in staging environment
+
+Monitoring:
+
+- Monitor configuration loading times
+- Track environment variable errors
+
+### Story 3.6 Security Mechanism Testing Fixes
+
+As a developer, I want to fix security mechanism testing issues in reuse-security.test.js, so that HMAC generation and cryptographic testing are corrected.
+
+Acceptance Criteria:
+
+1. HMAC generation testing in reuse-security.test.js is fixed.
+2. Cryptographic testing issues are resolved.
+
+Story Points: 2
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to reuse-security.test.js
+- Restore previous security test configurations
+
+Risk Assessment:
+
+- Medium risk: Security fixes could introduce vulnerabilities if not properly tested
+- Mitigation: Security review before deployment
+
+Monitoring:
+
+- Monitor cryptographic operation times
+- Track security test failures
+
+### Story 3.7 Logging & Audit Testing Fixes
+
+As a developer, I want to fix logging and audit testing issues in hitl-escalation-logging.test.js, so that audit log accumulation and PII redaction testing are corrected.
+
+Acceptance Criteria:
+
+1. Audit log accumulation testing in hitl-escalation-logging.test.js is fixed.
+2. PII redaction testing issues are resolved.
+
+Story Points: 2
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to hitl-escalation-logging.test.js
+- Restore previous logging configurations
+
+Risk Assessment:
+
+- Medium risk: Logging changes could affect compliance
+- Mitigation: Audit log review
+
+Monitoring:
+
+- Monitor log accumulation rates
+- Track PII redaction accuracy
+
+### Story 3.8 Job Status & Async Workflow Testing Fixes
+
+As a developer, I want to fix job status and async workflow testing issues in jobStatus.test.js and async-workflow.test.js, so that HTTP status codes, job status API, and async workflow E2E tests are corrected.
+
+Acceptance Criteria:
+
+1. HTTP status codes testing in jobStatus.test.js is fixed.
+2. Job status API testing issues are resolved.
+3. Async workflow E2E tests in async-workflow.test.js are corrected.
+
+Story Points: 3
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to jobStatus.test.js and async-workflow.test.js
+- Restore previous job and workflow configurations
+
+Risk Assessment:
+
+- Medium risk: Async workflow changes could affect system reliability
+- Mitigation: Load testing before deployment
+
+Monitoring:
+
+- Monitor job status response times
+- Track async workflow completion rates
+
+### Story 3.9 Sanitization Pipeline Testing Fixes
+
+As a developer, I want to fix sanitization pipeline testing issues in conditional-sanitization.test.js, so that conditional sanitization integration tests are corrected.
+
+Acceptance Criteria:
+
+1. Conditional sanitization integration tests in conditional-sanitization.test.js are fixed.
+
+Story Points: 2
+Priority: High
+Risk Level: Medium
+
+Rollback Procedures:
+
+- Revert changes to conditional-sanitization.test.js
+- Restore previous sanitization configurations
+
+Risk Assessment:
+
+- Medium risk: Sanitization changes could affect security
+- Mitigation: Security testing
+
+Monitoring:
+
+- Monitor sanitization performance
+- Track test pass rates for sanitization
+
 ## Epic 4 Trust Token Architecture
 
 This epic implements the cryptographic trust token system for efficient content reuse while maintaining security guarantees. It delivers verifiable content integrity through hashing and digital signatures, enabling performance optimizations without compromising security.

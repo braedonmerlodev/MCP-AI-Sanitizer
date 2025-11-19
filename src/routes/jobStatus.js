@@ -13,7 +13,7 @@ const jobIdSchema = Joi.object({
 const validateTaskId = (req, res, next) => {
   const { error, value } = jobIdSchema.validate({ taskId: req.params.taskId });
   if (error) {
-    return res.status(400).json({ error: error.details[0].message });
+    return res.status(400).json({ error: 'Invalid taskId format' });
   }
   req.taskId = value.taskId;
   next();
@@ -39,12 +39,9 @@ router.delete('/:taskId', validateTaskId, JobStatusController.cancelJob);
 
 /**
  * GET /api/jobs/{taskId}
- * Legacy endpoint - redirects to status for backward compatibility
+ * Legacy endpoint - returns status for backward compatibility
  * @deprecated Use /api/jobs/{taskId}/status instead
  */
-router.get('/:taskId', validateTaskId, async (req, res) => {
-  // For backward compatibility, redirect to the status endpoint
-  res.redirect(301, `/api/jobs/${req.taskId}/status`);
-});
+router.get('/:taskId', validateTaskId, JobStatusController.getStatus);
 
 module.exports = router;

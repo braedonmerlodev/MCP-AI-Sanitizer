@@ -120,7 +120,7 @@ class ProxySanitizer {
     const outputSanitized = await this.sanitize(llmResponse, { ...options, operation: 'response' });
 
     logger.info('n8n webhook processed');
-    return { result: outputSanitized };
+    return { result: { sanitizedData: outputSanitized } };
   }
 
   /**

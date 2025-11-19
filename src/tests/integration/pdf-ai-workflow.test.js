@@ -1,7 +1,17 @@
 const request = require('supertest');
 const app = require('../../app');
+const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
 describe('PDF AI Workflow Integration Tests', () => {
+  let trustTokenGenerator;
+  let validTrustToken;
+
+  beforeAll(() => {
+    trustTokenGenerator = new TrustTokenGenerator();
+    validTrustToken = trustTokenGenerator.generateToken('test content', 'test content', ['test'], {
+      expirationHours: 1,
+    });
+  });
   describe('POST /api/documents/upload with AI transformation', () => {
     it('should process PDF with AI transformation and return structured JSON', async () => {
       // Create a simple test PDF buffer (mock)
@@ -12,6 +22,7 @@ describe('PDF AI Workflow Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/documents/upload?ai_transform=true&sync=true')
+        .set('x-trust-token', JSON.stringify(validTrustToken))
         .attach('pdf', testPdfBuffer, 'test.pdf')
         .expect(200);
 
@@ -30,6 +41,8 @@ describe('PDF AI Workflow Integration Tests', () => {
 
       await request(app)
         .post('/api/documents/upload?ai_transform=true&sync=true')
+        .set('x-trust-token', JSON.stringify(validTrustToken))
+        .set('x-trust-token', JSON.stringify(validTrustToken))
         .attach('pdf', invalidPdfBuffer, 'invalid.pdf')
         .expect(400); // Or 500 depending on error
 
@@ -44,6 +57,7 @@ describe('PDF AI Workflow Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/documents/upload?sync=true')
+        .set('x-trust-token', JSON.stringify(validTrustToken))
         .attach('pdf', testPdfBuffer, 'test.pdf')
         .expect(200);
 

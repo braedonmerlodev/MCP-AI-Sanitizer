@@ -438,11 +438,27 @@ describe('AuditLogger', () => {
   let auditLogger;
 
   beforeEach(() => {
-    // Use memory-only logging for tests
+    // Use test-specific log file to avoid persistence issues
     auditLogger = new AuditLogger({
       enableConsole: false,
       maxTrailSize: 100,
+      logFile: 'test-data-integrity-audit.log',
     });
+  });
+
+  afterEach(() => {
+    // Clear audit trail between tests to prevent isolation issues
+    if (auditLogger && auditLogger.auditTrail) {
+      auditLogger.auditTrail = [];
+    }
+
+    // Clean up test log file
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const testLogFile = path.join(process.cwd(), 'test-data-integrity-audit.log');
+    if (fs.existsSync(testLogFile)) {
+      fs.unlinkSync(testLogFile);
+    }
   });
 
   describe('logOperation', () => {

@@ -30,6 +30,7 @@ class TrustTokenGenerator {
     const originalHash = crypto.createHash('sha256').update(originalContent).digest('hex');
     const timestamp = new Date();
     const expiresAt = new Date(timestamp.getTime() + expirationHours * 60 * 60 * 1000);
+    const nonce = Math.random().toString(36).slice(2);
 
     // Create signature payload (exclude signature itself)
     const signaturePayload = {
@@ -39,6 +40,7 @@ class TrustTokenGenerator {
       rulesApplied,
       timestamp: timestamp.toISOString(),
       expiresAt: expiresAt.toISOString(),
+      nonce,
     };
 
     const signature = crypto
@@ -54,6 +56,7 @@ class TrustTokenGenerator {
       timestamp,
       expiresAt,
       signature,
+      nonce,
     };
   }
 
@@ -73,6 +76,7 @@ class TrustTokenGenerator {
         'timestamp',
         'expiresAt',
         'signature',
+        'nonce',
       ];
       for (const field of requiredFields) {
         if (!token[field]) {
@@ -94,6 +98,7 @@ class TrustTokenGenerator {
         rulesApplied: token.rulesApplied,
         timestamp: token.timestamp,
         expiresAt: token.expiresAt,
+        nonce: token.nonce,
       };
 
       // Verify signature

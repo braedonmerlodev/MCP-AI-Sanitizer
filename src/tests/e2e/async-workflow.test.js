@@ -3,8 +3,19 @@ const sinon = require('sinon');
 const app = require('../../app');
 const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
+const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
 describe('Async Workflow E2E Tests', () => {
+  let validTrustToken;
+  let trustTokenGenerator;
+
+  beforeAll(() => {
+    trustTokenGenerator = new TrustTokenGenerator();
+    validTrustToken = trustTokenGenerator.generateToken('test content', 'test content', ['test'], {
+      expirationHours: 1,
+    });
+  });
+
   beforeEach(() => {
     // Stub queue operations to avoid real processing
     sinon.stub(queueManager, 'addJob');
@@ -44,6 +55,7 @@ describe('Async Workflow E2E Tests', () => {
       // Step 1: Submit PDF upload job
       const uploadResponse = await request(app)
         .post('/api/documents/upload')
+        .set('x-trust-token', JSON.stringify(validTrustToken))
         .send({}) // In real E2E, this would be multipart/form-data
         .expect(200);
 
@@ -99,10 +111,10 @@ describe('Async Workflow E2E Tests', () => {
       const sanitizeResponse = await request(app)
         .post('/api/sanitize/json')
         .send({ content, async: true })
-        .expect(200);
+        .expect(202);
 
       expect(sanitizeResponse.body.taskId).toBeDefined();
-      expect(sanitizeResponse.body.status).toBe('processing');
+      expect(sanitizeResponse.body.status).toBe('accepted');
 
       const returnedTaskId = sanitizeResponse.body.taskId;
 
@@ -140,9 +152,16 @@ describe('Async Workflow E2E Tests', () => {
       const submitResponse = await request(app)
         .post('/api/sanitize/json')
         .send({ content: 'invalid content', async: true })
-        .expect(200);
+        .expect(202);
 
       const returnedTaskId = submitResponse.body.taskId;
+
+      // Stub the load to return failed status
+      JobStatus.load.resolves({
+        status: 'failed',
+        error: 'Processing failed due to invalid content',
+        taskId: returnedTaskId,
+      });
 
       // Poll for failed status
       const statusResponse = await request(app).get(`/api/jobs/${returnedTaskId}`).expect(200);

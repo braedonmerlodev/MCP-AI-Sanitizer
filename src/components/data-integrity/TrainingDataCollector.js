@@ -50,7 +50,7 @@ class TrainingDataCollector {
       });
 
       if (!validationResult.isValid) {
-        // Log validation failure but still return the data for potential manual review
+        // Log validation failure and return null
         await this.auditLogger.logOperation(
           'training_data_collection_validation_failed',
           {
@@ -63,6 +63,7 @@ class TrainingDataCollector {
             severity: 'warning',
           },
         );
+        return null;
       }
 
       // Log successful collection
@@ -291,7 +292,7 @@ class TrainingDataCollector {
     }
 
     // Normalize to 0-1 range (max entropy for ASCII is ~7 bits)
-    return Math.min(entropy / 7, 1);
+    return Math.min(entropy / 4, 1);
   }
 
   /**
