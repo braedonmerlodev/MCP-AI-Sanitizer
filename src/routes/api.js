@@ -418,7 +418,7 @@ router.post(
       const totalTime = Number(process.hrtime.bigint() - startTime) / 1e6;
       const metadata = {
         originalLength: value.content.length,
-        sanitizedLength: result.sanitizedData.length,
+        sanitizedLength: result.length,
         timestamp: new Date().toISOString(),
         reused: false,
         aiProcessing: aiProcessingMetadata,
@@ -435,7 +435,7 @@ router.post(
         resourceId: result.trustToken?.contentHash || 'unknown',
         details: {
           originalLength: value.content.length,
-          sanitizedLength: result.sanitizedData.length,
+          sanitizedLength: result.length,
           totalTimeMs: totalTime,
           classification: value.classification || req.destinationTracking.classification,
           trustTokenGenerated: !!result.trustToken,
@@ -473,9 +473,11 @@ router.post(
         (globalThis.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
       globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
+      const sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
+      const trustToken = typeof result === 'string' ? null : result.trustToken;
       res.json({
-        sanitizedContent: result.sanitizedData,
-        trustToken: result.trustToken,
+        sanitizedContent,
+        trustToken,
         metadata,
       });
     } catch (err) {

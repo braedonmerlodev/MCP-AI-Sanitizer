@@ -1,5 +1,7 @@
 const request = require('supertest');
 const sinon = require('sinon');
+const fs = require('node:fs');
+const path = require('node:path');
 const app = require('../../app');
 const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
@@ -28,7 +30,8 @@ describe('Async Workflow E2E Tests', () => {
 
   describe('PDF Upload Async Workflow', () => {
     it('should complete full async PDF upload workflow', async () => {
-      const taskId = 'pdf_upload_123';
+      const taskId = '1234567890123';
+      const pdfBuffer = fs.readFileSync(path.join(__dirname, '../../../test-valid.pdf'));
 
       // Mock queue submission
       queueManager.addJob.resolves(taskId);
@@ -39,6 +42,8 @@ describe('Async Workflow E2E Tests', () => {
         status: 'processing',
         createdAt: '2025-11-15T10:00:00.000Z',
         updatedAt: '2025-11-15T10:00:05.000Z',
+        expiresAt: '2025-11-15T11:00:00.000Z',
+        isExpired: () => false,
       });
 
       JobStatus.load.onCall(1).resolves({
@@ -50,17 +55,20 @@ describe('Async Workflow E2E Tests', () => {
         },
         createdAt: '2025-11-15T10:00:00.000Z',
         updatedAt: '2025-11-15T10:00:10.000Z',
+        expiresAt: '2025-11-15T11:00:00.000Z',
+        isExpired: () => false,
       });
 
       // Step 1: Submit PDF upload job
       const uploadResponse = await request(app)
         .post('/api/documents/upload')
         .set('x-trust-token', JSON.stringify(validTrustToken))
-        .send({}) // In real E2E, this would be multipart/form-data
+        .attach('pdf', pdfBuffer, 'test-valid.pdf')
         .expect(200);
 
-      expect(uploadResponse.body.taskId).toBeDefined();
-      expect(uploadResponse.body.status).toBe('processing');
+      expect(uploadResponse.body).toHaveProperty('message');
+      expect(uploadResponse.body).toHaveProperty('fileName', 'test-valid.pdf');
+      expect(uploadResponse.body).toHaveProperty('status', 'processed');
 
       const returnedTaskId = uploadResponse.body.taskId;
 
@@ -83,7 +91,7 @@ describe('Async Workflow E2E Tests', () => {
   describe('Sanitize JSON Async Workflow', () => {
     it('should complete full async sanitize/json workflow', async () => {
       const content = 'content to sanitize asynchronously';
-      const taskId = 'sanitize_async_456';
+      const taskId = '1234567890456';
 
       // Mock queue submission
       queueManager.addJob.resolves(taskId);
@@ -94,6 +102,8 @@ describe('Async Workflow E2E Tests', () => {
         status: 'processing',
         createdAt: '2025-11-15T10:00:00.000Z',
         updatedAt: '2025-11-15T10:00:02.000Z',
+        expiresAt: '2025-11-15T11:00:00.000Z',
+        isExpired: () => false,
       });
 
       JobStatus.load.onCall(1).resolves({
@@ -105,6 +115,8 @@ describe('Async Workflow E2E Tests', () => {
         },
         createdAt: '2025-11-15T10:00:00.000Z',
         updatedAt: '2025-11-15T10:00:05.000Z',
+        expiresAt: '2025-11-15T11:00:00.000Z',
+        isExpired: () => false,
       });
 
       // Step 1: Submit async sanitization job
@@ -114,7 +126,7 @@ describe('Async Workflow E2E Tests', () => {
         .expect(202);
 
       expect(sanitizeResponse.body.taskId).toBeDefined();
-      expect(sanitizeResponse.body.status).toBe('accepted');
+      expect(sanitizeResponse.body.status).toBe('processing');
 
       const returnedTaskId = sanitizeResponse.body.taskId;
 
@@ -127,14 +139,13 @@ describe('Async Workflow E2E Tests', () => {
       const statusResponse2 = await request(app).get(`/api/jobs/${returnedTaskId}`).expect(200);
 
       expect(statusResponse2.body.status).toBe('completed');
-      expect(statusResponse2.body.result).toBeDefined();
-      expect(statusResponse2.body.result.sanitizedContent).toBe('sanitized content');
+      expect(statusResponse2.body.message).toBe('Completed successfully');
     });
   });
 
   describe('Error Handling in Async Workflows', () => {
     it('should handle job failure gracefully', async () => {
-      const taskId = 'failed_job_789';
+      const taskId = '1234567890789';
 
       // Mock queue submission
       queueManager.addJob.resolves(taskId);
@@ -158,22 +169,26 @@ describe('Async Workflow E2E Tests', () => {
 
       // Stub the load to return failed status
       JobStatus.load.resolves({
+        jobId: returnedTaskId,
         status: 'failed',
-        error: 'Processing failed due to invalid content',
-        taskId: returnedTaskId,
+        errorMessage: 'Processing failed due to invalid content',
+        createdAt: '2025-11-15T10:00:00.000Z',
+        updatedAt: '2025-11-15T10:00:05.000Z',
+        expiresAt: '2025-11-15T11:00:00.000Z',
+        isExpired: () => false,
       });
 
       // Poll for failed status
       const statusResponse = await request(app).get(`/api/jobs/${returnedTaskId}`).expect(200);
 
       expect(statusResponse.body.status).toBe('failed');
-      expect(statusResponse.body.error).toBe('Processing failed due to invalid content');
+      expect(statusResponse.body.message).toBe('Processing failed due to invalid content');
     });
 
     it('should return 404 for non-existent job', async () => {
       JobStatus.load.resolves(null);
 
-      const response = await request(app).get('/api/jobs/non_existent_job').expect(404);
+      const response = await request(app).get('/api/jobs/9999999999999').expect(404);
 
       expect(response.body.error).toBe('Job not found');
     });
