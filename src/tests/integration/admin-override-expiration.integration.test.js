@@ -175,13 +175,13 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       controller.maxConcurrentOverrides = 1;
 
       // Activate with minimum duration
-      mockReq.body = { justification: 'Min duration test', duration: 60000 }; // 1 minute
+      mockReq.body = { justification: 'Min duration test', duration: 60_000 }; // 1 minute
       controller.activateOverride(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Admin override activated successfully',
-          duration: 60000,
+          duration: 60_000,
         }),
       );
 
@@ -192,13 +192,13 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       controller.maxConcurrentOverrides = 1;
 
       // Activate with max duration
-      mockReq.body = { justification: 'Max duration test', duration: 3600000 }; // 1 hour
+      mockReq.body = { justification: 'Max duration test', duration: 3_600_000 }; // 1 hour
       controller.activateOverride(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Admin override activated successfully',
-          duration: 3600000,
+          duration: 3_600_000,
         }),
       );
 
