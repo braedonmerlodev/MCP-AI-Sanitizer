@@ -1,5 +1,7 @@
 const request = require('supertest');
 const sinon = require('sinon');
+const fs = require('fs');
+const path = require('path');
 const app = require('../../app');
 const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
@@ -27,8 +29,9 @@ describe('Async Workflow E2E Tests', () => {
   });
 
   describe('PDF Upload Async Workflow', () => {
-    it.skip('should complete full async PDF upload workflow', async () => {
+    it('should complete full async PDF upload workflow', async () => {
       const taskId = '1234567890123';
+      const pdfBuffer = fs.readFileSync(path.join(__dirname, '../../../test-valid.pdf'));
 
       // Mock queue submission
       queueManager.addJob.resolves(taskId);
@@ -60,11 +63,12 @@ describe('Async Workflow E2E Tests', () => {
       const uploadResponse = await request(app)
         .post('/api/documents/upload')
         .set('x-trust-token', JSON.stringify(validTrustToken))
-        .send({}) // In real E2E, this would be multipart/form-data
+        .attach('pdf', pdfBuffer, 'test-valid.pdf')
         .expect(200);
 
-      expect(uploadResponse.body.taskId).toBeDefined();
-      expect(uploadResponse.body.status).toBe('processing');
+      expect(uploadResponse.body).toHaveProperty('message');
+      expect(uploadResponse.body).toHaveProperty('fileName', 'test-valid.pdf');
+      expect(uploadResponse.body).toHaveProperty('status', 'processed');
 
       const returnedTaskId = uploadResponse.body.taskId;
 

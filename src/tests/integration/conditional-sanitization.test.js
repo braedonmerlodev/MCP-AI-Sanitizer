@@ -7,24 +7,24 @@ app.use(express.json());
 app.use('/api', apiRoutes);
 
 describe('Conditional Sanitization Integration', () => {
-  test('should sanitize LLM-bound requests via /sanitize', async () => {
+  test('should sanitize LLM-bound requests via /sanitize/json', async () => {
     const response = await request(app)
-      .post('/api/sanitize')
+      .post('/api/sanitize/json')
       .set('X-Destination', 'llm')
-      .send({ data: 'Hello\u200Bworld' });
+      .send({ content: 'Hello\u200Bworld' });
 
     expect(response.status).toBe(200);
-    expect(response.body.sanitizedData).toBe('Helloworld');
+    expect(response.body.sanitizedContent).toBe('Helloworld');
   });
 
-  test('should bypass sanitization for non-LLM requests via /sanitize', async () => {
+  test('should bypass sanitization for non-LLM requests via /sanitize/json', async () => {
     const response = await request(app)
-      .post('/api/sanitize')
+      .post('/api/sanitize/json')
       .set('X-Destination', 'tool')
-      .send({ data: 'Hello\u200Bworld' });
+      .send({ content: 'Hello\u200Bworld' });
 
     expect(response.status).toBe(200);
-    expect(response.body.sanitizedData).toBe('Hello\u200Bworld');
+    expect(response.body.sanitizedContent).toBe('Hello\u200Bworld');
   });
 
   test('should sanitize LLM requests via /webhook/n8n', async () => {
@@ -50,9 +50,11 @@ describe('Conditional Sanitization Integration', () => {
   });
 
   test('should default to sanitization for unclear requests', async () => {
-    const response = await request(app).post('/api/sanitize').send({ data: 'Hello\u200Bworld' });
+    const response = await request(app)
+      .post('/api/sanitize/json')
+      .send({ content: 'Hello\u200Bworld' });
 
     expect(response.status).toBe(200);
-    expect(response.body.sanitizedData).toBe('Helloworld');
+    expect(response.body.sanitizedContent).toBe('Helloworld');
   });
 });
