@@ -19,7 +19,7 @@ function normalizeKeys(obj, targetCase) {
       if (targetCase === 'camelCase') {
         newKey = key.replaceAll(/_([a-z])/g, (match, letter) => letter.toUpperCase());
       } else if (targetCase === 'snake_case') {
-        newKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        newKey = key.replaceAll(/([A-Z])/g, '_$1').toLowerCase();
       }
       normalized[newKey] = normalizeKeys(obj[key], targetCase);
     }
