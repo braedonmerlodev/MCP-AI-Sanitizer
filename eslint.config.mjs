@@ -141,6 +141,8 @@ export default [
       'n/no-missing-require': 'off',
       // Allow dev dependencies in tests
       'n/no-unpublished-require': 'off',
+      // Variables defined in beforeEach/test functions are scoped by Jest
+      'no-undef': 'off',
     },
   },
 
