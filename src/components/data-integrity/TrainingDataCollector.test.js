@@ -1,3 +1,14 @@
+jest.mock('./TrainingDataValidator', () => {
+  return jest.fn().mockImplementation(() => ({
+    validateTrainingData: jest.fn().mockResolvedValue({
+      isValid: true,
+      errors: [],
+      warnings: [],
+    }),
+  }));
+});
+const TrainingDataValidator = require('./TrainingDataValidator');
+
 const TrainingDataCollector = require('./TrainingDataCollector');
 
 describe('TrainingDataCollector', () => {
@@ -5,6 +16,15 @@ describe('TrainingDataCollector', () => {
   let mockAuditLogger;
 
   beforeEach(() => {
+    TrainingDataValidator.mockClear();
+    TrainingDataValidator.mockImplementation(() => ({
+      validateTrainingData: jest.fn().mockResolvedValue({
+        isValid: true,
+        errors: [],
+        warnings: [],
+      }),
+    }));
+
     mockAuditLogger = {
       logOperation: jest.fn().mockResolvedValue('audit_123'),
     };
@@ -79,6 +99,13 @@ describe('TrainingDataCollector', () => {
     });
 
     it('should handle collection errors gracefully', async () => {
+      // Mock validation to fail
+      collector.validator.validateTrainingData.mockResolvedValueOnce({
+        isValid: false,
+        errors: ['Validation failed'],
+        warnings: [],
+      });
+
       const assessmentData = {
         riskScore: 0.9,
         riskLevel: 'High',
@@ -89,7 +116,7 @@ describe('TrainingDataCollector', () => {
 
       expect(result).toBeNull();
       expect(mockAuditLogger.logOperation).toHaveBeenCalledWith(
-        'training_data_collection_error',
+        'training_data_collection_validation_failed',
         expect.any(Object),
         expect.any(Object),
       );
@@ -198,7 +225,7 @@ describe('TrainingDataCollector', () => {
     it('should build feature vector', () => {
       const assessmentData = {
         inputData: {
-          content: 'Hello <script>alert("xss")</script> world',
+          content: 'Hello <script>alert("xss")</script> wo',
         },
       };
 

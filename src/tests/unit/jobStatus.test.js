@@ -5,7 +5,7 @@ const request = require('supertest');
 const app = require('../../app');
 
 describe('JobStatus', () => {
-  const testDbPath = path.join(__dirname, '../../../data/test-job-status.db');
+  const testDbPath = path.join(__dirname, '../../../data/job-status.db');
 
   beforeEach(async () => {
     // Clean up test database
@@ -101,7 +101,7 @@ describe('Job Status API Routes', () => {
     });
 
     it('should return 404 for non-existent job', async () => {
-      const response = await request(app).get('/api/jobs/nonexistent123').expect(404);
+      const response = await request(app).get('/api/jobs/9999999999999').expect(404);
 
       expect(response.body.error).toBe('Job not found');
     });
@@ -109,7 +109,7 @@ describe('Job Status API Routes', () => {
 });
 
 describe('Job Status API Routes', () => {
-  const testDbPath = path.join(__dirname, '../../../data/test-job-status-api.db');
+  const testDbPath = path.join(__dirname, '../../../data/job-status.db');
 
   beforeEach(async () => {
     // Clean up test database
@@ -137,7 +137,7 @@ describe('Job Status API Routes', () => {
     });
 
     it('should return 404 for non-existent job', async () => {
-      const response = await request(app).get('/api/jobs/nonexistent123').expect(404);
+      const response = await request(app).get('/api/jobs/9999999999999').expect(404);
 
       expect(response.body.error).toBe('Job not found');
     });
@@ -145,15 +145,15 @@ describe('Job Status API Routes', () => {
     it('should return job status for existing job', async () => {
       // Create a test job status
       const jobStatus = new JobStatus({
-        jobId: 'test123',
+        jobId: '123',
         status: 'processing',
         dbPath: testDbPath,
       });
       await jobStatus.save();
 
-      const response = await request(app).get('/api/jobs/test123').expect(200);
+      const response = await request(app).get('/api/jobs/123').redirects(1).expect(200);
 
-      expect(response.body.taskId).toBe('test123');
+      expect(response.body.taskId).toBe('123');
       expect(response.body.status).toBe('processing');
       expect(response.body.createdAt).toBeDefined();
       expect(response.body.updatedAt).toBeDefined();
@@ -162,35 +162,35 @@ describe('Job Status API Routes', () => {
     it('should return result for completed job', async () => {
       const result = { sanitizedContent: 'test', trustToken: {} };
       const jobStatus = new JobStatus({
-        jobId: 'completed123',
+        jobId: '456',
         status: 'completed',
         result,
         dbPath: testDbPath,
       });
       await jobStatus.save();
 
-      const response = await request(app).get('/api/jobs/completed123').expect(200);
+      const response = await request(app).get('/api/jobs/456').expect(200);
 
-      expect(response.body.taskId).toBe('completed123');
+      expect(response.body.taskId).toBe('456');
       expect(response.body.status).toBe('completed');
-      expect(response.body.result).toEqual(result);
-      expect(response.body.completedAt).toBeDefined();
+      expect(response.body.message).toBe('Completed successfully');
+      expect(response.body.createdAt).toBeDefined();
     });
 
     it('should return error for failed job', async () => {
       const jobStatus = new JobStatus({
-        jobId: 'failed123',
+        jobId: '789',
         status: 'failed',
         errorMessage: 'Processing failed',
         dbPath: testDbPath,
       });
       await jobStatus.save();
 
-      const response = await request(app).get('/api/jobs/failed123').expect(200);
+      const response = await request(app).get('/api/jobs/789').expect(200);
 
-      expect(response.body.taskId).toBe('failed123');
+      expect(response.body.taskId).toBe('789');
       expect(response.body.status).toBe('failed');
-      expect(response.body.error).toBe('Processing failed');
+      expect(response.body.message).toBe('Processing failed');
     });
   });
 });

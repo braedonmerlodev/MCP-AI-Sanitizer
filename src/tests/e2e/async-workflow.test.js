@@ -5,6 +5,16 @@ const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
 
 describe('Async Workflow E2E Tests', () => {
+  const validTrustToken = {
+    contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+    originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
+    sanitizationVersion: '1.0',
+    rulesApplied: ['symbol_stripping'],
+    timestamp: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    signature: 'mock-signature',
+  };
+
   beforeEach(() => {
     // Stub queue operations to avoid real processing
     sinon.stub(queueManager, 'addJob');
@@ -44,6 +54,7 @@ describe('Async Workflow E2E Tests', () => {
       // Step 1: Submit PDF upload job
       const uploadResponse = await request(app)
         .post('/api/documents/upload')
+        .set('x-trust-token', JSON.stringify(validTrustToken))
         .send({}) // In real E2E, this would be multipart/form-data
         .expect(200);
 
@@ -99,10 +110,10 @@ describe('Async Workflow E2E Tests', () => {
       const sanitizeResponse = await request(app)
         .post('/api/sanitize/json')
         .send({ content, async: true })
-        .expect(200);
+        .expect(202);
 
       expect(sanitizeResponse.body.taskId).toBeDefined();
-      expect(sanitizeResponse.body.status).toBe('processing');
+      expect(sanitizeResponse.body.status).toBe('accepted');
 
       const returnedTaskId = sanitizeResponse.body.taskId;
 
@@ -140,7 +151,7 @@ describe('Async Workflow E2E Tests', () => {
       const submitResponse = await request(app)
         .post('/api/sanitize/json')
         .send({ content: 'invalid content', async: true })
-        .expect(200);
+        .expect(202);
 
       const returnedTaskId = submitResponse.body.taskId;
 

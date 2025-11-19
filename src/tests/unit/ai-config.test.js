@@ -1,3 +1,8 @@
+// Mock dotenv before any requires
+jest.mock('dotenv', () => ({
+  config: jest.fn(),
+}));
+
 describe('AI Config', () => {
   const originalEnv = process.env.OPENAI_API_KEY;
 

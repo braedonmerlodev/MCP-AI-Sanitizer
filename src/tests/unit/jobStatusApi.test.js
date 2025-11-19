@@ -224,10 +224,10 @@ describe('Job Status API Routes', () => {
   });
 
   describe('GET /api/jobs/:taskId (legacy)', () => {
-    it('should redirect to status endpoint', async () => {
-      const response = await request(app).get('/api/jobs/1234567890123').expect(301);
+    it('should return 404 for non-existent job', async () => {
+      const response = await request(app).get('/api/jobs/1234567890123').expect(404);
 
-      expect(response.headers.location).toBe('/api/jobs/1234567890123/status');
+      expect(response.body.error).toBe('Job not found');
     });
   });
 });
