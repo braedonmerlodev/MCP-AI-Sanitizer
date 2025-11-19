@@ -36,6 +36,19 @@ describe('TrainingDataCollector', () => {
     });
   });
 
+  afterEach(() => {
+    // Clean up any persisted audit data between tests
+    jest.clearAllMocks();
+
+    // Reset TrainingDataValidator mock
+    TrainingDataValidator.mockClear();
+
+    // Clear any global test state
+    if (global.testState) {
+      delete global.testState;
+    }
+  });
+
   describe('collectTrainingData', () => {
     it('should collect training data for high-risk assessment', async () => {
       const assessmentData = {
