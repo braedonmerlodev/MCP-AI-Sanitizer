@@ -253,130 +253,124 @@ describe('AdminOverrideController', () => {
         error: 'Override expired',
         message: 'The specified override has expired',
       });
+    });
   });
 
-});
+  describe('getOverrideStatus', () => {
+    it('should return empty status when no overrides active', () => {
+      controller.getOverrideStatus(mockReq, mockRes);
 
-describe('getOverrideStatus', () => {
+      expect(mockRes.json).toHaveBeenCalledWith({
+        activeOverrides: 0,
 
-  it('should return empty status when no overrides active', () => {
+        maxConcurrent: 1,
 
-    controller.getOverrideStatus(mockReq, mockRes);
-
-    expect(mockRes.json).toHaveBeenCalledWith({
-
-      activeOverrides: 0,
-
-      maxConcurrent: 1,
-
-      overrides: [],
-
+        overrides: [],
+      });
     });
 
+    it('should return active override status', () => {
+      // Activate override
+      mockReq.body = { justification: 'Status test' };
+      controller.activateOverride(mockReq, mockRes);
+
+      // Reset mocks and get status
+      mockRes.json.mockClear();
+      controller.getOverrideStatus(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalledWith({
+        activeOverrides: 1,
+        maxConcurrent: 1,
+        overrides: expect.arrayContaining([
+          expect.objectContaining({
+            adminId: 'admin-user-1',
+            justification: 'Status test',
+            timeRemaining: expect.any(Number),
+          }),
+        ]),
+      });
+    });
   });
 
-  it('should return active override status', () => {
-    // Activate override
-    mockReq.body = { justification: 'Status test' };
-    controller.activateOverride(mockReq, mockRes);
+  describe('isOverrideActive', () => {
+    it('should return false when no overrides exist', () => {
+      expect(controller.isOverrideActive()).toBe(false);
+    });
 
-    // Reset mocks and get status
-    mockRes.json.mockClear();
-    controller.getOverrideStatus(mockReq, mockRes);
+    it('should return true when override is active', () => {
+      mockReq.body = { justification: 'Active test' };
+      controller.activateOverride(mockReq, mockRes);
 
-    expect(mockRes.json).toHaveBeenCalledWith({
-      activeOverrides: 1,
-      maxConcurrent: 1,
-      overrides: expect.arrayContaining([
+      expect(controller.isOverrideActive()).toBe(true);
+    });
+
+    it('should return false after manual expiration simulation', () => {
+      // Create a fresh controller for this test
+      const testController = new AdminOverrideController({
+        logger: mockLogger,
+        adminAuthSecret: 'test-admin-secret',
+      });
+      testController.auditLogger = mockAuditLogger;
+
+      mockReq.body = { justification: 'Expiration test' };
+      testController.activateOverride(mockReq, mockRes);
+
+      // Verify override is active initially
+      expect(testController.isOverrideActive()).toBe(true);
+
+      // Manually expire the override by setting endTime to past
+      const overrideId = testController.activeOverrides.keys().next().value;
+      const override = testController.activeOverrides.get(overrideId);
+      override.endTime = new Date(Date.now() - 1000); // Set to 1 second ago
+
+      // Check again - should clean up expired override
+      expect(testController.isOverrideActive()).toBe(false);
+    });
+  });
+
+  describe('getActiveOverride', () => {
+    it('should return null when no overrides active', () => {
+      expect(controller.getActiveOverride()).toBe(null);
+    });
+
+    it('should return active override details', () => {
+      mockReq.body = { justification: 'Get active test' };
+      controller.activateOverride(mockReq, mockRes);
+
+      const active = controller.getActiveOverride();
+      expect(active).toEqual(
         expect.objectContaining({
           adminId: 'admin-user-1',
-          justification: 'Status test',
-          timeRemaining: expect.any(Number),
+          justification: 'Get active test',
+          ipAddress: '127.0.0.1',
         }),
-      ]),
+      );
     });
   });
-});
 
-describe('isOverrideActive', () => {
-  it('should return false when no overrides exist', () => {
-    expect(controller.isOverrideActive()).toBe(false);
-  });
+  describe('automatic expiration', () => {
+    it('should clean expired overrides when _cleanExpiredOverrides is called', () => {
+      const testController = new AdminOverrideController({
+        logger: mockLogger,
+        adminAuthSecret: 'test-admin-secret',
+      });
+      testController.auditLogger = mockAuditLogger;
 
-  it('should return true when override is active', () => {
-    mockReq.body = { justification: 'Active test' };
-    controller.activateOverride(mockReq, mockRes);
+      mockReq.body = { justification: 'Cleanup test' };
+      testController.activateOverride(mockReq, mockRes);
 
-    expect(controller.isOverrideActive()).toBe(true);
-  });
+      expect(testController.activeOverrides.size).toBe(1);
 
-  it('should return false after manual expiration simulation', () => {
-    // Create a fresh controller for this test
-    const testController = new AdminOverrideController({
-      logger: mockLogger,
-      adminAuthSecret: 'test-admin-secret',
+      // Manually expire the override
+      const overrideId = testController.activeOverrides.keys().next().value;
+      const override = testController.activeOverrides.get(overrideId);
+      override.endTime = new Date(Date.now() - 1000); // Set to expired
+
+      // Call cleanup method
+      testController._cleanExpiredOverrides();
+
+      // Verify expired override was cleaned up
+      expect(testController.activeOverrides.size).toBe(0);
     });
-    testController.auditLogger = mockAuditLogger;
-
-    mockReq.body = { justification: 'Expiration test' };
-    testController.activateOverride(mockReq, mockRes);
-
-    // Verify override is active initially
-    expect(testController.isOverrideActive()).toBe(true);
-
-    // Manually expire the override by setting endTime to past
-    const overrideId = testController.activeOverrides.keys().next().value;
-    const override = testController.activeOverrides.get(overrideId);
-    override.endTime = new Date(Date.now() - 1000); // Set to 1 second ago
-
-    // Check again - should clean up expired override
-    expect(testController.isOverrideActive()).toBe(false);
   });
-});
-
-describe('getActiveOverride', () => {
-  it('should return null when no overrides active', () => {
-    expect(controller.getActiveOverride()).toBe(null);
-  });
-
-  it('should return active override details', () => {
-    mockReq.body = { justification: 'Get active test' };
-    controller.activateOverride(mockReq, mockRes);
-
-    const active = controller.getActiveOverride();
-    expect(active).toEqual(
-      expect.objectContaining({
-        adminId: 'admin-user-1',
-        justification: 'Get active test',
-        ipAddress: '127.0.0.1',
-      }),
-    );
-  });
-});
-
-describe('automatic expiration', () => {
-  it('should clean expired overrides when _cleanExpiredOverrides is called', () => {
-    const testController = new AdminOverrideController({
-      logger: mockLogger,
-      adminAuthSecret: 'test-admin-secret',
-    });
-    testController.auditLogger = mockAuditLogger;
-
-    mockReq.body = { justification: 'Cleanup test' };
-    testController.activateOverride(mockReq, mockRes);
-
-    expect(testController.activeOverrides.size).toBe(1);
-
-    // Manually expire the override
-    const overrideId = testController.activeOverrides.keys().next().value;
-    const override = testController.activeOverrides.get(overrideId);
-    override.endTime = new Date(Date.now() - 1000); // Set to expired
-
-    // Call cleanup method
-    testController._cleanExpiredOverrides();
-
-    // Verify expired override was cleaned up
-    expect(testController.activeOverrides.size).toBe(0);
-  });
-});
 });
