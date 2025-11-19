@@ -34,7 +34,7 @@ describe('Conditional Sanitization Integration', () => {
       .send({ data: 'Hello\u200Bworld' });
 
     expect(response.status).toBe(200);
-    expect(response.body.result).toBe('Processed: Helloworld');
+    expect(response.body.result.sanitizedData).toBe('Processed: Helloworld');
   });
 
   test('should bypass sanitization for non-LLM requests via /webhook/n8n', async () => {
@@ -44,7 +44,9 @@ describe('Conditional Sanitization Integration', () => {
       .send({ data: 'Test with zero-width: Hello\u200Bworld' });
 
     expect(response.status).toBe(200);
-    expect(response.body.result).toBe('Processed: Test with zero-width: Hello\u200Bworld');
+    expect(response.body.result.sanitizedData).toBe(
+      'Processed: Test with zero-width: Hello\u200Bworld',
+    );
   });
 
   test('should default to sanitization for unclear requests', async () => {

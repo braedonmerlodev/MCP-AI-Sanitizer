@@ -22,7 +22,8 @@ describe('n8n Webhook Integration', () => {
     const response = await request(app).post('/api/webhook/n8n').send(payload).expect(200);
 
     expect(response.body).toHaveProperty('result');
-    expect(response.body.result).toBe('processed-sanitized-test data');
+    expect(response.body.result).toHaveProperty('sanitizedData');
+    expect(response.body.result.sanitizedData).toBe('processed-sanitized-test data');
   });
 
   test('should apply input and output sanitization', async () => {
@@ -30,6 +31,6 @@ describe('n8n Webhook Integration', () => {
     const payload = { data: '<script>alert("xss")</script>' };
     const response = await request(app).post('/api/webhook/n8n').send(payload).expect(200);
 
-    expect(response.body.result).toContain('sanitized');
+    expect(response.body.result.sanitizedData).toContain('sanitized');
   });
 });

@@ -7,14 +7,16 @@ describe('AI Config', () => {
   const originalEnv = process.env.OPENAI_API_KEY;
 
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = '';
-    // Clear require cache
-    delete require.cache[require.resolve('../../config/aiConfig')];
+    jest.resetModules();
+    delete process.env.OPENAI_API_KEY;
   });
 
   afterEach(() => {
-    process.env.OPENAI_API_KEY = originalEnv;
-    delete require.cache[require.resolve('../../config/aiConfig')];
+    if (originalEnv === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalEnv;
+    }
   });
 
   test('should load config when OPENAI_API_KEY is set', () => {

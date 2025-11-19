@@ -1,7 +1,6 @@
 const express = require('express');
 const Joi = require('joi');
 const JobStatusController = require('../controllers/jobStatusController');
-const JobStatus = require('../models/JobStatus');
 
 const router = express.Router();
 

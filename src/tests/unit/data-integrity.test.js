@@ -453,8 +453,8 @@ describe('AuditLogger', () => {
     }
 
     // Clean up test log file
-    const fs = require('fs');
-    const path = require('path');
+    const fs = require('node:fs');
+    const path = require('node:path');
     const testLogFile = path.join(process.cwd(), 'test-data-integrity-audit.log');
     if (fs.existsSync(testLogFile)) {
       fs.unlinkSync(testLogFile);

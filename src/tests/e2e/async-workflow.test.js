@@ -11,13 +11,9 @@ describe('Async Workflow E2E Tests', () => {
 
   beforeAll(() => {
     trustTokenGenerator = new TrustTokenGenerator();
-    validTrustToken = trustTokenGenerator.generateToken(
-      'test content',
-      'test content',
-      ['test'],
-      { expirationHours: 1 }
-    );
-  });
+    validTrustToken = trustTokenGenerator.generateToken('test content', 'test content', ['test'], {
+      expirationHours: 1,
+    });
   });
 
   beforeEach(() => {

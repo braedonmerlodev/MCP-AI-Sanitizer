@@ -1,4 +1,5 @@
 jest.mock('../../components/data-integrity/AuditLogger');
+const AuditLogger = require('../../components/data-integrity/AuditLogger');
 
 describe('HITL Escalation Logging Integration', () => {
   let auditLogger;
@@ -17,18 +18,18 @@ describe('HITL Escalation Logging Integration', () => {
             triggerConditions: escalationData.triggerConditions.map
               ? escalationData.triggerConditions.map((t) =>
                   t
-                    .replace(
+                    .replaceAll(
                       /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g,
                       '[EMAIL_REDACTED]',
                     )
-                    .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]'),
+                    .replaceAll(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]'),
                 )
               : escalationData.triggerConditions,
             decisionRationale: escalationData.decisionRationale,
             riskLevel: escalationData.riskLevel,
           },
           context: {
-            userId: context.userId.replace(
+            userId: context.userId.replaceAll(
               /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
               '[EMAIL_REDACTED]',
             ),
@@ -48,7 +49,7 @@ describe('HITL Escalation Logging Integration', () => {
             escalationId: outcomeData.escalationId,
             humanDecision: {
               decision: outcomeData.decision,
-              rationale: outcomeData.rationale.replace(
+              rationale: outcomeData.rationale.replaceAll(
                 /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
                 '[EMAIL_REDACTED]',
               ),
@@ -58,7 +59,7 @@ describe('HITL Escalation Logging Integration', () => {
             outcome: outcomeData.outcome,
           },
           context: {
-            userId: outcomeData.humanId.replace(
+            userId: outcomeData.humanId.replaceAll(
               /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
               '[EMAIL_REDACTED]',
             ),
