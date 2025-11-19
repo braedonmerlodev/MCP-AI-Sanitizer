@@ -7,7 +7,7 @@ describe('AI Config', () => {
   const originalEnv = process.env.OPENAI_API_KEY;
 
   beforeEach(() => {
-    delete process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = '';
     // Clear require cache
     delete require.cache[require.resolve('../../config/aiConfig')];
   });

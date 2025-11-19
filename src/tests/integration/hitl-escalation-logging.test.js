@@ -1,7 +1,4 @@
 jest.mock('../../components/data-integrity/AuditLogger');
-const AuditLogger = require('../../components/data-integrity/AuditLogger');
-
-jest.mock('../../components/data-integrity/AuditLogger');
 
 describe('HITL Escalation Logging Integration', () => {
   let auditLogger;
@@ -21,7 +18,7 @@ describe('HITL Escalation Logging Integration', () => {
               ? escalationData.triggerConditions.map((t) =>
                   t
                     .replace(
-                      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+                      /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g,
                       '[EMAIL_REDACTED]',
                     )
                     .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]'),
@@ -32,7 +29,7 @@ describe('HITL Escalation Logging Integration', () => {
           },
           context: {
             userId: context.userId.replace(
-              /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+              /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
               '[EMAIL_REDACTED]',
             ),
             stage: context.stage,
@@ -52,7 +49,7 @@ describe('HITL Escalation Logging Integration', () => {
             humanDecision: {
               decision: outcomeData.decision,
               rationale: outcomeData.rationale.replace(
-                /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+                /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
                 '[EMAIL_REDACTED]',
               ),
             },
@@ -62,7 +59,7 @@ describe('HITL Escalation Logging Integration', () => {
           },
           context: {
             userId: outcomeData.humanId.replace(
-              /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+              /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
               '[EMAIL_REDACTED]',
             ),
             stage: outcomeData.stage,

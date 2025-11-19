@@ -3,17 +3,22 @@ const sinon = require('sinon');
 const app = require('../../app');
 const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
+const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
 describe('Async Workflow E2E Tests', () => {
-  const validTrustToken = {
-    contentHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
-    originalHash: '6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72',
-    sanitizationVersion: '1.0',
-    rulesApplied: ['symbol_stripping'],
-    timestamp: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-    signature: 'mock-signature',
-  };
+  let validTrustToken;
+  let trustTokenGenerator;
+
+  beforeAll(() => {
+    trustTokenGenerator = new TrustTokenGenerator();
+    validTrustToken = trustTokenGenerator.generateToken(
+      'test content',
+      'test content',
+      ['test'],
+      { expirationHours: 1 }
+    );
+  });
+  });
 
   beforeEach(() => {
     // Stub queue operations to avoid real processing
@@ -154,6 +159,13 @@ describe('Async Workflow E2E Tests', () => {
         .expect(202);
 
       const returnedTaskId = submitResponse.body.taskId;
+
+      // Stub the load to return failed status
+      JobStatus.load.resolves({
+        status: 'failed',
+        error: 'Processing failed due to invalid content',
+        taskId: returnedTaskId,
+      });
 
       // Poll for failed status
       const statusResponse = await request(app).get(`/api/jobs/${returnedTaskId}`).expect(200);
