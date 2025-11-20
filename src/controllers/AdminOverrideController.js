@@ -196,7 +196,6 @@ class AdminOverrideController {
 
       // Debug: expose quick visibility in test runs if needed
       if (process.env.NODE_ENV === 'test') {
-         
         console.debug(
           'AdminOverrideController: activated override',
           overrideId,

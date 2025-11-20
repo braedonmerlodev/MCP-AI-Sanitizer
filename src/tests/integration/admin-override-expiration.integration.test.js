@@ -55,7 +55,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       mockReq.body = { justification: 'Short duration test', duration: 1000 }; // 1 second
       const shortId = controller.activateOverride(mockReq, mockRes);
       // debug: print returned id and active map size
-       
+
       console.log(
         'after short activation id=',
         shortId,
@@ -63,7 +63,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
         controller.activeOverrides.size,
       );
       // debug: print active ids
-       
+
       console.log('after short activation ids=', controller._getActiveOverrideIds());
 
       // Reset mocks
@@ -74,7 +74,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       mockReq.body = { justification: 'Medium duration test', duration: 2000 }; // 2 seconds
       const mediumId = controller.activateOverride(mockReq, mockRes);
       // debug: print returned id and active map size
-       
+
       console.log(
         'after medium activation id=',
         mediumId,
@@ -82,7 +82,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
         controller.activeOverrides.size,
       );
       // debug: print active ids
-       
+
       console.log('after medium activation ids=', controller._getActiveOverrideIds());
 
       // Reset mocks
@@ -93,10 +93,10 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       mockReq.body = { justification: 'Long duration test', duration: 5000 }; // 5 seconds
       const longId = controller.activateOverride(mockReq, mockRes);
       // debug: print returned id and active map size
-       
+
       console.log('after long activation id=', longId, 'mapSize=', controller.activeOverrides.size);
       // debug: print active ids
-       
+
       console.log('after long activation ids=', controller._getActiveOverrideIds());
 
       // Verify all are active
