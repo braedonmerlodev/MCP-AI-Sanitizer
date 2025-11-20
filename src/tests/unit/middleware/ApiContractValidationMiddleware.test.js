@@ -134,43 +134,6 @@ describe('ApiContractValidationMiddleware', () => {
     console.log('🔄 Test baseline captured - rollback procedures active');
   });
 
-  afterAll(() => {
-    // Restore baseline state after all tests complete
-    try {
-      Object.assign(mockLogger, baselineState.mockLogger);
-      global.console = baselineState.originalConsole;
-      process.env = baselineState.originalProcessEnv;
-
-      console.log('✅ Test rollback completed - baseline state restored');
-    } catch (error) {
-      console.error('❌ Rollback failed:', error.message);
-      rollbackTestState('afterAll rollback failure');
-    }
-  });
-
-  afterAll(() => {
-    // Restore baseline state after all tests complete
-    try {
-      Object.assign(mockLogger, baselineState.mockLogger);
-      global.console = baselineState.originalConsole;
-      process.env = baselineState.originalProcessEnv;
-
-      console.log('✅ Test rollback completed - baseline state restored');
-    } catch (error) {
-      console.error('❌ Rollback failed:', error.message);
-      rollbackTestState('afterAll rollback failure');
-    }
-  });
-
-  afterAll(() => {
-    // Restore baseline state after all tests complete
-    Object.assign(mockLogger, baselineState.mockLogger);
-    global.console = baselineState.originalConsole;
-    process.env = baselineState.originalProcessEnv;
-
-    console.log('✅ Test rollback completed - baseline state restored');
-  });
-
   beforeEach(() => {
     req = {
       body: {},
