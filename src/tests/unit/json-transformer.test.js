@@ -1,4 +1,12 @@
-const { normalizeKeys, removeFields, coerceTypes } = require('../../utils/jsonTransformer');
+const {
+  normalizeKeys,
+  removeFields,
+  coerceTypes,
+  applyPreset,
+  validatePreset,
+  TRANSFORMATION_PRESETS,
+  createChain,
+} = require('../../utils/jsonTransformer');
 
 describe('JSON Transformer', () => {
   describe('normalizeKeys', () => {
@@ -148,6 +156,19 @@ describe('JSON Transformer', () => {
       expect(normalizeKeys('string', 'camelCase')).toBe('string');
       expect(normalizeKeys(123, 'camelCase')).toBe(123);
       expect(normalizeKeys(null, 'camelCase')).toBe(null);
+    });
+
+    it('should support caching for performance', () => {
+      const input = { user_name: 'john', user_age: 30 };
+      const options = { useCache: true };
+
+      // First call should cache the result
+      const result1 = normalizeKeys(input, 'camelCase', options);
+      // Second call should use cached result
+      const result2 = normalizeKeys(input, 'camelCase', options);
+
+      expect(result1).toEqual(result2);
+      expect(result1).toEqual({ userName: 'john', userAge: 30 });
     });
   });
 
@@ -383,6 +404,227 @@ describe('JSON Transformer', () => {
       expect(coerceTypes(123, {})).toBe(123);
       expect(coerceTypes(null, {})).toBe(null);
       expect(coerceTypes(undefined, {})).toBe(undefined);
+    });
+
+    it('should validate input parameters', () => {
+      expect(() => normalizeKeys({}, undefined)).toThrow('targetCase parameter is required');
+      expect(() => normalizeKeys({}, null)).toThrow('targetCase parameter is required');
+      expect(() => normalizeKeys({}, 'invalidCase')).toThrow('unsupported targetCase');
+      expect(() => normalizeKeys({}, { delimiter: 123 })).toThrow(
+        'custom delimiter must be a non-empty string',
+      );
+
+      expect(() => removeFields({}, 'not-an-array')).toThrow('patterns parameter must be an array');
+      expect(() => removeFields({}, [123])).toThrow(
+        'all patterns must be strings or RegExp objects',
+      );
+
+      expect(() => coerceTypes({}, 'not-an-object')).toThrow('typeMap parameter must be an object');
+      expect(() => coerceTypes({}, { age: 'invalidType' })).toThrow('invalid type');
+    });
+
+    it('should handle type coercion errors gracefully', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const input = {
+        badNumber: 'not-a-number',
+        badDate: 'invalid-date',
+        badBool: 'maybe',
+      };
+      const typeMap = {
+        badNumber: 'number',
+        badDate: 'date',
+        badBool: 'boolean',
+      };
+
+      const result = coerceTypes(input, typeMap);
+
+      // Should return original values when coercion fails
+      expect(result.badNumber).toBe('not-a-number');
+      expect(result.badDate).toBe('invalid-date');
+      expect(result.badBool).toBe('maybe');
+
+      // Should have logged warnings
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('applyPreset', () => {
+    it('should apply AI processing preset', () => {
+      const input = {
+        userName: 'john',
+        userPassword: 'secret',
+        confidenceScore: '0.95',
+        isActiveStatus: 'true',
+        createdAt: '2023-12-25T10:00:00Z',
+        sessionId: 'abc123',
+      };
+
+      const result = applyPreset(input, 'aiProcessing');
+
+      expect(result).toEqual({
+        user_name: 'john',
+        confidence_score: 0.95, // coerced to number
+        is_active_status: true, // coerced to boolean
+        created_at: '2023-12-25T10:00:00.000Z', // coerced to date
+      });
+    });
+
+    it('should apply API response preset', () => {
+      const input = {
+        user_name: 'john',
+        _id: 'mongo123',
+        __v: 1,
+        password: 'secret',
+        total_count: '150',
+        is_active: '1',
+        created_at: '2023-12-25',
+      };
+
+      const result = applyPreset(input, 'apiResponse');
+
+      expect(result).toEqual({
+        userName: 'john', // camelCase
+        totalCount: 150, // number
+        isActive: true, // boolean
+        createdAt: '2023-12-25T00:00:00.000Z', // date
+        // _id, __v, password removed by removeFields before normalization
+      });
+    });
+
+    it('should apply data export preset', () => {
+      const input = {
+        productName: 'Widget',
+        exportQuantity: '100',
+        unitPrice: '29.99',
+        isAvailable: 'yes',
+        exportDate: '2023-12-25T10:00:00Z',
+      };
+
+      const result = applyPreset(input, 'dataExport');
+
+      expect(result).toEqual({
+        product_name: 'Widget',
+        export_quantity: 100,
+        unit_price: 29.99,
+        is_available: true,
+        export_date: '2023-12-25T10:00:00.000Z',
+      });
+    });
+
+    it('should allow custom options to override preset', () => {
+      const input = { userName: 'john', tempField: 'remove' };
+      const customOptions = {
+        removeFields: ['tempField', 'userName'], // Override preset
+      };
+
+      const result = applyPreset(input, 'apiResponse', customOptions);
+      expect(result).toEqual({}); // Both fields removed
+    });
+
+    it('should throw error for unknown preset', () => {
+      expect(() => applyPreset({}, 'unknownPreset')).toThrow('Unknown preset');
+    });
+  });
+
+  describe('validatePreset', () => {
+    it('should validate correct presets', () => {
+      const validPreset = {
+        normalizeKeys: 'camelCase',
+        removeFields: ['field1'],
+        coerceTypes: { age: 'number' },
+      };
+      expect(validatePreset(validPreset)).toBe(true);
+    });
+
+    it('should reject invalid presets', () => {
+      expect(validatePreset(null)).toBe(false);
+      expect(validatePreset({ normalizeKeys: 123 })).toBe(false);
+      expect(validatePreset({ removeFields: 'not-array' })).toBe(false);
+      expect(validatePreset({ coerceTypes: 'not-object' })).toBe(false);
+    });
+  });
+
+  describe('TRANSFORMATION_PRESETS', () => {
+    it('should contain all expected presets', () => {
+      expect(TRANSFORMATION_PRESETS).toHaveProperty('aiProcessing');
+      expect(TRANSFORMATION_PRESETS).toHaveProperty('apiResponse');
+      expect(TRANSFORMATION_PRESETS).toHaveProperty('dataExport');
+      expect(TRANSFORMATION_PRESETS).toHaveProperty('databaseStorage');
+    });
+
+    it('should have valid preset configurations', () => {
+      Object.values(TRANSFORMATION_PRESETS).forEach((preset) => {
+        expect(validatePreset(preset)).toBe(true);
+      });
+    });
+  });
+
+  describe('createChain', () => {
+    it('should support fluent chaining of transformations', () => {
+      const input = {
+        user_name: 'john',
+        user_age: '30',
+        password: 'secret',
+        is_active: 'true',
+        created_at: '2023-12-25',
+      };
+
+      const result = createChain(input)
+        .removeFields(['password'])
+        .normalizeKeys('camelCase')
+        .coerceTypes({
+          userAge: 'number',
+          isActive: 'boolean',
+          createdAt: 'date',
+        })
+        .value();
+
+      expect(result).toEqual({
+        userName: 'john',
+        userAge: 30,
+        isActive: true,
+        createdAt: '2023-12-25T00:00:00.000Z',
+      });
+    });
+
+    it('should support preset application in chains', () => {
+      const input = {
+        user_name: 'john',
+        _id: 'mongo123',
+        password: 'secret',
+        total_count: '100',
+      };
+
+      const result = createChain(input)
+        .applyPreset('apiResponse')
+        .normalizeKeys('snake_case') // Additional transformation after preset
+        .value();
+
+      expect(result).toEqual({
+        user_name: 'john',
+        total_count: 100,
+        // _id and password removed by preset, then converted back to snake_case
+      });
+    });
+
+    it('should support validation in chains', () => {
+      const input = { name: 'john', age: 30 };
+
+      const result = createChain(input).validate().normalizeKeys('camelCase').value();
+
+      expect(result).toEqual({
+        name: 'john',
+        age: 30,
+      });
+    });
+
+    it('should throw error for invalid data in validation', () => {
+      expect(() => {
+        createChain('not an object').validate().value();
+      }).toThrow('Validation failed: data must be an object');
     });
   });
 });
