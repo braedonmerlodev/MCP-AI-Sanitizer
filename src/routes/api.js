@@ -77,14 +77,14 @@ const upload = multer({
 // Rate limiting for upload endpoint
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1000000 : 10, // limit each IP to 10 uploads per windowMs (disabled for tests)
+  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 10, // limit each IP to 10 uploads per windowMs (disabled for tests)
   message: 'Too many uploads from this IP, please try again later.',
 });
 
 // Rate limiting for sanitization endpoints
 const sanitizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1000000 : 100, // limit each IP for tests
+  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 100, // limit each IP for tests
   message: 'Too many sanitization requests from this IP, please try again later.',
 });
 
@@ -97,17 +97,11 @@ const pdfGenerationSchema = Joi.object({
 
 const n8nWebhookSchema = Joi.object({
   data: Joi.string().required(),
-  // Add other n8n payload fields as needed
+  trustToken: Joi.object().required(),
 });
 
 const trustTokenValidateSchema = Joi.object({
-  contentHash: Joi.string().required(),
-  originalHash: Joi.string().required(),
-  sanitizationVersion: Joi.string().required(),
-  rulesApplied: Joi.array().items(Joi.string()).required(),
-  timestamp: Joi.string().required(),
-  expiresAt: Joi.string().required(),
-  signature: Joi.string().required(),
+  trustToken: Joi.object().required(),
 });
 
 const sanitizeJsonSchema = Joi.object({
@@ -121,20 +115,14 @@ const sanitizeJsonSchema = Joi.object({
     removeFields: Joi.array().items(Joi.string()).optional(),
   }).optional(),
   ai_transform: Joi.boolean().optional().default(false), // Add AI processing for JSON content
-  ai_transform_type: Joi.string()
-    .valid('structure', 'summarize', 'analyze')
+  outputFormat: Joi.string()
+    .valid('structure', 'json', 'yaml', 'xml')
     .optional()
     .default('structure'),
 });
 
 const uploadQuerySchema = Joi.object({
-  ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for all PDFs
-  sync: Joi.boolean().optional().default(false),
-});
-
-const adminOverrideActivateSchema = Joi.object({
-  duration: Joi.number().integer().min(60_000).max(3_600_000).optional(), // 1min to 1hr in ms
-  justification: Joi.string().min(10).max(500).required(),
+  ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for uploads
 });
 
 /**

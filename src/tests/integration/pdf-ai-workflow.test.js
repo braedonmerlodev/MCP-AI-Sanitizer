@@ -6,7 +6,10 @@ jest.mock('../../components/AITextTransformer', () => {
       if (type === 'structure') {
         // Return structured JSON as text
         const structured = { title: 'Mocked PDF', summary: 'Mock summary', content: text };
-        return { text: JSON.stringify(structured), metadata: { processingTime: 5, tokens: { prompt: 1, completion: 2, total: 3 } } };
+        return {
+          text: JSON.stringify(structured),
+          metadata: { processingTime: 5, tokens: { prompt: 1, completion: 2, total: 3 } },
+        };
       }
       return { text, metadata: null };
     },

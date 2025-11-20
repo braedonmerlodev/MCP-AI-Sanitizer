@@ -76,10 +76,13 @@ jest.mock('../../components/AccessControlEnforcer', () => {
 
 // Mock TrustTokenGenerator for testing with realistic behavior
 jest.mock('../../components/TrustTokenGenerator', () => {
-  const crypto = require('crypto');
+  const crypto = require('node:crypto');
 
   function createSignature(payload) {
-    return crypto.createHmac('sha256', process.env.TRUST_TOKEN_SECRET).update(JSON.stringify(payload)).digest('hex');
+    return crypto
+      .createHmac('sha256', process.env.TRUST_TOKEN_SECRET)
+      .update(JSON.stringify(payload))
+      .digest('hex');
   }
 
   return jest.fn().mockImplementation(() => ({
@@ -115,12 +118,21 @@ jest.mock('../../components/TrustTokenGenerator', () => {
       try {
         if (!token || typeof token !== 'object') return { isValid: false, error: 'Missing token' };
 
-        const required = ['contentHash', 'originalHash', 'sanitizationVersion', 'rulesApplied', 'timestamp', 'expiresAt', 'signature'];
+        const required = [
+          'contentHash',
+          'originalHash',
+          'sanitizationVersion',
+          'rulesApplied',
+          'timestamp',
+          'expiresAt',
+          'signature',
+        ];
         for (const f of required) {
           if (token[f] === undefined) return { isValid: false, error: 'Missing required fields' };
         }
 
-        if (new Date(token.expiresAt) < new Date()) return { isValid: false, error: 'Token expired' };
+        if (new Date(token.expiresAt) < new Date())
+          return { isValid: false, error: 'Token expired' };
 
         const signaturePayload = {
           contentHash: token.contentHash,

@@ -121,8 +121,8 @@ describe('Access Audit Logging Integration', () => {
       const timestamps = testAuditLogger.auditTrail.map((e) => e.timestamp);
 
       expect(new Set(ids).size).toBe(3); // All IDs unique
-  // Timestamps should generally be unique, allow for rare millisecond collisions in fast test runs
-  expect(new Set(timestamps).size).toBeGreaterThanOrEqual(2);
+      // Timestamps should generally be unique, allow for rare millisecond collisions in fast test runs
+      expect(new Set(timestamps).size).toBeGreaterThanOrEqual(2);
     });
 
     test('should provide audit statistics', () => {

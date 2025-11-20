@@ -62,7 +62,14 @@ class JobResult {
       const db = this.db;
       db.run(
         sql,
-        [this.id, this.jobId, JSON.stringify(this.result), this.createdAt, this.expiresAt, this.size],
+        [
+          this.id,
+          this.jobId,
+          JSON.stringify(this.result),
+          this.createdAt,
+          this.expiresAt,
+          this.size,
+        ],
         function (err) {
           // Close DB handle after operation
           db.close(() => {

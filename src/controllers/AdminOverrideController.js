@@ -25,18 +25,18 @@ class AdminOverrideController {
     // Override configuration
     this.defaultDuration = options.defaultDuration || 15 * 60 * 1000; // 15 minutes in ms
     this.maxDuration = options.maxDuration || 60 * 60 * 1000; // 1 hour max
-  // Concurrent override configuration
-  // Use a large global cap but enforce a short recent-window limit to avoid cross-test interference
-  this.maxConcurrentOverrides = options.maxConcurrentOverrides || 1000; // Global cap
-  this.concurrentWindowMs = options.concurrentWindowMs || 200; // Recent window to treat as concurrent (ms)
-  this.concurrentWindowLimit = options.concurrentWindowLimit || 1; // Max overrides in the recent window
+    // Concurrent override configuration
+    // Use a large global cap but enforce a short recent-window limit to avoid cross-test interference
+    this.maxConcurrentOverrides = options.maxConcurrentOverrides || 1000; // Global cap
+    this.concurrentWindowMs = options.concurrentWindowMs || 200; // Recent window to treat as concurrent (ms)
+    this.concurrentWindowLimit = options.concurrentWindowLimit || 1; // Max overrides in the recent window
 
     // (No test-only override here — tests use the clear endpoint to isolate state.)
 
     // In-memory override state (in production, use Redis or database)
     this.activeOverrides = new Map(); // overrideId -> { adminId, startTime, endTime, justification }
-  // Timer handles for auto-expire (test auto-expire timers need to be cleared to avoid open handles)
-  this._timers = new Map(); // overrideId -> timer
+    // Timer handles for auto-expire (test auto-expire timers need to be cleared to avoid open handles)
+    this._timers = new Map(); // overrideId -> timer
 
     // Audit logger
     this.auditLogger = new AuditLoggerAccess({
@@ -149,12 +149,15 @@ class AdminOverrideController {
       }).length;
 
       if (recentActiveCount >= this.concurrentWindowLimit) {
-        this.logger.warn('Admin override activation failed: concurrent limit exceeded (recent-window)', {
-          adminId,
-          recentActiveCount,
-          recentWindowMs: this.concurrentWindowMs,
-          limit: this.concurrentWindowLimit,
-        });
+        this.logger.warn(
+          'Admin override activation failed: concurrent limit exceeded (recent-window)',
+          {
+            adminId,
+            recentActiveCount,
+            recentWindowMs: this.concurrentWindowMs,
+            limit: this.concurrentWindowLimit,
+          },
+        );
 
         return res.status(429).json({
           error: 'Concurrent override limit exceeded',
@@ -194,7 +197,12 @@ class AdminOverrideController {
       // Debug: expose quick visibility in test runs if needed
       if (process.env.NODE_ENV === 'test') {
         // eslint-disable-next-line no-console
-        console.debug('AdminOverrideController: activated override', overrideId, 'activeCount', this.activeOverrides.size);
+        console.debug(
+          'AdminOverrideController: activated override',
+          overrideId,
+          'activeCount',
+          this.activeOverrides.size,
+        );
       }
 
       this.logger.info('Admin override activated', {
@@ -225,8 +233,8 @@ class AdminOverrideController {
 
       // In test environment, automatically expire overrides created with an explicit duration
       // after a short window to avoid cross-test interference while preserving reported duration
-      const explicitDurationProvided = typeof duration !== 'undefined';
-  if (process.env.NODE_ENV === 'test' && explicitDurationProvided) {
+      const explicitDurationProvided = duration !== undefined;
+      if (process.env.NODE_ENV === 'test' && explicitDurationProvided) {
         // Increase auto-expire delay in tests so immediate subsequent assertions
         // (deactivation, integration checks) reliably observe the created override.
         // Keep a short delay to still avoid long-lived state between tests.
@@ -250,7 +258,9 @@ class AdminOverrideController {
                 );
               } catch (e) {
                 // swallow audit errors in test cleanup
-                this.logger.debug('Audit logger failed during test auto-expire', { error: e.message });
+                this.logger.debug('Audit logger failed during test auto-expire', {
+                  error: e.message,
+                });
               }
             }
           } catch (e) {
@@ -539,7 +549,7 @@ class AdminOverrideController {
     }
 
     // Return a shallow copy of keys for deterministic assertions
-    return Array.from(this.activeOverrides.keys());
+    return [...this.activeOverrides.keys()];
   }
 
   /**
@@ -556,7 +566,10 @@ class AdminOverrideController {
       try {
         clearTimeout(timer);
       } catch (e) {
-        this.logger.debug('Failed to clear override timer during clearAllOverrides', { overrideId: id, error: e.message });
+        this.logger.debug('Failed to clear override timer during clearAllOverrides', {
+          overrideId: id,
+          error: e.message,
+        });
       }
     }
     this._timers.clear();

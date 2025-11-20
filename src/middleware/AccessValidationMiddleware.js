@@ -59,7 +59,10 @@ function accessValidationMiddleware(req, res, next) {
 
       // Allow admin override to bypass trust token requirement when active
       try {
-        if (globalThis.adminOverrideController && globalThis.adminOverrideController.isOverrideActive()) {
+        if (
+          globalThis.adminOverrideController &&
+          globalThis.adminOverrideController.isOverrideActive()
+        ) {
           const activeOverride = globalThis.adminOverrideController.getActiveOverride();
           logger.info('Bypassing trust token requirement via admin override', {
             overrideId: activeOverride.id,
@@ -148,7 +151,9 @@ function accessValidationMiddleware(req, res, next) {
           },
         );
       } catch (logErr) {
-        logger.warn('Audit logger failed during invalid format (non-object) log', { error: logErr.message });
+        logger.warn('Audit logger failed during invalid format (non-object) log', {
+          error: logErr.message,
+        });
       }
 
       return res.status(403).json({
