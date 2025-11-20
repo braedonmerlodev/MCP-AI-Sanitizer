@@ -28,25 +28,6 @@ const Joi = require('joi');
 const warnSpy = jest.spyOn(mockLogger, 'warn');
 const infoSpy = jest.spyOn(mockLogger, 'info');
 
-// Rollback utility for test safety
-const rollbackTestState = (reason = 'Test failure') => {
-  console.warn(`🚨 Test rollback triggered: ${reason}`);
-
-  // Reset all mocks to clean state
-  jest.clearAllMocks();
-  jest.resetAllMocks();
-
-  // Clear any cached modules that might be affected
-  jest.resetModules();
-
-  // Restore environment if needed
-  if (process.env.NODE_ENV !== 'test') {
-    process.env.NODE_ENV = 'test';
-  }
-
-  console.log('🔄 Test state rolled back to baseline');
-};
-
 // Performance monitoring utilities for validation safety
 const performanceMonitor = {
   thresholds: {
@@ -124,14 +105,14 @@ describe('ApiContractValidationMiddleware', () => {
   beforeAll(() => {
     // Capture baseline state before any tests run
     baselineState.mockLogger = { ...mockLogger };
-    baselineState.originalConsole = global.console;
+    baselineState.originalConsole = globalThis.console;
     baselineState.originalProcessEnv = { ...process.env };
 
     // Set test environment variables for isolation
     process.env.NODE_ENV = 'test';
     process.env.API_CONTRACT_VALIDATION_ENABLED = 'true';
 
-    console.log('🔄 Test baseline captured - rollback procedures active');
+    globalThis.console.log('🔄 Test baseline captured - rollback procedures active');
   });
 
   beforeEach(() => {
