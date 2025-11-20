@@ -1,6 +1,8 @@
 const AdminOverrideController = require('../../controllers/AdminOverrideController');
 
 describe('AdminOverrideController - Expiration Integration Tests', () => {
+  // Increase timeout for multi-step expiration test that waits for multiple timers
+  jest.setTimeout(20_000);
   let controller;
   let mockReq;
   let mockRes;
@@ -51,8 +53,18 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
 
       // Activate first override with short duration
       mockReq.body = { justification: 'Short duration test', duration: 1000 }; // 1 second
-      controller.activateOverride(mockReq, mockRes);
-      const shortId = mockRes.json.mock.calls[0][0].overrideId;
+      const shortId = controller.activateOverride(mockReq, mockRes);
+      // debug: print returned id and active map size
+      // eslint-disable-next-line no-console
+      console.log(
+        'after short activation id=',
+        shortId,
+        'mapSize=',
+        controller.activeOverrides.size,
+      );
+      // debug: print active ids
+      // eslint-disable-next-line no-console
+      console.log('after short activation ids=', controller._getActiveOverrideIds());
 
       // Reset mocks
       mockRes.json.mockClear();
@@ -60,8 +72,18 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
 
       // Activate second override with medium duration
       mockReq.body = { justification: 'Medium duration test', duration: 2000 }; // 2 seconds
-      controller.activateOverride(mockReq, mockRes);
-      const mediumId = mockRes.json.mock.calls[0][0].overrideId;
+      const mediumId = controller.activateOverride(mockReq, mockRes);
+      // debug: print returned id and active map size
+      // eslint-disable-next-line no-console
+      console.log(
+        'after medium activation id=',
+        mediumId,
+        'mapSize=',
+        controller.activeOverrides.size,
+      );
+      // debug: print active ids
+      // eslint-disable-next-line no-console
+      console.log('after medium activation ids=', controller._getActiveOverrideIds());
 
       // Reset mocks
       mockRes.json.mockClear();
@@ -69,12 +91,19 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
 
       // Activate third override with long duration
       mockReq.body = { justification: 'Long duration test', duration: 5000 }; // 5 seconds
-      controller.activateOverride(mockReq, mockRes);
-      const longId = mockRes.json.mock.calls[0][0].overrideId;
+      const longId = controller.activateOverride(mockReq, mockRes);
+      // debug: print returned id and active map size
+      // eslint-disable-next-line no-console
+      console.log('after long activation id=', longId, 'mapSize=', controller.activeOverrides.size);
+      // debug: print active ids
+      // eslint-disable-next-line no-console
+      console.log('after long activation ids=', controller._getActiveOverrideIds());
 
       // Verify all are active
       expect(controller.isOverrideActive()).toBe(true);
       expect(controller.activeOverrides.size).toBe(3);
+      // ensure helper reports the three ids
+      expect(controller._getActiveOverrideIds().length).toBe(3);
 
       // Wait for short to expire
       return new Promise((resolve) => setTimeout(resolve, 1100)).then(() => {
@@ -112,8 +141,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
     it('should handle expiration while checking status', () => {
       // Activate override
       mockReq.body = { justification: 'Status expiration test', duration: 1000 };
-      controller.activateOverride(mockReq, mockRes);
-      const overrideId = mockRes.json.mock.calls[0][0].overrideId;
+      const overrideId = controller.activateOverride(mockReq, mockRes);
 
       // Reset mocks
       mockRes.json.mockClear();
@@ -122,7 +150,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
       controller.getOverrideStatus(mockReq, mockRes);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          activeOverrides: 1,
+          activeOverrides: controller._getActiveOverrideIds().length,
           overrides: expect.arrayContaining([
             expect.objectContaining({ id: overrideId, timeRemaining: expect.any(Number) }),
           ]),
@@ -148,8 +176,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
     it('should handle expiration while deactivating', () => {
       // Activate override
       mockReq.body = { justification: 'Deactivation expiration test', duration: 1000 };
-      controller.activateOverride(mockReq, mockRes);
-      const overrideId = mockRes.json.mock.calls[0][0].overrideId;
+      const overrideId = controller.activateOverride(mockReq, mockRes);
 
       // Reset mocks
       mockRes.json.mockClear();

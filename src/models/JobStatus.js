@@ -71,7 +71,8 @@ class JobStatus {
         INSERT OR REPLACE INTO job_status (id, jobId, status, createdAt, updatedAt, retryCount, errorMessage, result, progress, currentStep, totalSteps, expiresAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-      this.db.run(
+      const db = this.db;
+      db.run(
         sql,
         [
           this.id,
@@ -88,11 +89,13 @@ class JobStatus {
           this.expiresAt,
         ],
         function (err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(this.lastID);
-          }
+          db.close(() => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(this.lastID);
+            }
+          });
         },
       );
     });
@@ -107,14 +110,17 @@ class JobStatus {
     const instance = new JobStatus({ dbPath });
     await instance.initialize();
     return new Promise((resolve, reject) => {
-      instance.db.get('SELECT * FROM job_status WHERE jobId = ?', [jobId], (err, row) => {
-        if (err) {
-          reject(err);
-        } else if (row) {
-          resolve(new JobStatus(row));
-        } else {
-          resolve(null);
-        }
+      const db = instance.db;
+      db.get('SELECT * FROM job_status WHERE jobId = ?', [jobId], (err, row) => {
+        db.close(() => {
+          if (err) {
+            reject(err);
+          } else if (row) {
+            resolve(new JobStatus(row));
+          } else {
+            resolve(null);
+          }
+        });
       });
     });
   }

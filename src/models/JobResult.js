@@ -59,7 +59,8 @@ class JobResult {
         INSERT OR REPLACE INTO job_results (id, jobId, result, createdAt, expiresAt, size)
         VALUES (?, ?, ?, ?, ?, ?)
       `;
-      this.db.run(
+      const db = this.db;
+      db.run(
         sql,
         [
           this.id,
@@ -70,11 +71,14 @@ class JobResult {
           this.size,
         ],
         function (err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(this.lastID);
-          }
+          // Close DB handle after operation
+          db.close(() => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(this.lastID);
+            }
+          });
         },
       );
     });
@@ -89,14 +93,17 @@ class JobResult {
     const instance = new JobResult({ dbPath });
     await instance.initialize();
     return new Promise((resolve, reject) => {
-      instance.db.get('SELECT * FROM job_results WHERE jobId = ?', [jobId], (err, row) => {
-        if (err) {
-          reject(err);
-        } else if (row) {
-          resolve(new JobResult(row));
-        } else {
-          resolve(null);
-        }
+      const db = instance.db;
+      db.get('SELECT * FROM job_results WHERE jobId = ?', [jobId], (err, row) => {
+        db.close(() => {
+          if (err) {
+            reject(err);
+          } else if (row) {
+            resolve(new JobResult(row));
+          } else {
+            resolve(null);
+          }
+        });
       });
     });
   }
@@ -110,12 +117,15 @@ class JobResult {
     await instance.initialize();
     return new Promise((resolve, reject) => {
       const now = new Date().toISOString();
-      instance.db.run('DELETE FROM job_results WHERE expiresAt < ?', [now], function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(this.changes);
-        }
+      const db = instance.db;
+      db.run('DELETE FROM job_results WHERE expiresAt < ?', [now], function (err) {
+        db.close(() => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(this.changes);
+          }
+        });
       });
     });
   }

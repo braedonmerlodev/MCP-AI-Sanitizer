@@ -152,8 +152,8 @@ describe('HITL Escalation Logging Integration', () => {
     expect(interventionEntry.context.stage).toBe('intervention');
     expect(interventionEntry.context.severity).toBe('info');
 
-    // Verify chronological order
-    expect(new Date(escalationEntry.timestamp).getTime()).toBeLessThan(
+    // Verify chronological order (allow equality when events occur within same ms)
+    expect(new Date(escalationEntry.timestamp).getTime()).toBeLessThanOrEqual(
       new Date(interventionEntry.timestamp).getTime(),
     );
   });

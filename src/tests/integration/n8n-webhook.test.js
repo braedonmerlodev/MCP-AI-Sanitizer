@@ -6,8 +6,9 @@ const apiRoutes = require('../../routes/api');
 jest.mock('../../components/proxy-sanitizer', () => {
   return jest.fn().mockImplementation(() => ({
     sanitize: jest.fn((data) => `sanitized-${data}`),
+    // Return the canonical response shape expected by the API contract
     handleN8nWebhook: jest.fn((payload) => ({
-      result: `processed-sanitized-${payload.data}`,
+      result: { sanitizedData: `processed-sanitized-${payload.data}` },
     })),
   }));
 });
