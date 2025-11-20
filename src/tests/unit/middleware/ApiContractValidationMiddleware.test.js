@@ -28,8 +28,148 @@ const Joi = require('joi');
 const warnSpy = jest.spyOn(mockLogger, 'warn');
 const infoSpy = jest.spyOn(mockLogger, 'info');
 
+// Rollback utility for test safety
+const rollbackTestState = (reason = 'Test failure') => {
+  console.warn(`🚨 Test rollback triggered: ${reason}`);
+
+  // Reset all mocks to clean state
+  jest.clearAllMocks();
+  jest.resetAllMocks();
+
+  // Clear any cached modules that might be affected
+  jest.resetModules();
+
+  // Restore environment if needed
+  if (process.env.NODE_ENV !== 'test') {
+    process.env.NODE_ENV = 'test';
+  }
+
+  console.log('🔄 Test state rolled back to baseline');
+};
+
+// Performance monitoring utilities for validation safety
+const performanceMonitor = {
+  thresholds: {
+    requestValidation: 50, // ms
+    responseValidation: 25, // ms
+    totalValidation: 100, // ms
+  },
+
+  timings: {
+    requestValidation: [],
+    responseValidation: [],
+    totalValidation: [],
+  },
+
+  startTiming: (operation) => {
+    return {
+      operation,
+      startTime: process.hrtime.bigint(),
+    };
+  },
+
+  endTiming: (timingContext) => {
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - timingContext.startTime) / 1_000_000; // Convert to milliseconds
+
+    performanceMonitor.timings[timingContext.operation].push(durationMs);
+
+    // Check against thresholds
+    const threshold = performanceMonitor.thresholds[timingContext.operation];
+    if (threshold && durationMs > threshold) {
+      console.warn(
+        `⚠️ Performance threshold exceeded for ${timingContext.operation}: ${durationMs.toFixed(2)}ms (threshold: ${threshold}ms)`,
+      );
+    }
+
+    return durationMs;
+  },
+
+  getAverageTiming: (operation) => {
+    const timings = performanceMonitor.timings[operation];
+    if (timings.length === 0) return 0;
+    return timings.reduce((sum, time) => sum + time, 0) / timings.length;
+  },
+
+  reset: () => {
+    performanceMonitor.timings = {
+      requestValidation: [],
+      responseValidation: [],
+      totalValidation: [],
+    };
+  },
+
+  getStats: () => {
+    return {
+      averages: {
+        requestValidation: performanceMonitor.getAverageTiming('requestValidation'),
+        responseValidation: performanceMonitor.getAverageTiming('responseValidation'),
+        totalValidation: performanceMonitor.getAverageTiming('totalValidation'),
+      },
+      thresholds: { ...performanceMonitor.thresholds },
+      sampleCounts: {
+        requestValidation: performanceMonitor.timings.requestValidation.length,
+        responseValidation: performanceMonitor.timings.responseValidation.length,
+        totalValidation: performanceMonitor.timings.totalValidation.length,
+      },
+    };
+  },
+};
+
 describe('ApiContractValidationMiddleware', () => {
   let req, res, next, middleware;
+  let baselineState = {};
+
+  // Rollback procedures for test isolation and safety
+  beforeAll(() => {
+    // Capture baseline state before any tests run
+    baselineState.mockLogger = { ...mockLogger };
+    baselineState.originalConsole = global.console;
+    baselineState.originalProcessEnv = { ...process.env };
+
+    // Set test environment variables for isolation
+    process.env.NODE_ENV = 'test';
+    process.env.API_CONTRACT_VALIDATION_ENABLED = 'true';
+
+    console.log('🔄 Test baseline captured - rollback procedures active');
+  });
+
+  afterAll(() => {
+    // Restore baseline state after all tests complete
+    try {
+      Object.assign(mockLogger, baselineState.mockLogger);
+      global.console = baselineState.originalConsole;
+      process.env = baselineState.originalProcessEnv;
+
+      console.log('✅ Test rollback completed - baseline state restored');
+    } catch (error) {
+      console.error('❌ Rollback failed:', error.message);
+      rollbackTestState('afterAll rollback failure');
+    }
+  });
+
+  afterAll(() => {
+    // Restore baseline state after all tests complete
+    try {
+      Object.assign(mockLogger, baselineState.mockLogger);
+      global.console = baselineState.originalConsole;
+      process.env = baselineState.originalProcessEnv;
+
+      console.log('✅ Test rollback completed - baseline state restored');
+    } catch (error) {
+      console.error('❌ Rollback failed:', error.message);
+      rollbackTestState('afterAll rollback failure');
+    }
+  });
+
+  afterAll(() => {
+    // Restore baseline state after all tests complete
+    Object.assign(mockLogger, baselineState.mockLogger);
+    global.console = baselineState.originalConsole;
+    process.env = baselineState.originalProcessEnv;
+
+    console.log('✅ Test rollback completed - baseline state restored');
+  });
 
   beforeEach(() => {
     req = {
@@ -392,6 +532,100 @@ describe('ApiContractValidationMiddleware', () => {
       ]);
 
       expect(infoSpy).toHaveBeenCalledWith('Response validation passed', expect.any(Object));
+    });
+  });
+
+  describe('Performance Monitoring', () => {
+    beforeEach(() => {
+      performanceMonitor.reset();
+    });
+
+    it('should track request validation performance', () => {
+      const requestSchema = Joi.object({
+        name: Joi.string().required(),
+      });
+
+      middleware = apiContractValidationMiddleware(requestSchema, null);
+      req.body = { name: 'test' };
+
+      const timing = performanceMonitor.startTiming('requestValidation');
+      middleware(req, res, next);
+      const duration = performanceMonitor.endTiming(timing);
+
+      expect(duration).toBeGreaterThanOrEqual(0);
+      expect(performanceMonitor.timings.requestValidation).toHaveLength(1);
+      expect(performanceMonitor.getStats().sampleCounts.requestValidation).toBe(1);
+    });
+
+    it('should track response validation performance', () => {
+      const responseSchema = Joi.object({
+        message: Joi.string().required(),
+      });
+
+      middleware = apiContractValidationMiddleware(null, responseSchema);
+      middleware(req, res, next);
+
+      const timing = performanceMonitor.startTiming('responseValidation');
+      res.json({ message: 'success' });
+      const duration = performanceMonitor.endTiming(timing);
+
+      expect(duration).toBeGreaterThanOrEqual(0);
+      expect(performanceMonitor.timings.responseValidation).toHaveLength(1);
+      expect(performanceMonitor.getStats().sampleCounts.responseValidation).toBe(1);
+    });
+
+    it('should calculate average timings correctly', () => {
+      // Add some mock timings
+      performanceMonitor.timings.requestValidation = [10, 20, 30];
+
+      const average = performanceMonitor.getAverageTiming('requestValidation');
+      expect(average).toBe(20);
+    });
+
+    it('should return zero average for empty timing arrays', () => {
+      const average = performanceMonitor.getAverageTiming('requestValidation');
+      expect(average).toBe(0);
+    });
+
+    it('should provide comprehensive performance stats', () => {
+      performanceMonitor.timings.requestValidation = [10, 20];
+      performanceMonitor.timings.responseValidation = [5, 15];
+
+      const stats = performanceMonitor.getStats();
+
+      expect(stats.averages.requestValidation).toBe(15);
+      expect(stats.averages.responseValidation).toBe(10);
+      expect(stats.thresholds.requestValidation).toBe(50);
+      expect(stats.sampleCounts.requestValidation).toBe(2);
+      expect(stats.sampleCounts.responseValidation).toBe(2);
+    });
+
+    it('should warn when performance thresholds are exceeded', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Mock a slow validation by directly calling endTiming with a high duration
+      const timingContext = {
+        operation: 'requestValidation',
+        startTime: process.hrtime.bigint() - BigInt(100 * 1_000_000),
+      }; // 100ms ago
+      performanceMonitor.endTiming(timingContext);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Performance threshold exceeded for requestValidation'),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should reset timings correctly', () => {
+      performanceMonitor.timings.requestValidation = [10, 20];
+      performanceMonitor.timings.responseValidation = [5];
+
+      performanceMonitor.reset();
+
+      expect(performanceMonitor.timings.requestValidation).toHaveLength(0);
+      expect(performanceMonitor.timings.responseValidation).toHaveLength(0);
+      expect(performanceMonitor.timings.totalValidation).toHaveLength(0);
     });
   });
 });
