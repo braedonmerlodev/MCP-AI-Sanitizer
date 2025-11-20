@@ -146,7 +146,7 @@ describe('AdminOverrideController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(429);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'Concurrent override limit exceeded',
-        message: 'Maximum 1 concurrent overrides allowed',
+        message: 'Maximum 1 concurrent overrides allowed within 200ms',
       });
     });
 

@@ -175,24 +175,25 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
 
     it('should handle expiration while deactivating', () => {
       // Activate override
-      mockReq.body = { justification: 'Deactivation expiration test', duration: 1000 };
+      mockReq.body = { justification: 'Deactivation expiration test' };
       const overrideId = controller.activateOverride(mockReq, mockRes);
 
       // Reset mocks
       mockRes.json.mockClear();
       mockRes.status.mockClear();
 
-      // Wait for expiration
-      return new Promise((resolve) => setTimeout(resolve, 1100)).then(() => {
-        // Try to deactivate expired override
-        mockReq.params = { overrideId };
-        controller.deactivateOverride(mockReq, mockRes);
+      // Manually expire the override
+      const override = controller.activeOverrides.get(overrideId);
+      override.endTime = new Date(Date.now() - 1000);
 
-        expect(mockRes.status).toHaveBeenCalledWith(404);
-        expect(mockRes.json).toHaveBeenCalledWith({
-          error: 'Override expired',
-          message: 'The specified override has expired',
-        });
+      // Try to deactivate expired override
+      mockReq.params = { overrideId };
+      controller.deactivateOverride(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Override expired',
+        message: 'The specified override has expired',
       });
     });
   });

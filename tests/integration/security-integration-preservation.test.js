@@ -318,9 +318,11 @@ describe('Security Integration Preservation Tests - Story 1.1.4', () => {
         .attach('pdf', Buffer.from('%PDF-1.4\n%EOF'), 'test.pdf')
         .expect(200);
 
+      console.log('Upload response body:', JSON.stringify(uploadResponse.body, null, 2));
       expect(uploadResponse.body).toHaveProperty('sanitizedContent');
       expect(uploadResponse.body).toHaveProperty('trustToken');
       expect(uploadResponse.body).toHaveProperty('metadata');
+      expect(uploadResponse.body).toHaveProperty('processingMetadata');
 
       // Test data export
       const exportResponse = await request(app)
@@ -328,9 +330,10 @@ describe('Security Integration Preservation Tests - Story 1.1.4', () => {
         .send({ format: 'json' })
         .expect(200);
 
-      expect(exportResponse.body).toHaveProperty('success');
-      expect(exportResponse.body).toHaveProperty('recordCount');
-      expect(exportResponse.body).toHaveProperty('format');
+      // Export endpoint returns file data, check headers for metadata
+      expect(exportResponse.headers['x-export-format']).toBe('json');
+      expect(exportResponse.headers['x-export-record-count']).toBeDefined();
+      expect(exportResponse.headers['x-export-file-size']).toBeDefined();
     });
 
     test('should handle validation warnings consistently (non-blocking)', async () => {
