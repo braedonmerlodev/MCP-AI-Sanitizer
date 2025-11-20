@@ -196,7 +196,7 @@ class AdminOverrideController {
 
       // Debug: expose quick visibility in test runs if needed
       if (process.env.NODE_ENV === 'test') {
-        // eslint-disable-next-line no-console
+         
         console.debug(
           'AdminOverrideController: activated override',
           overrideId,

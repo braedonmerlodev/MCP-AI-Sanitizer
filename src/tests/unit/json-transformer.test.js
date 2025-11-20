@@ -407,7 +407,7 @@ describe('JSON Transformer', () => {
     });
 
     it('should validate input parameters', () => {
-      expect(() => normalizeKeys({}, undefined)).toThrow('targetCase parameter is required');
+      expect(() => normalizeKeys({})).toThrow('targetCase parameter is required');
       expect(() => normalizeKeys({}, null)).toThrow('targetCase parameter is required');
       expect(() => normalizeKeys({}, 'invalidCase')).toThrow('unsupported targetCase');
       expect(() => normalizeKeys({}, { delimiter: 123 })).toThrow(
@@ -556,9 +556,9 @@ describe('JSON Transformer', () => {
     });
 
     it('should have valid preset configurations', () => {
-      Object.values(TRANSFORMATION_PRESETS).forEach((preset) => {
+      for (const preset of Object.values(TRANSFORMATION_PRESETS)) {
         expect(validatePreset(preset)).toBe(true);
-      });
+      }
     });
   });
 

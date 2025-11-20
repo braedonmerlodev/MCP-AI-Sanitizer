@@ -40,8 +40,12 @@ describe('PDF AI Workflow Integration Tests', () => {
       const response = await request(app)
         .post('/api/documents/upload?ai_transform=true&sync=true')
         .set('x-trust-token', JSON.stringify(validTrustToken))
-        .attach('pdf', testPdfBuffer, 'test.pdf')
-        .expect(200);
+        .attach('pdf', testPdfBuffer, 'test.pdf');
+
+      console.log('Response status:', response.status);
+      console.log('Response body:', JSON.stringify(response.body, null, 2));
+
+      expect(response.status).toBe(200);
 
       expect(response.body.message).toBe('PDF uploaded and processed successfully');
       expect(response.body.status).toBe('processed');

@@ -43,14 +43,14 @@ const REGEX_PATTERNS = {
 function normalizeKeys(obj, targetCase, options = {}) {
   // Input validation
   if (targetCase === undefined || targetCase === null) {
-    throw new Error('normalizeKeys: targetCase parameter is required');
+    throw new TypeError('normalizeKeys: targetCase parameter is required');
   }
 
   if (
     typeof targetCase === 'object' &&
     (!targetCase.delimiter || typeof targetCase.delimiter !== 'string')
   ) {
-    throw new Error('normalizeKeys: custom delimiter must be a non-empty string');
+    throw new TypeError('normalizeKeys: custom delimiter must be a non-empty string');
   }
 
   if (
@@ -77,33 +77,50 @@ function normalizeKeys(obj, targetCase, options = {}) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       let newKey = key;
 
-      if (targetCase === 'camelCase') {
-        // Convert snake_case/kebab-case to camelCase
-        newKey = key.replaceAll(REGEX_PATTERNS.camelCase, (match, letter) => letter.toUpperCase());
-      } else if (targetCase === 'snake_case') {
-        // Convert camelCase/PascalCase/kebab-case to snake_case
-        newKey = key
-          .replaceAll(REGEX_PATTERNS.snakeCase, '_$1')
-          .replaceAll(/-/g, '_')
-          .toLowerCase();
-      } else if (targetCase === 'kebab-case') {
-        // Convert camelCase/PascalCase/snake_case to kebab-case
-        newKey = key
-          .replaceAll(REGEX_PATTERNS.kebabCase, '-$1')
-          .replaceAll(/_/g, '-')
-          .toLowerCase();
-      } else if (targetCase === 'PascalCase') {
-        // Convert other formats to PascalCase
-        newKey = key.replaceAll(REGEX_PATTERNS.pascalCase, (match, letter) => letter.toUpperCase());
-        newKey = newKey.charAt(0).toUpperCase() + newKey.slice(1);
-      } else if (typeof targetCase === 'object' && targetCase.delimiter) {
-        // Custom delimiter support
-        const delimiter = targetCase.delimiter;
-        newKey = key
-          .replaceAll(REGEX_PATTERNS.customDelimiter, `${delimiter}$1`)
-          .replaceAll(/_/g, delimiter)
-          .replaceAll(/-/g, delimiter)
-          .toLowerCase();
+      switch (targetCase) {
+        case 'camelCase': {
+          // Convert snake_case/kebab-case to camelCase
+          newKey = key.replaceAll(REGEX_PATTERNS.camelCase, (match, letter) =>
+            letter.toUpperCase(),
+          );
+          break;
+        }
+        case 'snake_case': {
+          // Convert camelCase/PascalCase/kebab-case to snake_case
+          newKey = key
+            .replaceAll(REGEX_PATTERNS.snakeCase, '_$1')
+            .replaceAll('-', '_')
+            .toLowerCase();
+          break;
+        }
+        case 'kebab-case': {
+          // Convert camelCase/PascalCase/snake_case to kebab-case
+          newKey = key
+            .replaceAll(REGEX_PATTERNS.kebabCase, '-$1')
+            .replaceAll('_', '-')
+            .toLowerCase();
+          break;
+        }
+        case 'PascalCase': {
+          // Convert other formats to PascalCase
+          newKey = key.replaceAll(REGEX_PATTERNS.pascalCase, (match, letter) =>
+            letter.toUpperCase(),
+          );
+          newKey = newKey.charAt(0).toUpperCase() + newKey.slice(1);
+          break;
+        }
+        default: {
+          if (typeof targetCase === 'object' && targetCase.delimiter) {
+            // Custom delimiter support
+            const delimiter = targetCase.delimiter;
+            newKey = key
+              .replaceAll(REGEX_PATTERNS.customDelimiter, `${delimiter}$1`)
+              .replaceAll('_', delimiter)
+              .replaceAll('-', delimiter)
+              .toLowerCase();
+          }
+          break;
+        }
       }
 
       normalized[newKey] = normalizeKeys(obj[key], targetCase, options);
@@ -130,14 +147,31 @@ function normalizeKeys(obj, targetCase, options = {}) {
 function removeFields(obj, patterns, options = {}) {
   // Input validation
   if (!Array.isArray(patterns)) {
-    throw new Error('removeFields: patterns parameter must be an array');
+    throw new TypeError('removeFields: patterns parameter must be an array');
   }
 
   for (const pattern of patterns) {
     if (typeof pattern !== 'string' && !(pattern instanceof RegExp)) {
-      throw new Error('removeFields: all patterns must be strings or RegExp objects');
+      throw new TypeError('removeFields: all patterns must be strings or RegExp objects');
     }
   }
+
+  // Convert string patterns that look like regex to RegExp objects
+  const processedPatterns = patterns.map((pattern) => {
+    if (typeof pattern === 'string' && pattern.startsWith('/') && pattern.lastIndexOf('/') > 0) {
+      // Looks like a regex string like "/pattern/flags"
+      const lastSlash = pattern.lastIndexOf('/');
+      const regexBody = pattern.slice(1, lastSlash);
+      const flags = pattern.slice(lastSlash + 1);
+      try {
+        return new RegExp(regexBody, flags);
+      } catch (e) {
+        // If it's not a valid regex, treat as literal string
+        return pattern;
+      }
+    }
+    return pattern;
+  });
 
   if (options.conditionalFilter && typeof options.conditionalFilter.condition !== 'function') {
     throw new Error('removeFields: conditionalFilter.condition must be a function');
@@ -151,19 +185,19 @@ function removeFields(obj, patterns, options = {}) {
       // Check if key should be removed
       let shouldRemove = false;
 
-      for (const pattern of patterns) {
+      for (const pattern of processedPatterns) {
         if (typeof pattern === 'string') {
           // Exact string match
           if (key === pattern) {
             shouldRemove = true;
             break;
           }
-        } else if (pattern instanceof RegExp) {
-          // Regex pattern match
-          if (pattern.test(key)) {
-            shouldRemove = true;
-            break;
-          }
+        } else if (
+          pattern instanceof RegExp && // Regex pattern match
+          pattern.test(key)
+        ) {
+          shouldRemove = true;
+          break;
         }
       }
 
@@ -214,12 +248,9 @@ function coerceTypes(obj, typeMap) {
       // Apply type coercion if specified for this field
       if (typeMap[key]) {
         const targetType = typeMap[key];
-        if (Array.isArray(value)) {
-          // Handle arrays of values
-          value = value.map((item) => coerceValue(item, targetType));
-        } else {
-          value = coerceValue(value, targetType);
-        }
+        value = Array.isArray(value)
+          ? value.map((item) => coerceValue(item, targetType))
+          : coerceValue(value, targetType);
       }
 
       // Recursively process nested objects (but not arrays we've already handled)
@@ -244,19 +275,20 @@ function coerceValue(value, targetType) {
 
   try {
     switch (targetType) {
-      case 'number':
+      case 'number': {
         if (typeof value === 'string') {
-          const num = parseFloat(value);
-          if (isNaN(num)) {
-            throw new Error(`Cannot coerce '${value}' to number`);
+          const num = Number.parseFloat(value);
+          if (Number.isNaN(num)) {
+            throw new TypeError(`Cannot coerce '${value}' to number`);
           }
           return num;
         }
         if (typeof value === 'number') return value;
-        const num = parseFloat(value);
-        return isNaN(num) ? value : num;
+        const num = Number.parseFloat(value);
+        return Number.isNaN(num) ? value : num;
+      }
 
-      case 'boolean':
+      case 'boolean': {
         if (typeof value === 'string') {
           const lower = value.toLowerCase().trim();
           if (lower === 'true' || lower === '1' || lower === 'yes' || lower === 'on') return true;
@@ -266,53 +298,35 @@ function coerceValue(value, targetType) {
           );
         }
         return typeof value === 'boolean' ? value : Boolean(value);
+      }
 
-      case 'date':
+      case 'date': {
         if (typeof value === 'string') {
           const date = new Date(value);
-          if (isNaN(date.getTime())) {
-            throw new Error(`Cannot parse '${value}' as date`);
+          if (Number.isNaN(date.getTime())) {
+            throw new TypeError(`Cannot parse '${value}' as date`);
           }
           return date.toISOString();
         }
         return value instanceof Date ? value.toISOString() : value;
+      }
 
-      case 'string':
+      case 'string': {
         return String(value);
+      }
 
-      default:
+      default: {
         return value;
+      }
     }
   } catch (error) {
     // In strict mode, re-throw the error; otherwise, return original value
-    if (global.TRANSFORM_STRICT_MODE) {
+    if (globalThis.TRANSFORM_STRICT_MODE) {
       throw error;
     }
     console.warn(`Type coercion warning: ${error.message}`);
     return value;
   }
-}
-
-/**
- * Comprehensive error reporting for transformation operations
- * @param {string} operation - The operation that failed
- * @param {Error} error - The error that occurred
- * @param {object} context - Additional context information
- */
-function reportTransformationError(operation, error, context = {}) {
-  const errorReport = {
-    operation,
-    error: error.message,
-    timestamp: new Date().toISOString(),
-    context,
-  };
-
-  console.error('JSON Transformation Error:', errorReport);
-
-  // In a real application, you might send this to a logging service
-  // logTransformationError(errorReport);
-
-  return errorReport;
 }
 
 // Predefined transformation presets for common use cases
@@ -468,7 +482,7 @@ function createChain(initialData) {
 
     value: () => data,
 
-    validate: (schema) => {
+    validate: () => {
       // Basic validation - can be extended
       if (typeof data !== 'object' || data === null) {
         throw new Error('Validation failed: data must be an object');
