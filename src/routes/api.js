@@ -21,7 +21,13 @@ const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
 const queueManager = require('../utils/queueManager');
-const { normalizeKeys, removeFields } = require('../utils/jsonTransformer');
+const {
+  normalizeKeys,
+  removeFields,
+  coerceTypes,
+  applyPreset,
+  createChain,
+} = require('../utils/jsonTransformer');
 const AITextTransformer = require('../components/AITextTransformer');
 
 const router = express.Router();
@@ -111,8 +117,38 @@ const sanitizeJsonSchema = Joi.object({
   async: Joi.boolean().optional().default(false),
   transform: Joi.boolean().optional().default(false),
   transformOptions: Joi.object({
-    normalizeKeys: Joi.string().valid('camelCase', 'snake_case').optional(),
-    removeFields: Joi.array().items(Joi.string()).optional(),
+    normalizeKeys: Joi.alternatives()
+      .try(
+        Joi.string().valid('camelCase', 'snake_case', 'kebab-case', 'PascalCase'),
+        Joi.object({
+          delimiter: Joi.string().required(),
+        }),
+      )
+      .optional(),
+    removeFields: Joi.array()
+      .items(
+        Joi.alternatives().try(
+          Joi.string(),
+          Joi.object().regex(), // Allow RegExp objects
+        ),
+      )
+      .optional(),
+    coerceTypes: Joi.object()
+      .pattern(Joi.string(), Joi.string().valid('number', 'boolean', 'date', 'string'))
+      .optional(),
+    preset: Joi.string()
+      .valid('aiProcessing', 'apiResponse', 'dataExport', 'databaseStorage')
+      .optional(),
+    chain: Joi.array()
+      .items(
+        Joi.object({
+          operation: Joi.string()
+            .valid('normalizeKeys', 'removeFields', 'coerceTypes', 'applyPreset')
+            .required(),
+          params: Joi.any().optional(),
+        }),
+      )
+      .optional(),
   }).optional(),
   ai_transform: Joi.boolean().optional().default(false), // Add AI processing for JSON content
   outputFormat: Joi.string()
@@ -183,12 +219,42 @@ router.post(
     if (value.transform) {
       try {
         let jsonObj = JSON.parse(value.content);
-        if (value.transformOptions?.normalizeKeys) {
-          jsonObj = normalizeKeys(jsonObj, value.transformOptions.normalizeKeys);
+
+        // Apply transformations in order
+        if (value.transformOptions) {
+          const opts = value.transformOptions;
+
+          // Support preset application
+          if (opts.preset) {
+            jsonObj = applyPreset(jsonObj, opts.preset);
+          }
+
+          // Support transformation chaining
+          if (opts.chain) {
+            let chain = createChain(jsonObj);
+            for (const step of opts.chain) {
+              const { operation, params } = step;
+              if (chain[operation]) {
+                chain = chain[operation](...params);
+              } else {
+                logger.warn(`Unknown chain operation: ${operation}`);
+              }
+            }
+            jsonObj = chain.value();
+          } else {
+            // Legacy support for individual transformations
+            if (opts.normalizeKeys) {
+              jsonObj = normalizeKeys(jsonObj, opts.normalizeKeys);
+            }
+            if (opts.removeFields) {
+              jsonObj = removeFields(jsonObj, opts.removeFields);
+            }
+            if (opts.coerceTypes) {
+              jsonObj = coerceTypes(jsonObj, opts.coerceTypes);
+            }
+          }
         }
-        if (value.transformOptions?.removeFields) {
-          jsonObj = removeFields(jsonObj, value.transformOptions.removeFields);
-        }
+
         contentToSanitize = JSON.stringify(jsonObj);
       } catch (e) {
         logger.warn('Invalid JSON for transformation, skipping', { error: e.message });
