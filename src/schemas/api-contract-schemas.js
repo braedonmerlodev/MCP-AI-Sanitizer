@@ -47,6 +47,12 @@ const responseSchemas = {
     fileName: Joi.string().required(),
     size: Joi.number().integer().min(0).required(),
     metadata: Joi.object().required(),
+    // processingMetadata may be attached when AI transformation runs or falls back
+    processingMetadata: Joi.object({
+      aiError: Joi.string().optional(),
+      aiProcessed: Joi.boolean().optional(),
+      transformationType: Joi.string().optional(),
+    }).optional(),
     status: Joi.string().valid('processed').required(),
     sanitizedContent: Joi.string().required(),
     trustToken: Joi.object().required(),

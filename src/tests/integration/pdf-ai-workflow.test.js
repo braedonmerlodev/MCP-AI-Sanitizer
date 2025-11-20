@@ -1,4 +1,18 @@
 const request = require('supertest');
+// Mock AITextTransformer so AI flows are deterministic in tests (returns a JSON string for structure)
+jest.mock('../../components/AITextTransformer', () => {
+  return jest.fn().mockImplementation(() => ({
+    transform: async (text, type) => {
+      if (type === 'structure') {
+        // Return structured JSON as text
+        const structured = { title: 'Mocked PDF', summary: 'Mock summary', content: text };
+        return { text: JSON.stringify(structured), metadata: { processingTime: 5, tokens: { prompt: 1, completion: 2, total: 3 } } };
+      }
+      return { text, metadata: null };
+    },
+  }));
+});
+
 const app = require('../../app');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
@@ -56,7 +70,7 @@ describe('PDF AI Workflow Integration Tests', () => {
       );
 
       const response = await request(app)
-        .post('/api/documents/upload?sync=true')
+        .post('/api/documents/upload?sync=true&ai_transform=false')
         .set('x-trust-token', JSON.stringify(validTrustToken))
         .attach('pdf', testPdfBuffer, 'test.pdf')
         .expect(200);

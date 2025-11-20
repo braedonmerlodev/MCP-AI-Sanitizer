@@ -37,6 +37,8 @@ const proxySanitizer = new ProxySanitizer();
 const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();
 const adminOverrideController = new AdminOverrideController();
+// Expose controller on global for middleware integration in tests and server runtime
+globalThis.adminOverrideController = adminOverrideController;
 const accessControlEnforcer = new AccessControlEnforcer({
   adminOverrideController,
 });
@@ -75,14 +77,14 @@ const upload = multer({
 // Rate limiting for upload endpoint
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 uploads per windowMs
+  max: process.env.NODE_ENV === 'test' ? 1000000 : 10, // limit each IP to 10 uploads per windowMs (disabled for tests)
   message: 'Too many uploads from this IP, please try again later.',
 });
 
 // Rate limiting for sanitization endpoints
 const sanitizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 sanitization requests per windowMs
+  max: process.env.NODE_ENV === 'test' ? 1000000 : 100, // limit each IP for tests
   message: 'Too many sanitization requests from this IP, please try again later.',
 });
 
@@ -157,6 +159,19 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
   }
 });
 */
+
+// Backward-compatible minimal /api/sanitize endpoint (non-protected)
+router.post('/sanitize', destinationTracking, async (req, res) => {
+  try {
+    const data = req.body?.data || '';
+    const options = { classification: req.destinationTracking.classification };
+    const sanitizedData = await proxySanitizer.sanitize(data, options);
+    return res.json({ sanitizedData });
+  } catch (e) {
+    logger.error('Sanitize compatibility endpoint error', { error: e.message });
+    return res.status(500).json({ error: 'Sanitization failed' });
+  }
+});
 
 /**
  * POST /api/sanitize/json
@@ -861,16 +876,30 @@ router.post(
  * POST /api/admin/override/activate
  * Activates admin override for emergency access
  */
+// Route intentionally forwards to controller for its own validation and error messages
 router.post('/admin/override/activate', (req, res) => {
-  const { error, value } = adminOverrideActivateSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ error: error.details[0].message });
-  }
-
-  // Override original body with validated value
-  req.body = value;
   adminOverrideController.activateOverride(req, res);
 });
+
+// Test-only: clear active overrides to ensure test isolation
+if (process.env.NODE_ENV === 'test') {
+  router.post('/admin/override/clear', (req, res) => {
+    try {
+      // Clear in-memory overrides and cancel any test timers
+      if (typeof adminOverrideController.clearAllOverrides === 'function') {
+        adminOverrideController.clearAllOverrides();
+      } else {
+        // Fallback in case controller lacks the helper
+        adminOverrideController.activeOverrides.clear();
+      }
+
+      return res.json({ cleared: true });
+    } catch (error) {
+      logger.warn('Failed to clear admin overrides (test helper)', { error: error.message });
+      return res.status(500).json({ error: 'Clear failed' });
+    }
+  });
+}
 
 /**
  * DELETE /api/admin/override/:overrideId

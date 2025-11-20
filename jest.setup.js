@@ -181,3 +181,24 @@ global.ImageData = class ImageData {
     this.data = new Uint8ClampedArray(width * height * 4);
   }
 };
+
+// Defensive PDFJS / pdf-parse test shims to avoid worker errors in Node test env
+global.PDFJS = global.PDFJS || { workerSrc: '' };
+global.pdfjsLib = global.pdfjsLib || { GlobalWorkerOptions: { workerSrc: '' } };
+
+// Provide a simple global mock for `pdf-parse` so integration tests are deterministic.
+// Jest's setup file runs before tests, so calling jest.mock here ensures modules that
+// require `pdf-parse` get our controlled implementation.
+try {
+  // jest may not be defined if this file is executed outside jest; guard it
+  if (typeof jest !== 'undefined' && typeof jest.mock === 'function') {
+    jest.mock('pdf-parse', () => {
+      return async function mockPdfParse(buffer) {
+        // Return a stable, small text payload suitable for both AI and non-AI flows
+        return { text: 'mocked pdf text', numpages: 1, info: {} };
+      };
+    });
+  }
+} catch (err) {
+  // ignore if mocking is not available in this environment
+}
