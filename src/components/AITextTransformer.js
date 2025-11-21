@@ -54,15 +54,15 @@ class AITextTransformer {
   async transform(text, type, options = {}) {
     const startTime = Date.now();
 
+    // Validate transformation type before processing
+    const prompt = this.prompts[type];
+    if (!prompt) {
+      throw new Error(`Unknown transformation type: ${type}`);
+    }
+
     try {
       // Sanitize input before AI processing
       const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
-
-      // Get the appropriate prompt template
-      const prompt = this.prompts[type];
-      if (!prompt) {
-        throw new Error(`Unknown transformation type: ${type}`);
-      }
 
       // Create and execute the Langchain pipeline
       const chain = prompt.pipe(this.openai);

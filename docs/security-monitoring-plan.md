@@ -55,6 +55,7 @@
 - **Sanitization Events**: Content sanitization activities
 - **Injection Attempts**: SQL injection, XSS, command injection detection
 - **Data Validation**: Schema validation success/failure rates
+- **AI Configuration Validation**: OpenAI API key format and validity checks
 
 #### API Security
 
@@ -63,7 +64,38 @@
 - **Header Security**: Missing or invalid security headers
 - **API Abuse**: Unusual API usage patterns
 
-### 3. Infrastructure Security Monitoring
+### 3. AI Configuration Security Monitoring
+
+#### AI Service Security
+
+- **API Key Validation**: Real-time monitoring of OpenAI API key validation success/failure
+- **AI Service Authentication**: Tracking of AI service connection attempts and failures
+- **Rate Limit Monitoring**: AI transformation request rate limiting and violations
+- **AI Content Validation**: Monitoring for malicious content in AI processing requests
+- **Model Access Control**: Validation of appropriate model usage and access permissions
+
+#### AI Configuration Hardening
+
+**Environment-Specific Validation:**
+
+- **Production**: Strict API key validation with immediate failure on invalid keys
+- **Development**: Permissive validation with warnings for invalid keys, allowing continued operation
+
+**API Key Security Controls:**
+
+- **Format Validation**: Enforces "sk-" prefix and exactly 51 character length
+- **Character Validation**: Restricts to alphanumeric characters after prefix
+- **Environment Isolation**: Different validation behavior by environment
+- **Error Handling**: Prevents key exposure in error messages and logs
+
+**AI Service Integration Security:**
+
+- **Fallback Mechanisms**: Graceful degradation when AI services unavailable
+- **Timeout Protection**: Prevents hanging requests to AI services
+- **Cost Control**: Rate limiting to prevent API abuse and cost overruns
+- **Content Sanitization**: Validation of content before AI processing
+
+### 4. Infrastructure Security Monitoring
 
 #### Network Security
 
@@ -111,11 +143,20 @@
 - **Risk Assessment Logging**: Decision outcomes and risk scoring
 - **Data Integrity Monitoring**: Validation success/failure tracking
 
+#### AI Configuration Security Monitoring
+
+- **API Key Validation Monitoring**: Real-time tracking of key validation success/failure rates
+- **AI Service Error Tracking**: Monitoring of AI service connection and processing errors
+- **Rate Limit Enforcement**: Tracking and alerting on AI transformation rate limit violations
+- **Configuration Validation**: Ensuring AI config security settings are properly applied
+
 #### Performance Impact Monitoring
 
 - **Security Overhead Tracking**: Response time impact of security measures
-- **Resource Usage Monitoring**: CPU/Memory usage with security components
+- **Resource Usage Monitoring**: CPU/Memory usage of security monitoring
 - **Error Rate Analysis**: Security-related error isolation
+- **AI Processing Performance**: Monitoring AI transformation response times and resource usage
+- **AI Processing Performance**: Monitoring AI transformation response times and resource usage
 
 #### Alerting Implementation
 
@@ -268,6 +309,7 @@
 - **Detection Rate**: > 95% of security incidents detected
 - **False Positive Rate**: < 5% for automated alerts
 - **Alert Response Time**: < 15 minutes average
+- **AI Configuration Validation Rate**: > 99% successful key validations
 
 ### Response Metrics
 
@@ -332,6 +374,7 @@
 
 ## Revision History
 
-| Date       | Version | Description                      | Author        |
-| ---------- | ------- | -------------------------------- | ------------- |
-| 2025-11-18 | 1.0     | Initial security monitoring plan | Security Team |
+| Date       | Version | Description                                  | Author        |
+| ---------- | ------- | -------------------------------------------- | ------------- |
+| 2025-11-21 | 1.1     | Added AI configuration validation monitoring | Dev Team      |
+| 2025-11-18 | 1.0     | Initial security monitoring plan             | Security Team |

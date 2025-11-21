@@ -500,6 +500,12 @@ Expected (400):
 14. Invalid requests rejected ✅
 15. Malicious content blocked ✅
 
+### Phase 6: AI Configuration Validation
+
+16. AI API key validation ✅
+17. Environment-specific behavior ✅
+18. AI service integration ✅
+
 ---
 
 ## 📊 Success Criteria
@@ -519,6 +525,145 @@ Expected (400):
 3. **Tokens**: Valid tokens accepted, invalid rejected
 4. **Files**: PDF upload and generation work
 5. **Monitoring**: Statistics accessible with API key
+
+---
+
+## 8. 🤖 AI Configuration & API Key Validation Testing
+
+### AI API Key Validation Scenarios
+
+#### Production Environment Tests
+
+**Test: Valid API Key Loading**
+
+```
+Environment: NODE_ENV=production
+OPENAI_API_KEY: sk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (51 chars)
+Expected: Config loads successfully, isValid=true
+```
+
+**Test: Missing API Key (Production)**
+
+```
+Environment: NODE_ENV=production
+OPENAI_API_KEY: (not set)
+Expected: Application throws error: "OPENAI_API_KEY environment variable must be set in production"
+```
+
+**Test: Invalid Format - No sk- Prefix**
+
+```
+Environment: NODE_ENV=production
+OPENAI_API_KEY: invalid-key-format
+Expected: Application throws error: "OPENAI_API_KEY must start with "sk-""
+```
+
+**Test: Invalid Length - Too Short**
+
+```
+Environment: NODE_ENV=production
+OPENAI_API_KEY: sk-short
+Expected: Application throws error: "OPENAI_API_KEY must be exactly 51 characters, got 8"
+```
+
+**Test: Invalid Characters - Non-Alphanumeric**
+
+```
+Environment: NODE_ENV=production
+OPENAI_API_KEY: sk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!
+Expected: Application throws error: "OPENAI_API_KEY must contain only alphanumeric characters after "sk-""
+```
+
+#### Development Environment Tests
+
+**Test: Missing API Key (Development)**
+
+```
+Environment: NODE_ENV=development
+OPENAI_API_KEY: (not set)
+Expected: Config loads with warning: "OPENAI_API_KEY not set - AI features may not work in development", isValid=false
+```
+
+**Test: Valid API Key Loading (Development)**
+
+```
+Environment: NODE_ENV=development
+OPENAI_API_KEY: sk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (51 chars)
+Expected: Config loads successfully, isValid=true, no warnings
+```
+
+**Test: Invalid Format (Development)**
+
+```
+Environment: NODE_ENV=development
+OPENAI_API_KEY: invalid-key-format
+Expected: Config loads with warning: "Warning: OPENAI_API_KEY must start with "sk-"", isValid=false
+```
+
+**Test: Invalid Length (Development)**
+
+```
+Environment: NODE_ENV=development
+OPENAI_API_KEY: sk-short
+Expected: Config loads with warning: "Warning: OPENAI_API_KEY must be exactly 51 characters, got 8", isValid=false
+```
+
+**Test: Invalid Characters (Development)**
+
+```
+Environment: NODE_ENV=development
+OPENAI_API_KEY: sk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!
+Expected: Config loads with warning: "Warning: OPENAI_API_KEY must contain only alphanumeric characters after "sk-"", isValid=false
+```
+
+#### AI Service Integration Tests
+
+**Test: AI Processing with Valid Key**
+
+```
+Method: POST
+URL: {{base_url}}/api/documents/upload?sync=true&ai_transform=true
+Headers:
+  x-trust-token: {{trust_token}}
+Body: form-data
+  pdf: [Valid PDF file]
+Expected: 200 with AI transformation metadata
+```
+
+**Test: AI Processing with Invalid Key**
+
+```
+Method: POST
+URL: {{base_url}}/api/documents/upload?sync=true&ai_transform=true
+Headers:
+  x-trust-token: {{trust_token}}
+Environment: Invalid OPENAI_API_KEY set
+Body: form-data
+  pdf: [Valid PDF file]
+Expected: 500 with AI service error, fallback to standard processing
+```
+
+**Test: AI Rate Limiting**
+
+```
+Method: POST (repeated 6+ times within 15 minutes)
+URL: {{base_url}}/api/documents/upload?sync=true&ai_transform=true
+Headers:
+  x-trust-token: {{trust_token}}
+Body: form-data
+  pdf: [Valid PDF file]
+Expected: 429 "AI transformation rate limit exceeded" after 5 requests
+```
+
+### AI Configuration Test Checklist
+
+- [x] Production environment enforces strict API key validation
+- [x] Development environment provides warnings but allows operation
+- [x] Invalid API keys are properly detected and handled
+- [x] AI services gracefully degrade when API key is invalid
+- [x] Rate limiting prevents API abuse
+- [x] Error messages don't expose sensitive key information
+- [x] Configuration validation happens at startup, not runtime
 
 ---
 
