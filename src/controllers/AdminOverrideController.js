@@ -238,7 +238,7 @@ class AdminOverrideController {
         // Increase auto-expire delay in tests so immediate subsequent assertions
         // (deactivation, integration checks) reliably observe the created override.
         // Keep a short delay to still avoid long-lived state between tests.
-        const autoExpireMs = 10000; // 10s auto-expire for test isolation
+        const autoExpireMs = 10_000; // 10s auto-expire for test isolation
         const timer = setTimeout(() => {
           try {
             if (this.activeOverrides.has(overrideId)) {

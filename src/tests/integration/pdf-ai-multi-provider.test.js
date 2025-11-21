@@ -9,7 +9,7 @@ jest.mock('../../components/AITextTransformer', () => {
       // Simulate realistic processing delay
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      if (global.testAIError) {
+      if (globalThis.testAIError) {
         throw new Error('AI service unavailable');
       }
 
@@ -165,7 +165,7 @@ describe('PDF AI Multi-Provider Configuration Tests', () => {
 
     it('should handle AI service configuration errors gracefully', async () => {
       // Mock AI service failure
-      global.testAIError = true;
+      globalThis.testAIError = true;
 
       const response = await request(app)
         .post('/api/documents/upload?ai_transform=true')
@@ -178,7 +178,7 @@ describe('PDF AI Multi-Provider Configuration Tests', () => {
       expect(response.body.processingMetadata.aiProcessed).toBe(false);
       expect(response.body.processingMetadata.aiError).toBeDefined();
 
-      delete global.testAIError;
+      delete globalThis.testAIError;
     });
 
     it('should validate AI configuration parameters', async () => {
