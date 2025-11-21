@@ -1,11 +1,13 @@
-const AITextTransformer = require('../../components/AITextTransformer');
+const mockInvoke = jest.fn().mockResolvedValue({ content: 'AI output', response_metadata: {} });
 
-jest.mock('@langchain/openai');
+jest.mock('@langchain/openai', () => ({
+  ChatOpenAI: jest.fn(),
+}));
 jest.mock('@langchain/core/prompts', () => ({
   PromptTemplate: {
     fromTemplate: jest.fn().mockReturnValue({
       pipe: jest.fn().mockReturnValue({
-        invoke: jest.fn().mockResolvedValue({ content: 'AI output', response_metadata: {} }),
+        invoke: mockInvoke,
       }),
     }),
   },
@@ -17,6 +19,8 @@ jest.mock('../../config/aiConfig', () => ({
     isValid: true,
   },
 }));
+
+const AITextTransformer = require('../../components/AITextTransformer');
 
 describe('AITextTransformer', () => {
   let transformer;
@@ -43,8 +47,8 @@ describe('AITextTransformer', () => {
 
     // Mock ChatOpenAI
     mockOpenAI = {};
-    const MockChatOpenAI = jest.fn().mockImplementation(() => mockOpenAI);
-    require('@langchain/openai').ChatOpenAI = MockChatOpenAI;
+    const MockChatOpenAI = require('@langchain/openai').ChatOpenAI;
+    MockChatOpenAI.mockImplementation(() => mockOpenAI);
 
     transformer = new AITextTransformer();
   });
@@ -67,26 +71,39 @@ describe('AITextTransformer', () => {
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('raw text', {});
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('AI output', {});
-    expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBeDefined();
+    expect(result).toEqual({
+      text: 'sanitized text',
+      metadata: expect.objectContaining({
+        processingTime: expect.any(Number),
+        cost: expect.any(Number),
+        tokens: expect.objectContaining({
+          prompt: expect.any(Number),
+          completion: expect.any(Number),
+          total: expect.any(Number),
+        }),
+      }),
+    });
   });
 
   test('should transform text with summarize type', async () => {
     const result = await transformer.transform('raw text', 'summarize');
 
     expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
   });
 
   test('should transform text with extract_entities type', async () => {
     const result = await transformer.transform('raw text', 'extract_entities');
 
     expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
   });
 
   test('should transform text with json_schema type', async () => {
     const result = await transformer.transform('raw text', 'json_schema');
 
     expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
   });
 
   test('should throw error for unknown transformation type', async () => {
@@ -96,12 +113,13 @@ describe('AITextTransformer', () => {
   });
 
   test('should fallback to sanitized input on AI error', async () => {
-    mockOpenAI.invoke = jest.fn().mockRejectedValue(new Error('API error'));
+    mockInvoke.mockRejectedValueOnce(new Error('API error'));
 
     const result = await transformer.transform('raw text', 'structure');
 
-    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
-    expect(result).toBe('sanitized text');
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2); // Input sanitization + fallback sanitization
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBe(null);
   });
 
   test('should pass options to sanitizer', async () => {
