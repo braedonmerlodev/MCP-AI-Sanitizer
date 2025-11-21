@@ -57,12 +57,21 @@ describe('TrainingDataCollector', () => {
           contentType: 'text',
         },
         processingContext: {
-          steps: ['validation', 'normalization', 'sanitization'],
-          sanitizationLevel: 'advanced',
-          validationPassed: true,
-          provenanceValidated: true,
-          processingTime: 150,
+          steps: [
+            'input_validation',
+            'threat_detection',
+            'content_sanitization',
+            'output_formatting',
+          ],
+          parameters: { sanitizationLevel: 'strict' },
+          results: [
+            { passed: true, threats: 0 },
+            { detected: 1, severity: 'high' },
+            { applied: true, changes: 1 },
+            { formatted: true, size: 85 },
+          ],
         },
+        processingTime: 245,
         riskScore: 0.85,
         confidenceScore: 0.92,
         anomalyScore: 0.15,
@@ -87,7 +96,7 @@ describe('TrainingDataCollector', () => {
       expect(result.id).toMatch(/^train_\d+_/);
       expect(result.inputData.size).toBeGreaterThan(0);
       expect(result.inputData.contentType).toBe('text');
-      expect(result.processingSteps).toHaveLength(3);
+      expect(result.processingSteps).toHaveLength(4);
       expect(result.decisionOutcome.riskScore).toBe(0.85);
       expect(result.trainingLabels.riskCategory).toBe('malicious');
       expect(result.metadata.collectionTimestamp).toBeDefined();
@@ -289,4 +298,218 @@ describe('TrainingDataCollector', () => {
       expect(collector.redactPII(123)).toBe(123);
     });
   });
+
+  describe('End-to-End Training Data Collection', () => {
+    it('should execute complete training data collection pipeline with data quality validation', async () => {
+      // Test data representing a realistic security assessment
+      const assessmentData = {
+        inputData: {
+          content:
+            'User input: <script>document.cookie="session=abc123"</script> and some normal text',
+          contentType: 'html',
+        },
+        processingContext: {
+          steps: [
+            'input_validation',
+            'threat_detection',
+            'content_sanitization',
+            'output_formatting',
+          ],
+          parameters: { sanitizationLevel: 'strict' },
+          results: [
+            { passed: true, threats: 0 },
+            { detected: 1, severity: 'high' },
+            { applied: true, changes: 1 },
+            { formatted: true, size: 85 },
+          ],
+          processingTime: 245,
+        },
+        riskScore: 0.92,
+        confidenceScore: 0.89,
+        anomalyScore: 0.23,
+        threatPatternId: 'xss_injection',
+        riskLevel: 'High',
+        actionsTaken: ['sanitize_content', 'log_incident'],
+        trainingLabels: { category: 'xss_attack' },
+        destination: 'ai_training_pipeline',
+        languageFeatures: { language: 'en', sentiment: 'neutral' },
+        structuralFeatures: { hasScript: true, hasForms: false },
+      };
+
+      const context = {
+        userId: 'test_user_456',
+        source: 'web_application',
+        ipAddress: '10.0.0.100',
+        userAgent: 'Mozilla/5.0 (Test Browser)',
+        sessionId: 'sess_789',
+        timestamp: new Date().toISOString(),
+      };
+
+      // Execute end-to-end collection
+      const result = await collector.collectTrainingData(assessmentData, context);
+
+      // Validate collection occurred
+      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
+
+      // Validate data structure and completeness
+      expect(result).toHaveProperty('id');
+      expect(result.id).toMatch(/^train_\d+_/);
+
+      // Validate inputData section
+      expect(result.inputData).toBeDefined();
+      expect(result.inputData.content).toBe(assessmentData.inputData.content);
+      expect(result.inputData.contentType).toBe('html');
+      expect(result.inputData.size).toBeGreaterThan(0);
+      expect(result.inputData.hash).toBeDefined();
+      expect(typeof result.inputData.hash).toBe('string');
+
+      // Validate processingSteps section
+      expect(result.processingSteps).toBeDefined();
+      expect(Array.isArray(result.processingSteps)).toBe(true);
+      expect(result.processingSteps).toHaveLength(4);
+      result.processingSteps.forEach((step) => {
+        expect(step).toHaveProperty('step');
+        expect(step).toHaveProperty('action');
+        expect(step).toHaveProperty('timestamp');
+        expect(step.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      });
+
+      // Validate decisionOutcome section
+      expect(result.decisionOutcome).toBeDefined();
+      expect(result.decisionOutcome.riskLevel).toBe('High');
+      expect(result.decisionOutcome.actionsTaken).toEqual(['sanitize_content', 'log_incident']);
+      expect(result.decisionOutcome.confidenceScore).toBe(0.89);
+      expect(result.decisionOutcome.riskScore).toBe(0.92);
+
+      // Validate featureVector section
+      expect(result.featureVector).toBeDefined();
+      expect(typeof result.featureVector.contentLength).toBe('number');
+      expect(result.featureVector.contentLength).toBeGreaterThan(0);
+      expect(typeof result.featureVector.specialCharsCount).toBe('number');
+      expect(typeof result.featureVector.scriptTagsCount).toBe('number');
+      expect(typeof result.featureVector.suspiciousPatternsCount).toBe('number');
+      expect(typeof result.featureVector.entropyScore).toBe('number');
+      expect(result.featureVector.entropyScore).toBeGreaterThanOrEqual(0);
+      expect(result.featureVector.entropyScore).toBeLessThanOrEqual(1);
+      expect(result.featureVector.languageFeatures).toEqual({
+        language: 'en',
+        sentiment: 'neutral',
+      });
+      expect(result.featureVector.structuralFeatures).toEqual({ hasScript: true, hasForms: false });
+
+      // Validate trainingLabels section
+      expect(result.trainingLabels).toBeDefined();
+      expect(result.trainingLabels.riskCategory).toBe('malicious'); // Based on riskLevel mapping
+      expect(result.trainingLabels.threatTypes).toEqual([]);
+      expect(result.trainingLabels.confidence).toBe(0.89);
+      expect(result.trainingLabels.humanVerified).toBe(false); // Default value when not provided
+
+      // Validate metadata section
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata.collectionTimestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(result.metadata.provenance).toBe('web_application');
+      expect(result.metadata.source).toBe('web_application');
+      expect(result.metadata.version).toBe('1.0');
+      expect(result.metadata.processingDuration).toBeDefined(); // Processing time from assessment data
+      expect(result.metadata.environment).toBeDefined();
+      expect(result.metadata.collectionTime).toBeDefined();
+      expect(typeof result.metadata.collectionTime).toBe('number');
+
+      // Validate audit logging occurred
+      expect(mockAuditLogger.logOperation).toHaveBeenCalledWith(
+        'training_data_collected',
+        expect.objectContaining({
+          trainingDataId: result.id,
+          riskScore: 0.92,
+          riskLevel: 'High',
+          collectionTime: expect.any(Number),
+          validationPassed: true,
+        }),
+        expect.objectContaining({
+          userId: 'test_user_456',
+          source: 'web_application',
+          severity: 'info',
+        }),
+      );
+
+      // Validate data quality metrics
+      const dataQualityScore = calculateDataQualityScore(result);
+      expect(dataQualityScore).toBeGreaterThanOrEqual(0.8); // High quality threshold
+    });
+
+    it('should validate training data against schema requirements', async () => {
+      const assessmentData = {
+        inputData: { content: 'Safe content', contentType: 'text' },
+        processingContext: { steps: ['validate'] },
+        riskScore: 0.8,
+        riskLevel: 'High',
+        actionsTaken: ['monitor'],
+      };
+
+      const result = await collector.collectTrainingData(assessmentData);
+
+      expect(result).toBeDefined();
+
+      // Validate required schema fields are present
+      const requiredFields = [
+        'id',
+        'inputData',
+        'processingSteps',
+        'decisionOutcome',
+        'featureVector',
+        'trainingLabels',
+        'metadata',
+      ];
+      requiredFields.forEach((field) => {
+        expect(result).toHaveProperty(field);
+      });
+
+      // Validate data types
+      expect(typeof result.id).toBe('string');
+      expect(typeof result.inputData).toBe('object');
+      expect(Array.isArray(result.processingSteps)).toBe(true);
+      expect(typeof result.decisionOutcome).toBe('object');
+      expect(typeof result.featureVector).toBe('object');
+      expect(typeof result.trainingLabels).toBe('object');
+      expect(typeof result.metadata).toBe('object');
+    });
+  });
 });
+
+// Helper function for data quality scoring
+function calculateDataQualityScore(trainingData) {
+  let score = 0;
+  let maxScore = 0;
+
+  // Completeness (40 points)
+  maxScore += 40;
+  const requiredSections = [
+    'inputData',
+    'processingSteps',
+    'decisionOutcome',
+    'featureVector',
+    'trainingLabels',
+    'metadata',
+  ];
+  const presentSections = requiredSections.filter((section) => trainingData[section]);
+  score += (presentSections.length / requiredSections.length) * 40;
+
+  // Data integrity (30 points)
+  maxScore += 30;
+  if (trainingData.inputData?.hash && trainingData.inputData?.size > 0) score += 15;
+  if (
+    trainingData.featureVector?.entropyScore >= 0 &&
+    trainingData.featureVector?.entropyScore <= 1
+  )
+    score += 10;
+  if (trainingData.metadata?.collectionTimestamp) score += 5;
+
+  // Processing quality (30 points)
+  maxScore += 30;
+  if (trainingData.processingSteps?.length > 0) score += 10;
+  if (trainingData.decisionOutcome?.riskLevel) score += 10;
+  if (trainingData.trainingLabels?.riskCategory) score += 10;
+
+  return score / maxScore;
+}
