@@ -2,6 +2,7 @@ const { ChatOpenAI } = require('@langchain/openai');
 const { PromptTemplate } = require('@langchain/core/prompts');
 const winston = require('winston');
 const SanitizationPipeline = require('./sanitization-pipeline');
+const aiConfig = require('../config/aiConfig');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -17,7 +18,7 @@ const logger = winston.createLogger({
 class AITextTransformer {
   constructor(options = {}) {
     this.openai = new ChatOpenAI({
-      openAIApiKey: process.env.OPENAI_API_KEY,
+      openAIApiKey: aiConfig.openai.apiKey,
       modelName: options.model || 'gpt-3.5-turbo',
       temperature: 0.1,
       maxTokens: 2000,
