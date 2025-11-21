@@ -147,6 +147,20 @@ describe('TrainingDataCollector', () => {
 
       expect(result).toBeNull();
     });
+
+    it('should handle null assessmentData gracefully', async () => {
+      const result = await collector.collectTrainingData(null);
+
+      expect(result).toBeNull();
+      expect(mockAuditLogger.logOperation).not.toHaveBeenCalled();
+    });
+
+    it('should handle undefined assessmentData gracefully', async () => {
+      const result = await collector.collectTrainingData(undefined);
+
+      expect(result).toBeNull();
+      expect(mockAuditLogger.logOperation).not.toHaveBeenCalled();
+    });
   });
 
   describe('buildTrainingDataObject', () => {
