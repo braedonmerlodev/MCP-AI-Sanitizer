@@ -16,7 +16,7 @@ jest.mock('../../components/AITextTransformer', () => {
       };
 
       switch (type) {
-        case 'structure':
+        case 'structure': {
           // Return structured JSON as text (matching real AI structure response)
           const structured = {
             title: 'Mocked PDF Document',
@@ -38,18 +38,20 @@ jest.mock('../../components/AITextTransformer', () => {
             text: JSON.stringify(structured),
             metadata: baseMetadata,
           };
+        }
 
-        case 'summarize':
+        case 'summarize': {
           // Return concise summary (matching real AI summary response)
-          const summary = `Mock AI summary: ${text.substring(0, 50)}...`;
+          const summary = `Mock AI summary: ${text.slice(0, 50)}...`;
           baseMetadata.tokens.completion = summary.length / 4;
           baseMetadata.tokens.total = baseMetadata.tokens.prompt + baseMetadata.tokens.completion;
           return {
             text: summary,
             metadata: baseMetadata,
           };
+        }
 
-        case 'extract_entities':
+        case 'extract_entities': {
           // Return extracted entities (matching real AI entity extraction)
           const entities = {
             people: ['Mock Person'],
@@ -64,8 +66,9 @@ jest.mock('../../components/AITextTransformer', () => {
             text: JSON.stringify(entities),
             metadata: baseMetadata,
           };
+        }
 
-        default:
+        default: {
           // Fallback for unsupported types
           return {
             text: text,
@@ -75,6 +78,7 @@ jest.mock('../../components/AITextTransformer', () => {
               tokens: { prompt: 1, completion: 1, total: 2 },
             },
           };
+        }
       }
     },
   }));
