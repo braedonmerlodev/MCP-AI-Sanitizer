@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../../app');
+const app = require('../../app');
 
 describe('Health Check Endpoint', () => {
   test('should return healthy status with timestamp', async () => {

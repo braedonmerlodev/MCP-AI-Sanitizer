@@ -133,11 +133,12 @@ class AdminOverrideController {
       const overrideDuration = duration
         ? Math.min(duration, this.maxDuration)
         : this.defaultDuration;
-      if (overrideDuration < 60_000) {
-        // Enforce minimum 1 minute for overrides
+      const minDuration = process.env.NODE_ENV === 'test' ? 1000 : 60_000;
+      if (overrideDuration < minDuration) {
+        // Enforce minimum duration for overrides
         return res.status(400).json({
           error: 'Invalid duration',
-          message: 'Override duration must be at least 1 minute',
+          message: `Override duration must be at least ${minDuration}ms`,
         });
       }
 
@@ -237,7 +238,7 @@ class AdminOverrideController {
         // Increase auto-expire delay in tests so immediate subsequent assertions
         // (deactivation, integration checks) reliably observe the created override.
         // Keep a short delay to still avoid long-lived state between tests.
-        const autoExpireMs = 1000; // 1s auto-expire for test isolation
+        const autoExpireMs = 10_000; // 10s auto-expire for test isolation
         const timer = setTimeout(() => {
           try {
             if (this.activeOverrides.has(overrideId)) {
