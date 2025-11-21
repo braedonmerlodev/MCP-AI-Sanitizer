@@ -444,6 +444,9 @@ describe('AuditLogger', () => {
       maxTrailSize: 100,
       logFile: 'test-data-integrity-audit.log',
     });
+
+    // Ensure clean audit trail for each test
+    auditLogger.auditTrail = [];
   });
 
   afterEach(() => {
