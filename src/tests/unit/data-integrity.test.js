@@ -177,14 +177,14 @@ describe('DataIntegrityValidator', () => {
         'riskLevel',
         'resourceInfo',
       ];
-      requiredDetailFields.forEach((field) => {
+      for (const field of requiredDetailFields) {
         expect(entry.details).toHaveProperty(field);
-      });
+      }
 
       const requiredContextFields = ['userId', 'stage', 'severity', 'logger'];
-      requiredContextFields.forEach((field) => {
+      for (const field of requiredContextFields) {
         expect(entry.context).toHaveProperty(field);
-      });
+      }
 
       // Validate data types
       expect(typeof entry.details.escalationId).toBe('string');
