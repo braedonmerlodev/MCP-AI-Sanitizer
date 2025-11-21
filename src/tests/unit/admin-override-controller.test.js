@@ -22,6 +22,7 @@ describe('AdminOverrideController', () => {
       logger: mockLogger,
       auditSecret: 'test-audit-secret',
       adminAuthSecret: 'test-admin-secret',
+      maxConcurrentOverrides: 1,
     });
 
     // Mock the audit logger
