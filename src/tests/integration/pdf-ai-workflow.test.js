@@ -1,17 +1,85 @@
 const request = require('supertest');
-// Mock AITextTransformer so AI flows are deterministic in tests (returns a JSON string for structure)
+// Mock AITextTransformer with realistic AI service responses matching OpenAI API structure
 jest.mock('../../components/AITextTransformer', () => {
   return jest.fn().mockImplementation(() => ({
     transform: async (text, type) => {
-      if (type === 'structure') {
-        // Return structured JSON as text
-        const structured = { title: 'Mocked PDF', summary: 'Mock summary', content: text };
-        return {
-          text: JSON.stringify(structured),
-          metadata: { processingTime: 5, tokens: { prompt: 1, completion: 2, total: 3 } },
-        };
+      // Simulate realistic OpenAI API response structure
+      const baseMetadata = {
+        processingTime: 150, // Realistic processing time in ms
+        tokens: {
+          prompt: Math.ceil(text.length / 4), // Rough token estimation
+          completion: 0,
+          total: 0,
+        },
+        model: 'gpt-3.5-turbo',
+        finish_reason: 'stop',
+      };
+
+      switch (type) {
+        case 'structure': {
+          // Return structured JSON as text (matching real AI structure response)
+          const structured = {
+            title: 'Mocked PDF Document',
+            summary: 'This is a mock summary of the PDF content extracted and processed.',
+            content: text,
+            key_points: [
+              'First key point from mock AI processing',
+              'Second key point demonstrating structured output',
+              'Third point showing AI content enhancement',
+            ],
+            metadata: {
+              document_type: 'pdf',
+              processing_method: 'ai_enhanced',
+            },
+          };
+          baseMetadata.tokens.completion = JSON.stringify(structured).length / 4;
+          baseMetadata.tokens.total = baseMetadata.tokens.prompt + baseMetadata.tokens.completion;
+          return {
+            text: JSON.stringify(structured),
+            metadata: baseMetadata,
+          };
+        }
+
+        case 'summarize': {
+          // Return concise summary (matching real AI summary response)
+          const summary = `Mock AI summary: ${text.slice(0, 50)}...`;
+          baseMetadata.tokens.completion = summary.length / 4;
+          baseMetadata.tokens.total = baseMetadata.tokens.prompt + baseMetadata.tokens.completion;
+          return {
+            text: summary,
+            metadata: baseMetadata,
+          };
+        }
+
+        case 'extract_entities': {
+          // Return extracted entities (matching real AI entity extraction)
+          const entities = {
+            people: ['Mock Person'],
+            organizations: ['Mock Organization'],
+            locations: ['Mock Location'],
+            dates: ['2025-01-01'],
+            other: ['Mock Entity'],
+          };
+          baseMetadata.tokens.completion = JSON.stringify(entities).length / 4;
+          baseMetadata.tokens.total = baseMetadata.tokens.prompt + baseMetadata.tokens.completion;
+          return {
+            text: JSON.stringify(entities),
+            metadata: baseMetadata,
+          };
+        }
+
+        default: {
+          // Fallback for unsupported types
+          return {
+            text: text,
+            metadata: {
+              ...baseMetadata,
+              processingTime: 50,
+              tokens: { prompt: 1, completion: 1, total: 2 },
+            },
+          };
+        }
       }
-      return { text, metadata: null };
     },
   }));
 });

@@ -159,6 +159,8 @@ const sanitizeJsonSchema = Joi.object({
 
 const uploadQuerySchema = Joi.object({
   ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for uploads
+  sync: Joi.alternatives().try(Joi.boolean(), Joi.string().valid('true')).optional(), // Allow sync parameter as boolean or string
+  async: Joi.boolean().optional().default(false), // Allow explicit async processing request
 });
 
 /**
@@ -653,9 +655,9 @@ router.post(
 
       const file = req.file;
 
-      // Check for async processing: files >10MB (unless sync mode forced) (unless sync mode forced)
+      // Check for async processing: files >10MB or explicitly requested (unless sync mode forced)
       const ASYNC_THRESHOLD = 10_485_760; // 10MB
-      if (file.size > ASYNC_THRESHOLD && req.query.sync !== 'true') {
+      if ((file.size > ASYNC_THRESHOLD || queryValue.async) && req.query.sync !== 'true') {
         try {
           const jobData = {
             type: 'upload-pdf',
@@ -678,6 +680,7 @@ router.post(
           });
           res.set('X-API-Version', '1.1');
           res.set('X-Async-Processing', 'true');
+          res.set('X-Task-Id', taskId);
           return res.status(202).json({
             taskId,
             status: 'processing',
