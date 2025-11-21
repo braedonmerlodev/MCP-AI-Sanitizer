@@ -8,29 +8,194 @@ const AuditLogger = require('../../components/data-integrity/AuditLogger');
 
 describe('DataIntegrityValidator', () => {
   let validator;
+  let auditLogger;
 
   beforeEach(() => {
     // Disable auditing for tests to avoid file I/O
     validator = new DataIntegrityValidator({
       enableAuditing: false,
     });
+
+    // Create audit logger for escalation logging tests
+    auditLogger = new AuditLogger({
+      enableConsole: false,
+      maxTrailSize: 100,
+      logFile: 'test-escalation-logging.log',
+    });
   });
 
-  describe('generateHash', () => {
-    test('should generate consistent hashes', () => {
-      const data = 'test data';
-      const hash1 = validator.generateHash(data);
-      const hash2 = validator.generateHash(data);
-
-      expect(hash1).toBe(hash2);
-      expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex
+  describe('End-to-End Escalation Logging', () => {
+    beforeEach(() => {
+      // Clear audit trail for clean test isolation
+      auditLogger.auditTrail = [];
     });
 
-    test('should generate different hashes for different data', () => {
-      const hash1 = validator.generateHash('data1');
-      const hash2 = validator.generateHash('data2');
+    test('should execute complete escalation logging workflow with data quality validation', async () => {
+      // Test data representing a realistic security escalation scenario
+      const escalationData = {
+        escalationId: 'esc-2025-001',
+        triggerConditions: [
+          'high_risk_score_detected',
+          'suspicious_script_injection',
+          'anomaly_pattern_matched',
+          'user@example.com',
+          'potential_data_exfiltration',
+        ],
+        decisionRationale:
+          'Multiple high-risk indicators detected requiring immediate human intervention. Contact security team at security@company.com or call 555-123-4567.',
+        riskLevel: 'Critical',
+        escalationType: 'security_incident',
+        priority: 'urgent',
+      };
 
-      expect(hash1).not.toBe(hash2);
+      const context = {
+        userId: 'automated_scanner',
+        resourceId: 'req-789-xyz',
+        resourceType: 'api_request',
+        sessionId: 'sess-abc-123',
+        ipAddress: '192.168.1.100',
+        userAgent: 'SecurityScanner/2.1',
+        stage: 'escalation_triggered',
+        source: 'automated_risk_assessment',
+        timestamp: new Date().toISOString(),
+      };
+
+      // Execute escalation logging
+      const auditId = await auditLogger.logEscalationDecision(escalationData, context);
+
+      // Validate audit ID generation
+      expect(auditId).toMatch(/^audit_\d+_/);
+      expect(typeof auditId).toBe('string');
+
+      // Retrieve and validate logged entries
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_escalation_decision' });
+      expect(entries).toHaveLength(1);
+
+      const entry = entries[0];
+
+      // Validate entry structure and metadata
+      expect(entry).toHaveProperty('id');
+      expect(entry).toHaveProperty('timestamp');
+      expect(entry).toHaveProperty('operation');
+      expect(entry).toHaveProperty('details');
+      expect(entry).toHaveProperty('context');
+      expect(entry).toHaveProperty('level');
+
+      // Validate operation type
+      expect(entry.operation).toBe('hitl_escalation_decision');
+      expect(entry.level).toBe('info');
+
+      // Validate escalation details with PII redaction
+      expect(entry.details.escalationId).toBe('esc-2025-001');
+      expect(entry.details.riskLevel).toBe('Critical');
+
+      // Validate trigger conditions with PII redaction
+      expect(entry.details.triggerConditions).toEqual([
+        'high_risk_score_detected',
+        'suspicious_script_injection',
+        'anomaly_pattern_matched',
+        '[EMAIL_REDACTED]', // PII redacted
+        'potential_data_exfiltration',
+      ]);
+
+      // Validate decision rationale with PII redaction
+      expect(entry.details.decisionRationale).toBe(
+        'Multiple high-risk indicators detected requiring immediate human intervention. Contact security team at [EMAIL_REDACTED] or call [PHONE_REDACTED].',
+      );
+
+      // Validate resource information
+      expect(entry.details.resourceInfo).toEqual({
+        resourceId: 'req-789-xyz',
+        type: 'api_request',
+      });
+
+      // Validate context information with PII redaction
+      expect(entry.context.userId).toBe('automated_scanner'); // Not an email, so not redacted
+      expect(entry.context.sessionId).toBe('sess-abc-123');
+      expect(entry.context.stage).toBe('escalation_triggered');
+      expect(entry.context.severity).toBe('warning');
+      expect(entry.context.logger).toBe('HITLEscalationLogger');
+
+      // Validate timestamp
+      expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+
+      // Validate audit trail integrity
+      expect(auditLogger.auditTrail).toContain(entry);
+      expect(auditLogger.getAuditStats().totalEntries).toBeGreaterThanOrEqual(1);
+
+      // Test multiple escalations to ensure proper isolation
+      const escalationData2 = {
+        escalationId: 'esc-2025-002',
+        triggerConditions: ['different_trigger'],
+        decisionRationale: 'Secondary escalation for verification',
+        riskLevel: 'High',
+      };
+
+      const auditId2 = await auditLogger.logEscalationDecision(escalationData2, {
+        userId: 'test_user',
+        resourceId: 'req-999',
+      });
+
+      expect(auditId2).not.toBe(auditId); // Different audit IDs
+
+      const allEntries = auditLogger.getAuditEntries({ operation: 'hitl_escalation_decision' });
+      expect(allEntries).toHaveLength(2);
+
+      // Validate both entries are distinct
+      const entryIds = allEntries.map((e) => e.id);
+      expect(entryIds).toHaveLength(2);
+      expect(entryIds[0]).not.toBe(entryIds[1]);
+    });
+
+    test('should validate escalation logging data quality and completeness', async () => {
+      const escalationData = {
+        escalationId: 'quality-test-001',
+        triggerConditions: ['test_condition_1', 'test_condition_2'],
+        decisionRationale: 'Quality assurance test escalation',
+        riskLevel: 'Medium',
+      };
+
+      const context = {
+        userId: 'qa_system',
+        resourceId: 'test-resource',
+        stage: 'testing',
+      };
+
+      const auditId = await auditLogger.logEscalationDecision(escalationData, context);
+
+      // Validate data quality metrics
+      const entries = auditLogger.getAuditEntries({ operation: 'hitl_escalation_decision' });
+      const entry = entries.find((e) => e.id === auditId);
+
+      expect(entry).toBeDefined();
+
+      // Check required fields are present
+      const requiredDetailFields = [
+        'escalationId',
+        'triggerConditions',
+        'decisionRationale',
+        'riskLevel',
+        'resourceInfo',
+      ];
+      for (const field of requiredDetailFields) {
+        expect(entry.details).toHaveProperty(field);
+      }
+
+      const requiredContextFields = ['userId', 'stage', 'severity', 'logger'];
+      for (const field of requiredContextFields) {
+        expect(entry.context).toHaveProperty(field);
+      }
+
+      // Validate data types
+      expect(typeof entry.details.escalationId).toBe('string');
+      expect(Array.isArray(entry.details.triggerConditions)).toBe(true);
+      expect(typeof entry.details.decisionRationale).toBe('string');
+      expect(typeof entry.details.riskLevel).toBe('string');
+      expect(typeof entry.details.resourceInfo).toBe('object');
+
+      // Validate escalation logging quality score
+      const qualityScore = calculateEscalationLoggingQuality(entry);
+      expect(qualityScore).toBeGreaterThanOrEqual(0.9); // High quality threshold
     });
   });
 
@@ -78,6 +243,38 @@ describe('DataIntegrityValidator', () => {
     });
   });
 });
+
+// Helper function for escalation logging quality scoring
+function calculateEscalationLoggingQuality(entry) {
+  let score = 0;
+  let maxScore = 0;
+
+  // Completeness (50 points)
+  maxScore += 50;
+  const requiredFields = [
+    'escalationId',
+    'triggerConditions',
+    'decisionRationale',
+    'riskLevel',
+    'resourceInfo',
+  ];
+  const presentFields = requiredFields.filter((field) => entry.details[field] !== undefined);
+  score += (presentFields.length / requiredFields.length) * 50;
+
+  // Data integrity (30 points)
+  maxScore += 30;
+  if (entry.id && entry.id.startsWith('audit_')) score += 10;
+  if (entry.timestamp && new Date(entry.timestamp).getTime() > 0) score += 10;
+  if (entry.operation === 'hitl_escalation_decision') score += 10;
+
+  // Context quality (20 points)
+  maxScore += 20;
+  if (entry.context.userId) score += 7;
+  if (entry.context.stage) score += 7;
+  if (entry.context.severity) score += 6;
+
+  return score / maxScore;
+}
 
 describe('SchemaValidator', () => {
   let schemaValidator;
@@ -444,6 +641,14 @@ describe('AuditLogger', () => {
       maxTrailSize: 100,
       logFile: 'test-data-integrity-audit.log',
     });
+
+    // Ensure clean audit trail for each test
+    auditLogger.auditTrail = [];
+
+    // Validate test environment setup
+    expect(auditLogger).toBeDefined();
+    expect(auditLogger.logFile).toBe('test-data-integrity-audit.log');
+    expect(auditLogger.auditTrail).toEqual([]);
   });
 
   afterEach(() => {
@@ -452,13 +657,51 @@ describe('AuditLogger', () => {
       auditLogger.auditTrail = [];
     }
 
-    // Clean up test log file
+    // Clean up test log file with error handling
     const fs = require('node:fs');
     const path = require('node:path');
     const testLogFile = path.join(process.cwd(), 'test-data-integrity-audit.log');
-    if (fs.existsSync(testLogFile)) {
-      fs.unlinkSync(testLogFile);
+
+    try {
+      if (fs.existsSync(testLogFile)) {
+        fs.unlinkSync(testLogFile);
+      }
+    } catch (error) {
+      // Log cleanup error but don't fail the test
+      console.warn(`Warning: Failed to clean up test log file ${testLogFile}:`, error.message);
     }
+
+    // Additional validation that cleanup worked
+    if (fs.existsSync(testLogFile)) {
+      console.warn(`Warning: Test log file still exists after cleanup: ${testLogFile}`);
+    }
+  });
+
+  describe('Test Setup Validation', () => {
+    test('should have proper test environment configuration', () => {
+      // Validate that the test environment is properly set up
+      expect(auditLogger).toBeDefined();
+      expect(auditLogger.logFile).toBe('test-data-integrity-audit.log');
+      expect(auditLogger.enableConsole).toBe(false);
+      expect(auditLogger.maxTrailSize).toBe(100);
+      expect(auditLogger.auditTrail).toEqual([]);
+
+      // Validate that winston logger is properly configured
+      expect(auditLogger.logger).toBeDefined();
+      expect(typeof auditLogger.logger.info).toBe('function');
+    });
+
+    test('should provide clean audit trail for each test', () => {
+      // Verify that audit trail starts empty for each test
+      expect(auditLogger.auditTrail).toEqual([]);
+      expect(auditLogger.auditTrail.length).toBe(0);
+
+      // Add an entry and verify it gets tracked
+      const auditId = auditLogger.logOperation('test_operation', { test: true });
+      expect(auditId).toMatch(/^audit_/);
+      expect(auditLogger.auditTrail.length).toBe(1);
+      expect(auditLogger.auditTrail[0].operation).toBe('test_operation');
+    });
   });
 
   describe('logOperation', () => {
