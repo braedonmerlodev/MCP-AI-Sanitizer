@@ -447,6 +447,11 @@ describe('AuditLogger', () => {
 
     // Ensure clean audit trail for each test
     auditLogger.auditTrail = [];
+
+    // Validate test environment setup
+    expect(auditLogger).toBeDefined();
+    expect(auditLogger.logFile).toBe('test-data-integrity-audit.log');
+    expect(auditLogger.auditTrail).toEqual([]);
   });
 
   afterEach(() => {
@@ -455,13 +460,51 @@ describe('AuditLogger', () => {
       auditLogger.auditTrail = [];
     }
 
-    // Clean up test log file
+    // Clean up test log file with error handling
     const fs = require('node:fs');
     const path = require('node:path');
     const testLogFile = path.join(process.cwd(), 'test-data-integrity-audit.log');
-    if (fs.existsSync(testLogFile)) {
-      fs.unlinkSync(testLogFile);
+
+    try {
+      if (fs.existsSync(testLogFile)) {
+        fs.unlinkSync(testLogFile);
+      }
+    } catch (error) {
+      // Log cleanup error but don't fail the test
+      console.warn(`Warning: Failed to clean up test log file ${testLogFile}:`, error.message);
     }
+
+    // Additional validation that cleanup worked
+    if (fs.existsSync(testLogFile)) {
+      console.warn(`Warning: Test log file still exists after cleanup: ${testLogFile}`);
+    }
+  });
+
+  describe('Test Setup Validation', () => {
+    test('should have proper test environment configuration', () => {
+      // Validate that the test environment is properly set up
+      expect(auditLogger).toBeDefined();
+      expect(auditLogger.logFile).toBe('test-data-integrity-audit.log');
+      expect(auditLogger.enableConsole).toBe(false);
+      expect(auditLogger.maxTrailSize).toBe(100);
+      expect(auditLogger.auditTrail).toEqual([]);
+
+      // Validate that winston logger is properly configured
+      expect(auditLogger.logger).toBeDefined();
+      expect(typeof auditLogger.logger.info).toBe('function');
+    });
+
+    test('should provide clean audit trail for each test', () => {
+      // Verify that audit trail starts empty for each test
+      expect(auditLogger.auditTrail).toEqual([]);
+      expect(auditLogger.auditTrail.length).toBe(0);
+
+      // Add an entry and verify it gets tracked
+      const auditId = auditLogger.logOperation('test_operation', { test: true });
+      expect(auditId).toMatch(/^audit_/);
+      expect(auditLogger.auditTrail.length).toBe(1);
+      expect(auditLogger.auditTrail[0].operation).toBe('test_operation');
+    });
   });
 
   describe('logOperation', () => {
