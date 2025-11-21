@@ -53,6 +53,7 @@ const responseSchemas = {
       aiError: Joi.string().optional(),
       aiProcessed: Joi.boolean().optional(),
       transformationType: Joi.string().optional(),
+      provider: Joi.string().optional(),
       // AI-specific metadata fields
       processingTime: Joi.number().optional(),
       tokens: Joi.object({

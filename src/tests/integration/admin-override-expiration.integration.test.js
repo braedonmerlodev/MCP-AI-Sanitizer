@@ -50,6 +50,7 @@ describe('AdminOverrideController - Expiration Integration Tests', () => {
     it('should handle multiple overrides expiring at different times', () => {
       // Set max concurrent to 3
       controller.maxConcurrentOverrides = 3;
+      controller.concurrentWindowLimit = 3;
 
       // Activate first override with short duration
       mockReq.body = { justification: 'Short duration test', duration: 1000 }; // 1 second

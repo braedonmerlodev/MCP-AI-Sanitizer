@@ -9,6 +9,7 @@
     "lint": "eslint src",
     "start": "node src/app.js",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:integration": "jest src/tests/integration",
     "test:unit": "jest src/tests/unit"
   },

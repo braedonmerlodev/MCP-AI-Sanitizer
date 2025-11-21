@@ -103,7 +103,6 @@ const pdfGenerationSchema = Joi.object({
 
 const n8nWebhookSchema = Joi.object({
   data: Joi.string().required(),
-  trustToken: Joi.object().required(),
 });
 
 const trustTokenValidateSchema = Joi.object({

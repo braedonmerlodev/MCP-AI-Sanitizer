@@ -1,0 +1,30 @@
+{
+  "exportMetadata": {
+    "timestamp": "2025-11-21T23:10:59.471Z",
+    "recordCount": 1,
+    "format": "json",
+    "version": "1.0"
+  },
+  "records": [
+    {
+      "id": "record-1",
+      "timestamp": "2023-01-01T00:00:00.000Z",
+      "inputDataHash": "abc123",
+      "processingSteps": [],
+      "decisionOutcome": {
+        "decision": "sanitized",
+        "reasoning": "test",
+        "riskScore": 0.1
+      },
+      "featureVector": {
+        "contentLength": 12
+      },
+      "contextMetadata": {
+        "inputLength": 10,
+        "outputLength": 10,
+        "processingTime": 5
+      },
+      "contentLength": 12
+    }
+  ]
+}
