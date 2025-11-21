@@ -1,8 +1,22 @@
 const AITextTransformer = require('../../components/AITextTransformer');
 
 jest.mock('@langchain/openai');
-jest.mock('langchain/prompts');
+jest.mock('@langchain/core/prompts', () => ({
+  PromptTemplate: {
+    fromTemplate: jest.fn().mockReturnValue({
+      pipe: jest.fn().mockReturnValue({
+        invoke: jest.fn().mockResolvedValue({ content: 'AI output', response_metadata: {} }),
+      }),
+    }),
+  },
+}));
 jest.mock('../../components/sanitization-pipeline');
+jest.mock('../../config/aiConfig', () => ({
+  openai: {
+    apiKey: 'mock-api-key',
+    isValid: true,
+  },
+}));
 
 describe('AITextTransformer', () => {
   let transformer;
@@ -25,7 +39,7 @@ describe('AITextTransformer', () => {
         }),
       }),
     };
-    require('langchain/prompts').PromptTemplate = MockPromptTemplate;
+    require('@langchain/core/prompts').PromptTemplate = MockPromptTemplate;
 
     // Mock ChatOpenAI
     mockOpenAI = {};
@@ -40,6 +54,11 @@ describe('AITextTransformer', () => {
     expect(transformer.openai).toBeDefined();
     expect(transformer.sanitizer).toBeDefined();
     expect(transformer.prompts).toBeDefined();
+    expect(require('@langchain/openai').ChatOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        openAIApiKey: 'mock-api-key',
+      }),
+    );
   });
 
   test('should transform text with structure type successfully', async () => {
@@ -48,25 +67,26 @@ describe('AITextTransformer', () => {
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('raw text', {});
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('AI output', {});
-    expect(result).toBe('sanitized text');
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
   });
 
   test('should transform text with summarize type', async () => {
     const result = await transformer.transform('raw text', 'summarize');
 
-    expect(result).toBe('sanitized text');
+    expect(result.text).toBe('sanitized text');
   });
 
   test('should transform text with extract_entities type', async () => {
     const result = await transformer.transform('raw text', 'extract_entities');
 
-    expect(result).toBe('sanitized text');
+    expect(result.text).toBe('sanitized text');
   });
 
   test('should transform text with json_schema type', async () => {
     const result = await transformer.transform('raw text', 'json_schema');
 
-    expect(result).toBe('sanitized text');
+    expect(result.text).toBe('sanitized text');
   });
 
   test('should throw error for unknown transformation type', async () => {
