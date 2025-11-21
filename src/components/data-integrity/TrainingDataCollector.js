@@ -28,6 +28,11 @@ class TrainingDataCollector {
       return null;
     }
 
+    // Handle null or invalid assessment data
+    if (!assessmentData || typeof assessmentData !== 'object') {
+      return null;
+    }
+
     // Check collection thresholds
     if (assessmentData.riskScore < this.collectionThresholds.minRiskScore) {
       return null; // Skip low-risk assessments
