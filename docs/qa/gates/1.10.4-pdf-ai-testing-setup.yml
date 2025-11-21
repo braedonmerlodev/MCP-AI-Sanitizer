@@ -1,0 +1,50 @@
+schema: 1
+story: '1.10.4'
+story_title: 'PDF AI Testing Setup'
+gate: CONCERNS
+status_reason: 'Story is in planning phase with comprehensive specification but no implementation code or tests yet. Development execution required before quality validation.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-21T00:00:00Z'
+
+waiver: { active: false }
+
+top_issues:
+  - id: 'IMPL-001'
+    severity: high
+    finding: 'No implementation code or tests present for PDF AI testing setup'
+    suggested_action: 'Complete development of all testing infrastructure tasks'
+    suggested_owner: 'dev'
+
+risk_summary:
+  totals: { critical: 0, high: 1, medium: 2, low: 1 }
+  recommendations:
+    must_fix: []
+    monitor: []
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 4
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5]
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Test infrastructure security not validated without implementation'
+  performance:
+    status: CONCERNS
+    notes: 'Testing performance impact unknown without implementation'
+  reliability:
+    status: CONCERNS
+    notes: 'Test infrastructure reliability not verified'
+  maintainability:
+    status: PASS
+    notes: 'Story documentation is comprehensive and well-structured'
+
+recommendations:
+  immediate:
+    - action: 'Implement all planned testing infrastructure tasks'
+      refs: ['docs/stories/security stories/1.10/story-1.10.4-pdf-ai-testing-setup.md']
+  future: []</content>
+<parameter name="filePath">docs/qa/gates/1.10.4-pdf-ai-testing-setup.yml
