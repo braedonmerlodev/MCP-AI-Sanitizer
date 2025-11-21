@@ -43,6 +43,7 @@ const responseSchemas = {
   }),
 
   '/api/documents/upload': Joi.object({
+    // Allow unknown fields for flexibility in processing metadata
     message: Joi.string().required(),
     fileName: Joi.string().required(),
     size: Joi.number().integer().min(0).required(),
@@ -52,11 +53,25 @@ const responseSchemas = {
       aiError: Joi.string().optional(),
       aiProcessed: Joi.boolean().optional(),
       transformationType: Joi.string().optional(),
+      // AI-specific metadata fields
+      processingTime: Joi.number().optional(),
+      tokens: Joi.object({
+        prompt: Joi.number().optional(),
+        completion: Joi.number().optional(),
+        total: Joi.number().optional(),
+      }).optional(),
+      model: Joi.string().optional(),
+      finish_reason: Joi.string().optional(),
     }).optional(),
     status: Joi.string().valid('processed').required(),
-    sanitizedContent: Joi.string().required(),
+    sanitizedContent: Joi.alternatives()
+      .try(
+        Joi.string(), // For non-AI processing
+        Joi.object(), // For AI structured output
+      )
+      .required(),
     trustToken: Joi.object().required(),
-  }),
+  }).unknown(true),
 
   '/api/trust-tokens/validate': Joi.alternatives().try(
     Joi.object({
