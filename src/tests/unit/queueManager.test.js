@@ -1,47 +1,34 @@
-const proxyquire = require('proxyquire');
-const sinon = require('sinon');
+jest.mock('../../models/JobStatus');
+jest.mock('../../models/JobResult');
+jest.mock('../../workers/jobWorker');
 
 describe('QueueManager', () => {
-  let mockQueue;
   let QueueManager;
-  let mockJobStatus;
-  let MockJobStatus;
+  let JobStatus;
+  let JobResult;
+  let jobWorker;
 
   beforeEach(() => {
-    mockQueue = {
-      push: sinon.stub().resolves(),
-      getStats: sinon.stub().returns({ total: 0 }),
-    };
+    JobStatus = require('../../models/JobStatus');
+    JobResult = require('../../models/JobResult');
+    jobWorker = require('../../workers/jobWorker');
 
-    const MockQueue = function () {
-      console.log('MockQueue constructor called, returning mockQueue');
-      return mockQueue;
-    };
+    // Reset mocks
+    jest.clearAllMocks();
 
-    mockJobStatus = {
-      save: sinon.stub().resolves(),
-      cancel: sinon.stub().resolves(),
-    };
-    MockJobStatus = {
-      load: sinon.stub(),
-    };
-
-    const mockWinston = {
-      createLogger: () => ({
-        level: 'info',
-        format: {},
-        transports: [],
-        info: sinon.stub(),
-        error: sinon.stub(),
-      }),
-    };
-
-    const jobStatusPath = require.resolve('../../models/JobStatus');
-    QueueManager = proxyquire('../../utils/queueManager', {
-      'better-queue': MockQueue,
-      [jobStatusPath]: MockJobStatus,
-      winston: mockWinston,
+    // Mock jobWorker to return a resolved value
+    jobWorker.mockResolvedValue({
+      sanitizedContent: 'test result',
+      metadata: {
+        originalLength: 9,
+        sanitizedLength: 11,
+        timestamp: new Date().toISOString(),
+        reused: false,
+        performance: { totalTimeMs: 10 },
+      },
     });
+
+    QueueManager = require('../../utils/queueManager');
 
     // Reset static queue
     QueueManager.constructor.queue = null;
@@ -50,6 +37,10 @@ describe('QueueManager', () => {
   it('should add a job successfully', async () => {
     const data = 'test data';
     const options = { classification: 'llm' };
+
+    JobStatus.mockReturnValue({
+      save: jest.fn().mockResolvedValue(),
+    });
 
     const jobId = await QueueManager.addJob(data, options);
 
@@ -60,6 +51,10 @@ describe('QueueManager', () => {
   it('should add a job with priority', async () => {
     const data = 'test data';
     const options = { classification: 'llm', priority: 8 };
+
+    JobStatus.mockReturnValue({
+      save: jest.fn().mockResolvedValue(),
+    });
 
     const jobId = await QueueManager.addJob(data, options);
 
@@ -86,7 +81,7 @@ describe('QueueManager', () => {
 
   describe('getJobStatus', () => {
     it('should return null for non-existent job', async () => {
-      MockJobStatus.load.resolves(null);
+      JobStatus.load.mockResolvedValue(null);
       const status = await QueueManager.getJobStatus('non-existent');
       expect(status).toBe(null);
     });
@@ -102,7 +97,7 @@ describe('QueueManager', () => {
         updatedAt: new Date(),
         expiresAt: new Date(),
       };
-      MockJobStatus.load.resolves(mockStatus);
+      JobStatus.load.mockResolvedValue(mockStatus);
       const status = await QueueManager.getJobStatus('123');
       expect(status).toBeDefined();
       expect(status.taskId).toBe('123');
@@ -112,23 +107,13 @@ describe('QueueManager', () => {
 
   describe('getJobResult', () => {
     it('should return null for non-existent job result', async () => {
-      // Mock JobResult to return null
-      const jobResultPath = require.resolve('../../models/JobResult');
-      const JobResultStub = sinon.stub().returns({
-        load: sinon.stub().resolves(null),
-      });
-      const QueueManagerWithMock = proxyquire('../../utils/queueManager', {
-        'better-queue': function () {
-          return mockQueue;
-        },
-        [jobResultPath]: JobResultStub,
-      });
-      const result = await QueueManagerWithMock.getJobResult('non-existent');
+      JobResult.load.mockResolvedValue(null);
+      const result = await QueueManager.getJobResult('non-existent');
       expect(result).toBe(null);
     });
 
     it('should return null for job not completed', async () => {
-      MockJobStatus.load.resolves({ status: 'processing' });
+      JobStatus.load.mockResolvedValue({ status: 'processing' });
       const result = await QueueManager.getJobResult('123');
       expect(result).toBe(null);
     });
@@ -140,19 +125,9 @@ describe('QueueManager', () => {
 
     it('should return job result for completed job', async () => {
       const completedDate = new Date();
-      MockJobStatus.load.resolves({ status: 'completed', updatedAt: completedDate });
-      // Mock JobResult for completed job
-      const jobResultPath = require.resolve('../../models/JobResult');
-      const JobResultStub = sinon.stub().returns({
-        load: sinon.stub().resolves({ result: 'completed data' }),
-      });
-      const QueueManagerWithMock = proxyquire('../../utils/queueManager', {
-        'better-queue': function () {
-          return mockQueue;
-        },
-        [jobResultPath]: JobResultStub,
-      });
-      const result = await QueueManagerWithMock.getJobResult('123');
+      JobStatus.load.mockResolvedValue({ status: 'completed', updatedAt: completedDate });
+      JobResult.load.mockResolvedValue({ result: 'completed data' });
+      const result = await QueueManager.getJobResult('123');
       expect(result).toEqual({
         taskId: '123',
         status: 'completed',
@@ -164,13 +139,16 @@ describe('QueueManager', () => {
 
   describe('cancelJob', () => {
     it('should return false for non-existent job', async () => {
-      MockJobStatus.load.resolves(null);
+      JobStatus.load.mockResolvedValue(null);
       const cancelled = await QueueManager.cancelJob('non-existent');
       expect(cancelled).toBe(false);
     });
 
     it('should cancel existing job', async () => {
-      MockJobStatus.load.resolves(mockJobStatus);
+      const mockJobStatus = {
+        cancel: jest.fn().mockResolvedValue(),
+      };
+      JobStatus.load.mockResolvedValue(mockJobStatus);
       const cancelled = await QueueManager.cancelJob('123');
       expect(cancelled).toBe(true);
       expect(mockJobStatus.cancel).toHaveBeenCalled();

@@ -13,11 +13,10 @@ describe('jobWorker', () => {
       updateProgress: sinon.stub().resolves(),
     };
 
-    const MockProxySanitizer = class {
-      constructor() {
-        this.sanitize = sinon.stub().resolves({ sanitizedData: 'sanitized data' });
-      }
+    const mockProxySanitizerInstance = {
+      sanitize: sinon.stub().resolves({ sanitizedData: 'sanitized data' }),
     };
+    const MockProxySanitizer = sinon.stub().returns(mockProxySanitizerInstance);
 
     const MockMarkdownConverter = class {
       constructor() {

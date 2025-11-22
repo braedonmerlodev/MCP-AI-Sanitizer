@@ -150,6 +150,51 @@ describe('AccessControlEnforcer', () => {
       expect(result.allowed).toBe(true);
       expect(result.code).toBe(null);
     });
+
+    it('should allow system operation without trust token validation', () => {
+      const reqSystem = {
+        method: 'POST',
+        path: '/export/training-data',
+        ip: '127.0.0.1',
+        // no trustTokenValidation
+      };
+
+      const result = enforcer.enforce(reqSystem, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBe(null);
+      expect(result.code).toBe('SYSTEM_OPERATION');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Allowing system operation without trust token validation',
+        expect.any(Object),
+      );
+    });
+
+    it('should deny access for non-system operation without trust token validation', () => {
+      const reqNoValidation = {
+        method: 'POST',
+        path: '/api/documents',
+        ip: '127.0.0.1',
+        // no trustTokenValidation
+      };
+
+      const result = enforcer.enforce(reqNoValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Trust token validation required');
+      expect(result.code).toBe('NO_VALIDATION');
+    });
+
+    it('should handle trust token without expiresAt', () => {
+      const reqNoExpires = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: true,
+          // no expiresAt
+        },
+      };
+
+      const result = enforcer.enforce(reqNoExpires, 'strict');
+      expect(result.allowed).toBe(true);
+    });
   });
 
   describe('getValidationLevels', () => {
