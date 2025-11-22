@@ -12,14 +12,14 @@ class CoverageMonitor {
       statements: 73.61,
       branches: 62.84,
       functions: 70.92,
-      lines: 73.61
+      lines: 73.61,
     };
 
     this.thresholds = {
-      statements: 70.0,  // Minimum acceptable
+      statements: 70.0, // Minimum acceptable
       branches: 60.0,
       functions: 65.0,
-      lines: 70.0
+      lines: 70.0,
     };
 
     this.coverageDir = options.coverageDir || 'coverage';
@@ -55,12 +55,14 @@ class CoverageMonitor {
 
   async runCoverage() {
     return new Promise((resolve, reject) => {
-      const command = 'npm test -- --coverage --coverageReporters=json --testPathIgnorePatterns="performance"';
+      const command =
+        'npm test -- --coverage --coverageReporters=json --testPathIgnorePatterns="performance"';
 
       this.log(`Running coverage analysis: ${command}`, 'INFO');
 
       exec(command, { maxBuffer: 1024 * 1024 * 10 }, async (error, stdout, stderr) => {
-        if (error && error.code !== 1) { // Jest returns 1 for test failures, which is OK for coverage
+        if (error && error.code !== 1) {
+          // Jest returns 1 for test failures, which is OK for coverage
           await this.log(`Coverage execution failed: ${error.message}`, 'ERROR');
           reject(error);
           return;
@@ -94,31 +96,35 @@ class CoverageMonitor {
   }
 
   calculateSummary(coverageData) {
-    let totalStatements = 0, coveredStatements = 0;
-    let totalBranches = 0, coveredBranches = 0;
-    let totalFunctions = 0, coveredFunctions = 0;
-    let totalLines = 0, coveredLines = 0;
+    let totalStatements = 0,
+      coveredStatements = 0;
+    let totalBranches = 0,
+      coveredBranches = 0;
+    let totalFunctions = 0,
+      coveredFunctions = 0;
+    let totalLines = 0,
+      coveredLines = 0;
 
-    Object.values(coverageData).forEach(file => {
+    Object.values(coverageData).forEach((file) => {
       // Statements
       totalStatements += file.s.length;
-      coveredStatements += file.s.filter(s => s > 0).length;
+      coveredStatements += file.s.filter((s) => s > 0).length;
 
       // Branches
       if (file.b) {
-        Object.values(file.b).forEach(branches => {
+        Object.values(file.b).forEach((branches) => {
           totalBranches += branches.length;
-          coveredBranches += branches.filter(b => b > 0).length;
+          coveredBranches += branches.filter((b) => b > 0).length;
         });
       }
 
       // Functions
       totalFunctions += file.f.length;
-      coveredFunctions += file.f.filter(f => f > 0).length;
+      coveredFunctions += file.f.filter((f) => f > 0).length;
 
       // Lines (approximation using statements)
       totalLines += file.s.length;
-      coveredLines += file.s.filter(s => s > 0).length;
+      coveredLines += file.s.filter((s) => s > 0).length;
     });
 
     const summary = {
@@ -127,7 +133,7 @@ class CoverageMonitor {
       functions: totalFunctions > 0 ? (coveredFunctions / totalFunctions) * 100 : 0,
       lines: totalLines > 0 ? (coveredLines / totalLines) * 100 : 0,
       timestamp: new Date().toISOString(),
-      totalFiles: Object.keys(coverageData).length
+      totalFiles: Object.keys(coverageData).length,
     };
 
     return summary;
@@ -136,7 +142,7 @@ class CoverageMonitor {
   validateThresholds(coverage) {
     const alerts = [];
 
-    Object.keys(this.thresholds).forEach(metric => {
+    Object.keys(this.thresholds).forEach((metric) => {
       const current = coverage[metric];
       const threshold = this.thresholds[metric];
       const baseline = this.baseline[metric];
@@ -157,7 +163,7 @@ class CoverageMonitor {
           threshold,
           baseline: baseline.toFixed(2),
           drop: drop.toFixed(2),
-          severity
+          severity,
         });
       }
     });
@@ -169,17 +175,18 @@ class CoverageMonitor {
     const issues = [];
 
     // Check for extreme variations that might indicate test instability
-    Object.keys(coverage).forEach(metric => {
+    Object.keys(coverage).forEach((metric) => {
       if (typeof coverage[metric] === 'number') {
         const baseline = this.baseline[metric];
         const variation = Math.abs(coverage[metric] - baseline);
 
-        if (variation > 10.0) { // More than 10% variation
+        if (variation > 10.0) {
+          // More than 10% variation
           issues.push({
             type: 'stability',
             metric,
             variation: variation.toFixed(2),
-            severity: variation > 20.0 ? 'critical' : 'warning'
+            severity: variation > 20.0 ? 'critical' : 'warning',
           });
         }
       }
@@ -197,15 +204,19 @@ class CoverageMonitor {
       alerts,
       stabilityIssues,
       summary: {
-        status: alerts.some(a => a.severity === 'critical') ? 'critical' :
-                alerts.some(a => a.severity === 'high') ? 'warning' :
-                stabilityIssues.some(i => i.severity === 'critical') ? 'unstable' : 'healthy',
+        status: alerts.some((a) => a.severity === 'critical')
+          ? 'critical'
+          : alerts.some((a) => a.severity === 'high')
+            ? 'warning'
+            : stabilityIssues.some((i) => i.severity === 'critical')
+              ? 'unstable'
+              : 'healthy',
         totalAlerts: alerts.length,
         totalStabilityIssues: stabilityIssues.length,
-        coverageAboveThreshold: Object.keys(this.thresholds).every(metric =>
-          coverage[metric] >= this.thresholds[metric]
-        )
-      }
+        coverageAboveThreshold: Object.keys(this.thresholds).every(
+          (metric) => coverage[metric] >= this.thresholds[metric],
+        ),
+      },
     };
 
     return report;
@@ -241,8 +252,11 @@ class CoverageMonitor {
       const alerts = this.validateThresholds(coverage);
       if (alerts.length > 0) {
         await this.log(`Coverage alerts detected: ${alerts.length}`, 'WARN');
-        alerts.forEach(alert => {
-          this.log(`ALERT [${alert.severity}]: ${alert.metric} coverage ${alert.current}% (threshold: ${alert.threshold}%, baseline: ${alert.baseline}%, drop: ${alert.drop}%)`, 'WARN');
+        alerts.forEach((alert) => {
+          this.log(
+            `ALERT [${alert.severity}]: ${alert.metric} coverage ${alert.current}% (threshold: ${alert.threshold}%, baseline: ${alert.baseline}%, drop: ${alert.drop}%)`,
+            'WARN',
+          );
         });
       }
 
@@ -250,8 +264,11 @@ class CoverageMonitor {
       const stabilityIssues = await this.checkStability(coverage);
       if (stabilityIssues.length > 0) {
         await this.log(`Stability issues detected: ${stabilityIssues.length}`, 'WARN');
-        stabilityIssues.forEach(issue => {
-          this.log(`STABILITY [${issue.severity}]: ${issue.metric} variation ${issue.variation}%`, 'WARN');
+        stabilityIssues.forEach((issue) => {
+          this.log(
+            `STABILITY [${issue.severity}]: ${issue.metric} variation ${issue.variation}%`,
+            'WARN',
+          );
         });
       }
 
@@ -261,15 +278,19 @@ class CoverageMonitor {
 
       // Summary
       const status = report.summary.status;
-      const statusEmoji = status === 'healthy' ? '✅' :
-                         status === 'warning' ? '⚠️' :
-                         status === 'critical' ? '❌' : '🔄';
+      const statusEmoji =
+        status === 'healthy'
+          ? '✅'
+          : status === 'warning'
+            ? '⚠️'
+            : status === 'critical'
+              ? '❌'
+              : '🔄';
 
       await this.log(`${statusEmoji} Coverage monitoring completed - Status: ${status}`, 'INFO');
       await this.log(`Report saved: ${reportPath}`, 'INFO');
 
       return report;
-
     } catch (error) {
       await this.log(`Coverage monitoring failed: ${error.message}`, 'ERROR');
       throw error;
@@ -291,7 +312,7 @@ async function main() {
     console.log(`Alerts: ${report.summary.totalAlerts}`);
     console.log(`Stability Issues: ${report.summary.totalStabilityIssues}`);
     console.log('\nCoverage Metrics:');
-    Object.keys(report.coverage).forEach(metric => {
+    Object.keys(report.coverage).forEach((metric) => {
       if (typeof report.coverage[metric] === 'number') {
         const value = report.coverage[metric].toFixed(2);
         const threshold = report.thresholds[metric];
@@ -301,7 +322,6 @@ async function main() {
     });
 
     process.exit(report.summary.status === 'healthy' ? 0 : 1);
-
   } catch (error) {
     console.error('Coverage monitoring failed:', error);
     process.exit(1);
@@ -314,5 +334,4 @@ module.exports = CoverageMonitor;
 // Run CLI if called directly
 if (require.main === module) {
   main();
-}</content>
-<parameter name="filePath">scripts/coverage-monitor.js
+}
