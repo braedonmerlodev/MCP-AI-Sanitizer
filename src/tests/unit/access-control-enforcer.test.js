@@ -110,6 +110,46 @@ describe('AccessControlEnforcer', () => {
       const result = enforcer.enforce(mockReq);
       expect(result.allowed).toBe(true);
     });
+
+    it('should allow access via admin override when active', () => {
+      const mockAdminOverrideController = {
+        isOverrideActive: jest.fn(() => true),
+        getActiveOverride: jest.fn(() => ({
+          id: 'override-123',
+          adminId: 'admin-456',
+          justification: 'Emergency maintenance',
+        })),
+      };
+
+      const enforcerWithOverride = new AccessControlEnforcer({
+        logger: mockLogger,
+        adminOverrideController: mockAdminOverrideController,
+      });
+
+      const result = enforcerWithOverride.enforce(mockReq, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.code).toBe('ADMIN_OVERRIDE');
+      expect(result.override.id).toBe('override-123');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Access granted via admin override',
+        expect.any(Object),
+      );
+    });
+
+    it('should not use admin override when not active', () => {
+      const mockAdminOverrideController = {
+        isOverrideActive: jest.fn(() => false),
+      };
+
+      const enforcerWithOverride = new AccessControlEnforcer({
+        logger: mockLogger,
+        adminOverrideController: mockAdminOverrideController,
+      });
+
+      const result = enforcerWithOverride.enforce(mockReq, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.code).toBe(null);
+    });
   });
 
   describe('getValidationLevels', () => {
