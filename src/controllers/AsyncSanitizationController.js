@@ -78,6 +78,9 @@ class AsyncSanitizationController {
    * @returns {boolean} - True if async processing is needed
    */
   shouldProcessAsync(criteria) {
+    // Handle undefined or null criteria
+    if (!criteria) return false;
+
     const { fileSize, processingTime, forceAsync } = criteria;
 
     // Force async if explicitly requested

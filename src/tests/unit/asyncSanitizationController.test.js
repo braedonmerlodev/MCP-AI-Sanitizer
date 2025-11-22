@@ -143,4 +143,19 @@ describe('AsyncSanitizationController', () => {
       expect(controller.shouldProcessAsync(null)).toBe(false);
     });
   });
+
+  describe('constructor', () => {
+    it('should use provided queueManager instance', () => {
+      const mockQueueManager = { addJob: sinon.stub() };
+      const controller = new AsyncSanitizationController(mockQueueManager);
+      expect(controller.queueManager).toBe(mockQueueManager);
+    });
+
+    it('should use default queueManager when none provided', () => {
+      const controller = new AsyncSanitizationController();
+      expect(controller.queueManager).toBeDefined();
+      // Should have loaded the actual queueManager module
+      expect(typeof controller.queueManager.addJob).toBe('function');
+    });
+  });
 });
