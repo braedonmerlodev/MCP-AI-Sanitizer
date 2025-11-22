@@ -73,11 +73,11 @@ No refactoring was performed as this was documentation/analysis work with no cod
 
 ### Improvements Checklist
 
-- [x] Brownfield impact assessment completed
-- [x] Emergency rollback procedures defined
-- [x] Security metrics monitoring established
-- [x] QA sign-off security implications identified
-- [x] System dependencies documented
+- [x] Brownfield impact assessment completed (docs/brownfield-impact-assessment-1.12.2.md)
+- [x] Emergency rollback procedures defined (docs/emergency-rollback-procedures-1.12.2.md)
+- [x] Security metrics monitoring established (docs/security-metrics-monitoring-setup-1.12.2.md)
+- [x] QA sign-off security implications identified (docs/qa-sign-off-security-implications-1.12.2.md)
+- [x] System dependencies documented (docs/system-dependencies-documentation-1.12.2.md)
 
 ### Security Review
 
