@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved
+Ready for Review
 
 ## Story
 
@@ -25,11 +25,24 @@ Approved
 
 ## Tasks / Subtasks
 
-- [ ] Write test for job failure status update
-- [ ] Write test for error propagation in status updates
-- [ ] Write test for recovery from failed status operations
-- [ ] Ensure tests handle exceptions appropriately
-- [ ] Verify tests integrate with existing test suite
+- [x] Write test for job failure status update
+  - [x] Test failed status with custom error message
+  - [x] Test failed status with default error message
+- [x] Write test for error propagation in status updates
+  - [x] Test database errors in getStatus method
+  - [x] Test database errors in getResult method
+  - [x] Test database errors in cancelJob method
+- [x] Write test for recovery from failed status operations
+  - [x] Test error handling and appropriate HTTP responses
+  - [x] Test error logging and user-friendly error messages
+- [x] Ensure tests handle exceptions appropriately
+  - [x] Mock JobStatus.load rejections for error scenarios
+  - [x] Mock JobResult.load rejections for error scenarios
+  - [x] Use sinon for proper exception simulation
+- [x] Verify tests integrate with existing test suite
+  - [x] Tests run in existing Jest/supertest framework
+  - [x] No conflicts with existing test patterns
+  - [x] All new tests pass successfully
 
 ## Dev Notes
 
@@ -49,9 +62,10 @@ Focus on error handling and failure scenarios in JobStatusController.
 
 ## Change Log
 
-| Date       | Version | Description               | Author        |
-| ---------- | ------- | ------------------------- | ------------- |
-| 2025-11-22 | 1.0     | Initial substory creation | Product Owner |
+| Date       | Version | Description                    | Author        |
+| ---------- | ------- | ------------------------------ | ------------- |
+| 2025-11-22 | 1.0     | Initial substory creation      | Product Owner |
+| 2025-11-22 | 1.1     | Completed error handling tests | Dev Agent     |
 
 ## Dev Agent Record
 
@@ -63,15 +77,20 @@ bmad-dev (James) - Full Stack Developer
 
 ### Debug Log References
 
-_Reference any debug logs or traces generated_
+- Test execution logs showing error scenarios for failed jobs and database failures
+- Error logging for "Database connection failed", "Database error", etc.
+- No debug logs generated (successful test implementation)
 
 ### Completion Notes List
 
-- _To be populated_
+- Added 5 comprehensive error handling tests covering failure scenarios
+- Tests cover failed job status display, error propagation, and database failure handling
+- All tests pass and integrate properly with existing test suite
+- Tests target previously uncovered error handling lines in all three controller methods
 
 ### File List
 
-- _To be populated_
+- src/tests/unit/jobStatusApi.test.js (Added 5 new error handling test cases)
 
 ## QA Results
 
