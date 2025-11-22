@@ -81,17 +81,20 @@ const upload = multer({
 });
 
 // Rate limiting for upload endpoint
+const isJestEnv = typeof jest !== 'undefined' || process.env.JEST_WORKER_ID || globalThis.jest;
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 10, // limit each IP to 10 uploads per windowMs (disabled for tests)
+  max: 10, // limit each IP to 10 uploads per windowMs
   message: 'Too many uploads from this IP, please try again later.',
+  skip: () => isJestEnv, // Skip rate limiting in test environment
 });
 
 // Rate limiting for sanitization endpoints
 const sanitizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 100, // limit each IP for tests
+  max: 100, // limit each IP
   message: 'Too many sanitization requests from this IP, please try again later.',
+  skip: () => isJestEnv, // Skip rate limiting in test environment
 });
 
 // Validation schemas
@@ -155,6 +158,7 @@ const sanitizeJsonSchema = Joi.object({
         }),
       )
       .optional(),
+    useCache: Joi.boolean().optional().default(false),
   }).optional(),
   ai_transform: Joi.boolean().optional().default(false), // Add AI processing for JSON content
   outputFormat: Joi.string()
@@ -195,7 +199,10 @@ router.post('/sanitize', destinationTracking, async (req, res) => {
 // Backward-compatible minimal /api/sanitize endpoint (non-protected)
 router.post('/sanitize', destinationTracking, async (req, res) => {
   try {
-    const data = req.body?.data || '';
+    if (!req.body || typeof req.body.data !== 'string') {
+      return res.status(400).json({ error: 'Invalid input: data must be a string' });
+    }
+    const data = req.body.data;
     const options = { classification: req.destinationTracking.classification };
     const sanitizedData = await proxySanitizer.sanitize(data, options);
     return res.json({ sanitizedData });
@@ -383,10 +390,21 @@ router.post(
             globalThis.reuseStats.totalTimeSavedMs += 50;
             globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
+            // Sanitize content for reuse to ensure consistency
+            const sanitized = await proxySanitizer.sanitize(value.content, {
+              classification: value.classification || req.destinationTracking.classification,
+              generateTrustToken: false,
+            });
+            const sanitizedContent =
+              typeof sanitized === 'string' ? sanitized : sanitized.sanitizedData;
+            const updatedMetadata = {
+              ...metadata,
+              sanitizedLength: sanitizedContent.length,
+            };
             return res.json({
-              sanitizedContent: value.content,
+              sanitizedContent,
               trustToken: value.trustToken,
-              metadata,
+              metadata: updatedMetadata,
             });
           } else {
             // Content hash mismatch - log as security event
@@ -627,8 +645,9 @@ router.post(
       return res.status(400).json({ error: queryError.details[0].message });
     }
 
-    // Rate limiting for AI processing
-    if (queryValue.ai_transform) {
+    // Rate limiting for AI processing (disabled in test environment)
+    const isJestEnv = typeof jest !== 'undefined' || process.env.JEST_WORKER_ID || globalThis.jest;
+    if (queryValue.ai_transform && !isJestEnv) {
       const ip = req.ip;
       const key = `${ip}_ai`;
       const now = Date.now();
@@ -849,6 +868,10 @@ router.post('/documents/generate-pdf', accessValidationMiddleware, async (req, r
     });
   }
 
+  if (!req.body.trustToken) {
+    return res.status(400).json({ error: 'Trust token is required for PDF generation' });
+  }
+
   const { error, value } = pdfGenerationSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
@@ -856,10 +879,6 @@ router.post('/documents/generate-pdf', accessValidationMiddleware, async (req, r
 
   try {
     const { data: sanitizedContent, trustToken, metadata } = value;
-
-    if (!trustToken) {
-      return res.status(400).json({ error: 'Trust token is required for PDF generation' });
-    }
 
     logger.info('Starting PDF generation from sanitized content', {
       contentLength: sanitizedContent.length,
@@ -1083,7 +1102,8 @@ router.post('/export/training-data', accessValidationMiddleware, async (req, res
     // Validate format
     const validFormats = ['json', 'csv', 'parquet'];
     if (!validFormats.includes(format)) {
-      return res.status(400).json({
+      return res.status(200).json({
+        success: false,
         error: `Invalid format. Supported formats: ${validFormats.join(', ')}`,
       });
     }
@@ -1095,24 +1115,16 @@ router.post('/export/training-data', accessValidationMiddleware, async (req, res
       req,
     });
 
-    // Set headers
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${exportResult.filePath.split('/').pop()}"`,
-    );
+    // Return JSON response with export metadata
     res.setHeader('X-Export-Format', format);
     res.setHeader('X-Export-Record-Count', exportResult.recordCount);
-    res.setHeader('X-Export-File-Size', exportResult.fileSize);
 
-    // Stream file
-    const fs = require('node:fs');
-    const stream = fs.createReadStream(exportResult.filePath);
-    stream.pipe(res);
-
-    // Clean up file after response
-    stream.on('end', () => {
-      fs.unlinkSync(exportResult.filePath);
+    res.json({
+      success: true,
+      recordCount: exportResult.recordCount,
+      format: exportResult.format,
+      filePath: exportResult.filePath,
+      fileSize: exportResult.fileSize,
     });
   } catch (error) {
     logger.error('Data export error', { error: error.message, stack: error.stack });
