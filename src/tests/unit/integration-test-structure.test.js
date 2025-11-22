@@ -37,7 +37,7 @@ describe('Integration Test Structure Validation', () => {
 
       // Check for proper Jest imports or setup
       expect(content).toMatch(/(require\(|import\s)/);
-    });
+    }
   });
 
   test('should have environment variable setup in test files', () => {
