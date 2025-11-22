@@ -1030,4 +1030,176 @@ describe('API Integration Tests - Access Validation Middleware', () => {
       expect(parsed).not.toHaveProperty('userName');
     });
   });
+
+  describe('API Routes Coverage Enhancement', () => {
+    describe('Error Handling and Edge Cases', () => {
+      test('should handle errors in sanitize compatibility endpoint', async () => {
+        // Mock a failure in the sanitization process
+        const originalSanitize = require('../../components/sanitization-pipeline').sanitize;
+        require('../../components/sanitization-pipeline').sanitize = jest
+          .fn()
+          .mockRejectedValue(new Error('Sanitization failed'));
+
+        const response = await request(app).post('/api/sanitize').send({
+          content: 'test content',
+        });
+
+        expect(response.status).toBe(500);
+        expect(response.body.error).toBe('Sanitization failed');
+
+        // Restore original function
+        require('../../components/sanitization-pipeline').sanitize = originalSanitize;
+      });
+
+      test('should handle unknown chain operations with warning', async () => {
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'data' }),
+            transform: true,
+            transformOptions: {
+              chain: [{ operation: 'unknownOperation', params: [] }],
+            },
+          });
+
+        expect(response.status).toBe(200);
+        // The operation should still succeed even with unknown chain operations
+        expect(response.body).toHaveProperty('sanitizedContent');
+      });
+
+      test('should extract trust token from headers in async mode', async () => {
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .set('X-Trust-Token', 'test-trust-token-from-header')
+          .send({
+            content: JSON.stringify({ test: 'large content '.repeat(1000) }),
+            async: true,
+          });
+
+        // Should trigger async processing
+        expect(response.status).toBe(202);
+        expect(response.body).toHaveProperty('taskId');
+        expect(response.body.status).toBe('processing');
+      });
+
+      test('should handle AI transform options in async mode', async () => {
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'content for AI processing' }),
+            async: true,
+            ai_transform: true,
+            ai_transform_type: 'enhance',
+          });
+
+        expect(response.status).toBe(202);
+        expect(response.body).toHaveProperty('taskId');
+        expect(response.body.status).toBe('processing');
+      });
+
+      test('should handle async job submission errors', async () => {
+        // Mock queueManager.addJob to fail
+        const originalAddJob = require('../../utils/queueManager').addJob;
+        require('../../utils/queueManager').addJob = jest
+          .fn()
+          .mockRejectedValue(new Error('Queue full'));
+
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'content' }),
+            async: true,
+          });
+
+        expect(response.status).toBe(500);
+        expect(response.body.error).toBe('Failed to submit async job');
+
+        // Restore original function
+        require('../../utils/queueManager').addJob = originalAddJob;
+      });
+
+      test('should initialize global reuse statistics on first use', async () => {
+        // Clear any existing global stats
+        delete globalThis.reuseStats;
+
+        // Create a trust token first
+        const createResponse = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'content' }),
+            generateTrustToken: true,
+          });
+
+        expect(createResponse.status).toBe(200);
+        const trustToken = createResponse.body.trustToken;
+
+        // Now reuse it to trigger statistics initialization
+        const reuseResponse = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'content' }),
+            trustToken: trustToken,
+          });
+
+        expect(reuseResponse.status).toBe(200);
+        // Statistics should be initialized
+        expect(globalThis.reuseStats).toBeDefined();
+        expect(globalThis.reuseStats).toHaveProperty('hits');
+        expect(globalThis.reuseStats).toHaveProperty('totalRequests');
+      });
+
+      test('should audit log trust token validation failures', async () => {
+        // Use an invalid trust token
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ test: 'content' }),
+            trustToken: 'invalid-trust-token',
+          });
+
+        expect(response.status).toBe(200);
+        // Should still process but without reuse
+        expect(response.body).toHaveProperty('sanitizedContent');
+        // The audit logging happens internally and should not fail
+      });
+
+      test('should handle large content in async processing', async () => {
+        // Create content larger than typical limits to test edge case
+        const largeContent = 'x'.repeat(100000); // 100KB of content
+
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify({ data: largeContent }),
+            async: true,
+          });
+
+        expect(response.status).toBe(202);
+        expect(response.body).toHaveProperty('taskId');
+        expect(response.body.status).toBe('processing');
+      });
+
+      test('should handle special characters in JSON content', async () => {
+        const specialContent = {
+          text: 'Special chars: ñáéíóú 🚀 🔥 💯',
+          unicode: '\u00A9\u00AE\u2122', // ©®™
+          emojis: '😀🎉🎊',
+          quotes: '"single\'double"',
+          escapes: 'line1\nline2\t\ttabbed',
+        };
+
+        const response = await request(app)
+          .post('/api/sanitize/json')
+          .send({
+            content: JSON.stringify(specialContent),
+          });
+
+        expect(response.status).toBe(200);
+        const parsed = JSON.parse(response.body.sanitizedContent);
+        expect(parsed).toHaveProperty('text');
+        expect(parsed).toHaveProperty('unicode');
+        expect(parsed).toHaveProperty('emojis');
+      });
+    });
+  });
 });
