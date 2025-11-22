@@ -105,4 +105,49 @@ Final thoughts.`;
       expect(converter.determineHeadingLevel('Normal length title')).toBe(1);
     });
   });
+
+  describe('convertListItem', () => {
+    test('should convert numbered lists correctly', () => {
+      expect(converter.convertListItem('1. First item')).toBe('1. First item');
+      expect(converter.convertListItem('2. Second item')).toBe('2. Second item');
+    });
+
+    test('should convert bullet lists to markdown', () => {
+      expect(converter.convertListItem('- Bullet item')).toBe('- Bullet item');
+      expect(converter.convertListItem('* Star item')).toBe('- Star item');
+      expect(converter.convertListItem('• Unicode bullet')).toBe('- Unicode bullet');
+    });
+
+    test('should handle edge cases', () => {
+      expect(converter.convertListItem('No marker')).toBe('No marker');
+    });
+
+    test('should handle special characters in headings', () => {
+      const input = 'Short title éñü';
+      const result = converter.convert(input);
+      expect(result).toContain('# Short title éñü');
+    });
+
+    test('should handle multiple consecutive headings', () => {
+      const input = 'First\n\nSecond\n\nThird';
+      const result = converter.convert(input);
+      expect(result).toContain('# First');
+      expect(result).toContain('# Second');
+      expect(result).toContain('# Third');
+    });
+
+    test('should handle mixed list types', () => {
+      const input = '- Bullet\n1. Numbered\n- Another bullet';
+      const result = converter.convert(input);
+      expect(result).toContain('- Bullet');
+      expect(result).toContain('1. Numbered');
+      expect(result).toContain('- Another bullet');
+    });
+
+    test('should handle very long lines', () => {
+      const longLine = 'a'.repeat(1000);
+      const result = converter.convert(longLine);
+      expect(result).toBe(longLine); // Should remain unchanged
+    });
+  });
 });

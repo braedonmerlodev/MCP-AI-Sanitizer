@@ -130,4 +130,126 @@ describe('AITextTransformer', () => {
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('raw text', { riskLevel: 'high' });
     expect(mockSanitizer.sanitize).toHaveBeenCalledWith('AI output', { riskLevel: 'high' });
   });
+
+  test('should handle empty input text', async () => {
+    const result = await transformer.transform('', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
+  });
+
+  test('should handle very long input text', async () => {
+    const longText = 'a'.repeat(10000);
+    const result = await transformer.transform(longText, 'summarize');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
+  });
+
+  test('should handle special characters in input', async () => {
+    const specialText = 'Text with <script>alert("xss")</script> and & symbols';
+    const result = await transformer.transform(specialText, 'extract_entities');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
+  });
+
+  test('should handle JSON parsing errors gracefully', async () => {
+    // Mock AI to return invalid JSON for json_schema type
+    const mockPromptTemplate = require('@langchain/core/prompts').PromptTemplate;
+    mockPromptTemplate.fromTemplate.mockReturnValueOnce({
+      pipe: jest.fn().mockReturnValue({
+        invoke: jest.fn().mockResolvedValue({ content: 'invalid json {{{' }),
+      }),
+    });
+
+    const result = await transformer.transform('test input', 'json_schema');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBeDefined();
+  });
+
+  test('should calculate costs correctly with token usage', async () => {
+    // Mock response with token usage - need to mock the invoke function properly
+    mockInvoke.mockResolvedValueOnce({
+      content: 'AI output',
+      response_metadata: {
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 50,
+          total_tokens: 150,
+        },
+      },
+    });
+
+    const result = await transformer.transform('test input', 'structure');
+
+    expect(result.metadata.cost).toBeCloseTo(0.00025, 6); // (100/1000)*0.0015 + (50/1000)*0.002
+    expect(result.metadata.tokens.prompt).toBe(100);
+    expect(result.metadata.tokens.completion).toBe(50);
+    expect(result.metadata.tokens.total).toBe(150);
+  });
+
+  test('should handle AI API timeout gracefully', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('Request timeout'));
+
+    const result = await transformer.transform('test input', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBe(null);
+  });
+
+  test('should handle network connectivity issues', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const result = await transformer.transform('test input', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toBe(null);
+  });
+
+  test('should validate transformation type exists', async () => {
+    // Test that prompts object has expected keys
+    expect(transformer.prompts).toHaveProperty('structure');
+    expect(transformer.prompts).toHaveProperty('summarize');
+    expect(transformer.prompts).toHaveProperty('extract_entities');
+    expect(transformer.prompts).toHaveProperty('json_schema');
+  });
+
+  test('should initialize with custom model options', () => {
+    // Clear previous calls to focus on this test
+    const MockChatOpenAI = require('@langchain/openai').ChatOpenAI;
+    MockChatOpenAI.mockClear();
+
+    const customTransformer = new AITextTransformer({
+      model: 'gpt-4',
+      temperature: 0.5,
+      maxTokens: 1000,
+    });
+
+    expect(MockChatOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelName: 'gpt-4',
+        temperature: 0.5,
+        maxTokens: 1000,
+        openAIApiKey: 'mock-api-key',
+      }),
+    );
+  });
+
+  test('should handle sanitizer initialization errors', () => {
+    // Temporarily mock sanitizer constructor to throw
+    const originalMock = require('../../components/sanitization-pipeline');
+    originalMock.mockImplementationOnce(() => {
+      throw new Error('Sanitizer initialization failed');
+    });
+
+    expect(() => new AITextTransformer()).toThrow('Sanitizer initialization failed');
+  });
 });

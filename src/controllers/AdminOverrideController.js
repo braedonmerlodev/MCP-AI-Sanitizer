@@ -474,7 +474,7 @@ class AdminOverrideController {
 
     if (overrideId) {
       const override = this.activeOverrides.get(overrideId);
-      return override && override.endTime > new Date();
+      return !!(override && override.endTime > new Date());
     }
 
     // Check if any override is active

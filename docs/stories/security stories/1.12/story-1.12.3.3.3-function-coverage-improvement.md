@@ -20,9 +20,8 @@ In Progress
 ## Tasks / Subtasks
 
 - [x] Identify specific functions with low coverage (e.g., logging utilities, token generators, sanitization helpers)
-- [ ] Write 10-15 additional unit tests targeting uncovered functions
-- [ ] Run coverage analysis to verify improvement
-- [ ] Ensure tests integrate with existing test suite
+- [ ] **Sub-story 1.12.3.3.3.1:** Write 10-15 additional unit tests targeting uncovered functions
+- [ ] **Sub-story 1.12.3.3.3.2:** Run coverage analysis to verify improvement and ensure test integration
 
 ## Dev Notes
 

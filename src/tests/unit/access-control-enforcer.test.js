@@ -215,4 +215,128 @@ describe('AccessControlEnforcer', () => {
       expect(duration).toBeLessThan(1);
     });
   });
+
+  describe('private methods', () => {
+    describe('_isSignatureValid', () => {
+      it('should return true for valid signature', () => {
+        const validation = { isValid: true };
+        expect(enforcer._isSignatureValid(validation)).toBe(true);
+      });
+
+      it('should return false for invalid signature', () => {
+        const validation = { isValid: false };
+        expect(enforcer._isSignatureValid(validation)).toBe(false);
+      });
+    });
+
+    describe('_isExpired', () => {
+      it('should return false when no expiresAt', () => {
+        const validation = {};
+        expect(enforcer._isExpired(validation)).toBe(false);
+      });
+
+      it('should return false when not expired', () => {
+        const validation = { expiresAt: new Date(Date.now() + 3600000).toISOString() };
+        expect(enforcer._isExpired(validation)).toBe(false);
+      });
+
+      it('should return true when expired', () => {
+        const validation = { expiresAt: new Date(Date.now() - 3600000).toISOString() };
+        expect(enforcer._isExpired(validation)).toBe(true);
+      });
+    });
+
+    describe('_contentMatches', () => {
+      it('should return true (placeholder implementation)', () => {
+        expect(enforcer._contentMatches()).toBe(true);
+      });
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle null request object', () => {
+      expect(() => enforcer.enforce(null)).toThrow();
+    });
+
+    it('should handle undefined request object', () => {
+      expect(() => enforcer.enforce(undefined)).toThrow();
+    });
+
+    it('should handle request with null trustTokenValidation', () => {
+      const reqWithNullValidation = {
+        ...mockReq,
+        trustTokenValidation: null,
+      };
+
+      const result = enforcer.enforce(reqWithNullValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Trust token validation required');
+    });
+
+    it('should handle malformed expiresAt date', () => {
+      const reqWithBadDate = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: true,
+          expiresAt: 'not-a-date',
+        },
+      };
+
+      // Should not throw and should allow access in lenient mode
+      const result = enforcer.enforce(reqWithBadDate, 'lenient');
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should handle empty validation object', () => {
+      const reqWithEmptyValidation = {
+        ...mockReq,
+        trustTokenValidation: {},
+      };
+
+      const result = enforcer.enforce(reqWithEmptyValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Invalid trust token');
+    });
+
+    it('should handle validation with error message', () => {
+      const reqWithError = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: false,
+          error: 'Custom validation error',
+        },
+      };
+
+      const result = enforcer.enforce(reqWithError, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Custom validation error');
+    });
+
+    it('should handle different HTTP methods for system operations', () => {
+      const systemReqs = [
+        { method: 'GET', path: '/export/training-data' },
+        { method: 'PUT', path: '/export/training-data' },
+        { method: 'DELETE', path: '/export/training-data' },
+      ];
+
+      systemReqs.forEach((req) => {
+        const result = enforcer.enforce({ ...req, ip: '127.0.0.1' }, 'strict');
+        expect(result.allowed).toBe(false); // Should deny non-POST methods
+        expect(result.code).toBe('NO_VALIDATION');
+      });
+    });
+
+    it('should handle concurrent access enforcement', () => {
+      // Test that multiple calls work correctly
+      const results = [];
+      for (let i = 0; i < 10; i++) {
+        results.push(enforcer.enforce(mockReq, 'strict'));
+      }
+
+      results.forEach((result) => {
+        expect(result.allowed).toBe(true);
+        expect(result.error).toBe(null);
+      });
+    });
+  });
 });
