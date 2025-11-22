@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 describe('Integration Test Structure Validation', () => {
   const integrationTestDir = path.join(__dirname, '../integration');
@@ -16,16 +16,16 @@ describe('Integration Test Structure Validation', () => {
     expect(testFiles.length).toBeGreaterThan(0);
 
     // Check naming patterns
-    testFiles.forEach((file) => {
+    for (const file of testFiles) {
       expect(file).toMatch(/^[a-z0-9-]+(\.[a-z0-9-]+)*\.test\.js$/);
-    });
+    }
   });
 
   test('should have test files with proper Jest structure', () => {
     const files = fs.readdirSync(integrationTestDir);
     const testFiles = files.filter((file) => file.endsWith('.test.js'));
 
-    testFiles.forEach((file) => {
+    for (const file of testFiles) {
       const filePath = path.join(integrationTestDir, file);
       const content = fs.readFileSync(filePath, 'utf8');
 
