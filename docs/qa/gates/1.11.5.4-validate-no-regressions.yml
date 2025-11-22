@@ -2,91 +2,61 @@ schema: 1
 story: '1.11.5.4'
 story_title: 'Validate No Regressions'
 gate: FAIL
-status_reason: 'Comprehensive review confirms persistent regressions from coverage improvements. Test suite failures in response validation, timing attacks, and API error handling remain unresolved. Critical functionality broken requiring immediate fixes.'
+status_reason: 'Test suite continues to show failures in validation endpoints with incorrect HTTP status codes and validation errors, indicating that regressions from coverage improvements persist and are not resolved.'
 reviewer: 'Quinn (Test Architect)'
-updated: '2025-11-21T02:32:20Z'
+updated: '2025-11-22T03:00:00Z'
 
 waiver: { active: false }
 
-risk_summary:
-  totals:
-    critical: 3
-    high: 1
-    medium: 0
-    low: 0
-  highest:
-    id: TECH-001
-    score: 9
-    title: 'Coverage instrumentation breaks response validation'
-  recommendations:
-    must_fix:
-      - 'Fix response validation middleware bugs'
-      - 'Address timing attack vulnerability'
-      - 'Resolve job status API 500 errors'
-    monitor:
-      - 'Monitor test execution performance'
-      - 'Track API error rates'
-
 top_issues:
-  - id: 'TEST-001'
-    severity: high
-    finding: 'Response validation middleware incorrectly warns on valid /api/webhook/n8n responses'
-    suggested_action: 'Fix response schema validation logic'
-    suggested_owner: 'dev'
-  - id: 'SEC-001'
-    severity: high
-    finding: 'Timing attack vulnerability detected in reuse mechanisms - timing differences too high'
-    suggested_action: 'Implement constant-time comparison algorithms'
-    suggested_owner: 'dev'
   - id: 'API-001'
     severity: high
-    finding: 'Job status API routes return 500 errors instead of expected 400/404/200 status codes'
-    suggested_action: 'Fix server error handling in job status endpoints'
-    suggested_owner: 'dev'
+    finding: 'API endpoints returning 403 Forbidden instead of expected 200/400 status codes'
+    suggested_action: 'Fix response validation middleware to return correct HTTP status codes'
+    suggested_owner: dev
+  - id: 'SEC-001'
+    severity: high
+    finding: 'Trust token validation failing with 400 Bad Request instead of 200 OK for valid tokens'
+    suggested_action: 'Resolve trust token validation logic and error handling'
+    suggested_owner: dev
+  - id: 'PERF-001'
+    severity: medium
+    finding: 'Unit tests taking excessive time (34+ seconds), indicating performance issues'
+    suggested_action: 'Optimize test setup and execution to reduce runtime'
+    suggested_owner: dev
 
-quality_score: 30
-expires: '2025-12-05T00:00:00Z'
+quality_score: 20
+expires: '2025-11-29T03:00:00Z'
 
 evidence:
-  tests_reviewed: 25
+  tests_reviewed: 4
   risks_identified: 3
   trace:
     ac_covered: [1, 2, 3, 4, 5, 6, 7, 9]
     ac_gaps: [8]
-    test_failures: 3
-    failing_tests:
-      - response-validation.test.js: /api/webhook/n8n validation
-      - reuse-security.test.js: timing attack vulnerability
-      - jobStatus.test.js: API 500 errors
 
 nfr_validation:
-  _assessed: [security, performance, reliability, maintainability]
   security:
     status: FAIL
-    notes: 'Timing attack vulnerability and potential information disclosure through 500 errors'
+    notes: 'API validation failures may expose internal errors, trust token issues could allow unauthorized access'
   performance:
-    status: CONCERNS
-    notes: 'Timing differences exceed acceptable thresholds'
+    status: FAIL
+    notes: 'Test execution times exceed acceptable thresholds, potential performance regressions'
   reliability:
     status: FAIL
-    notes: '500 internal server errors in API routes indicate reliability issues'
+    notes: 'Persistent test failures indicate unreliable system behavior'
   maintainability:
-    status: CONCERNS
-    notes: 'Test suite failures indicate maintainability issues'
+    status: PASS
+    notes: 'Code structure remains maintainable despite functional issues'
 
 recommendations:
   immediate:
-    - action: 'Fix all failing tests to restore functionality'
-      refs:
-        [
-          'src/tests/unit/middleware/response-validation.test.js',
-          'src/tests/security/reuse-security.test.js',
-          'src/tests/unit/jobStatus.test.js',
-        ]
-    - action: 'Address timing attack vulnerability'
-      refs: ['src/tests/security/reuse-security.test.js']
+    - action: 'Fix API response status codes in validation middleware'
+      refs: ['src/routes/api.js', 'src/middleware/validation.js']
+    - action: 'Resolve trust token validation endpoint logic'
+      refs: ['src/routes/trust-tokens.js']
   future:
-    - action: 'Add automated documentation validation'
-      refs: ['AC8 requirements']
-    - action: 'Implement baseline regression comparison'
-      refs: ['Test execution patterns']
+    - action: 'Optimize test execution performance'
+      refs: ['src/tests/unit/health.test.js']
+    - action: 'Add automated regression detection baseline'
+      refs: ['src/tests/']
