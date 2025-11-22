@@ -267,7 +267,7 @@ Key points:
       const largeContent = 'Large content\n\n'.repeat(1000) + 'End of large content';
       const pdfBuffer = await pdfGenerator.generatePDF(largeContent, validTrustToken);
       expect(pdfBuffer).toBeInstanceOf(Buffer);
-      expect(pdfBuffer.length).toBeGreaterThan(10000); // Should be substantial
+      expect(pdfBuffer.length).toBeGreaterThan(10_000); // Should be substantial
     });
 
     test('should handle content with special characters', async () => {

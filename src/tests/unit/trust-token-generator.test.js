@@ -236,7 +236,7 @@ describe('TrustTokenGenerator', () => {
     });
 
     it('should handle very large content', () => {
-      const largeContent = 'a'.repeat(100000);
+      const largeContent = 'a'.repeat(100_000);
       const token = generator.generateToken(largeContent, largeContent, ['rule1']);
       expect(token).toBeDefined();
 
@@ -254,7 +254,7 @@ describe('TrustTokenGenerator', () => {
 
     it('should handle null and undefined rules', () => {
       const token1 = generator.generateToken('content', 'original', null);
-      const token2 = generator.generateToken('content', 'original', undefined);
+      const token2 = generator.generateToken('content', 'original');
 
       expect(token1).toBeDefined();
       expect(token2).toBeDefined();
@@ -282,7 +282,7 @@ describe('TrustTokenGenerator', () => {
 
     it('should handle token validation with clock skew', () => {
       // Test token that expires in 0.5 seconds
-      const token = generator.generateToken('content', 'original', ['rule1'], {
+      generator.generateToken('content', 'original', ['rule1'], {
         expiresIn: 500, // 0.5 seconds
       });
     });

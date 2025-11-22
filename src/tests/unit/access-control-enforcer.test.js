@@ -236,12 +236,12 @@ describe('AccessControlEnforcer', () => {
       });
 
       it('should return false when not expired', () => {
-        const validation = { expiresAt: new Date(Date.now() + 3600000).toISOString() };
+        const validation = { expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
         expect(enforcer._isExpired(validation)).toBe(false);
       });
 
       it('should return true when expired', () => {
-        const validation = { expiresAt: new Date(Date.now() - 3600000).toISOString() };
+        const validation = { expiresAt: new Date(Date.now() - 3_600_000).toISOString() };
         expect(enforcer._isExpired(validation)).toBe(true);
       });
     });
@@ -259,7 +259,7 @@ describe('AccessControlEnforcer', () => {
     });
 
     it('should handle undefined request object', () => {
-      expect(() => enforcer.enforce(undefined)).toThrow();
+      expect(() => enforcer.enforce()).toThrow();
     });
 
     it('should handle request with null trustTokenValidation', () => {
@@ -319,11 +319,11 @@ describe('AccessControlEnforcer', () => {
         { method: 'DELETE', path: '/export/training-data' },
       ];
 
-      systemReqs.forEach((req) => {
+      for (const req of systemReqs) {
         const result = enforcer.enforce({ ...req, ip: '127.0.0.1' }, 'strict');
         expect(result.allowed).toBe(false); // Should deny non-POST methods
         expect(result.code).toBe('NO_VALIDATION');
-      });
+      }
     });
 
     it('should handle concurrent access enforcement', () => {
@@ -333,10 +333,10 @@ describe('AccessControlEnforcer', () => {
         results.push(enforcer.enforce(mockReq, 'strict'));
       }
 
-      results.forEach((result) => {
+      for (const result of results) {
         expect(result.allowed).toBe(true);
         expect(result.error).toBe(null);
-      });
+      }
     });
   });
 });

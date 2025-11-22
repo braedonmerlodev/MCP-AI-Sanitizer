@@ -140,7 +140,7 @@ describe('AITextTransformer', () => {
   });
 
   test('should handle very long input text', async () => {
-    const longText = 'a'.repeat(10000);
+    const longText = 'a'.repeat(10_000);
     const result = await transformer.transform(longText, 'summarize');
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
@@ -188,7 +188,7 @@ describe('AITextTransformer', () => {
 
     const result = await transformer.transform('test input', 'structure');
 
-    expect(result.metadata.cost).toBeCloseTo(0.00025, 6); // (100/1000)*0.0015 + (50/1000)*0.002
+    expect(result.metadata.cost).toBeCloseTo(0.000_25, 6); // (100/1000)*0.0015 + (50/1000)*0.002
     expect(result.metadata.tokens.prompt).toBe(100);
     expect(result.metadata.tokens.completion).toBe(50);
     expect(result.metadata.tokens.total).toBe(150);
@@ -227,7 +227,7 @@ describe('AITextTransformer', () => {
     const MockChatOpenAI = require('@langchain/openai').ChatOpenAI;
     MockChatOpenAI.mockClear();
 
-    const customTransformer = new AITextTransformer({
+    new AITextTransformer({
       model: 'gpt-4',
       temperature: 0.5,
       maxTokens: 1000,

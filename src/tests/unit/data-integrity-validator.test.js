@@ -527,16 +527,16 @@ describe('DataIntegrityValidator', () => {
     });
 
     test('should handle undefined data input', async () => {
-      const result = await validator.validateData(undefined);
+      const result = await validator.validateData();
       expect(result).toHaveProperty('isValid');
       expect(result.metadata.dataType).toBe('undefined');
     });
 
     test('should handle very large data objects', async () => {
-      const largeData = { data: 'x'.repeat(100000) };
+      const largeData = { data: 'x'.repeat(100_000) };
       const result = await validator.validateData(largeData);
       expect(result).toHaveProperty('isValid');
-      expect(result.metadata.dataSize).toBeGreaterThan(100000);
+      expect(result.metadata.dataSize).toBeGreaterThan(100_000);
     });
 
     test('should handle array data', async () => {
