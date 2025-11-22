@@ -1165,7 +1165,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
       test('should handle large content in async processing', async () => {
         // Create content larger than typical limits to test edge case
-        const largeContent = 'x'.repeat(100000); // 100KB of content
+        const largeContent = 'x'.repeat(100_000); // 100KB of content
 
         const response = await request(app)
           .post('/api/sanitize/json')

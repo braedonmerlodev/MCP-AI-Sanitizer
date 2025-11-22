@@ -378,6 +378,7 @@ describe('Job Status API Routes', () => {
         let loadCount = 0;
         JobResult.load.callsFake(() => {
           loadCount++;
+          // eslint-disable-next-line unicorn/prefer-ternary
           if (loadCount === 1) {
             return Promise.resolve(null); // First call returns null (cache miss)
           } else {
