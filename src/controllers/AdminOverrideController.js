@@ -1,4 +1,5 @@
 const winston = require('winston');
+const crypto = require('crypto');
 const AuditLoggerAccess = require('../components/AuditLoggerAccess');
 
 /**
@@ -65,8 +66,18 @@ class AdminOverrideController {
       return { isValid: false, error: 'Admin authentication required' };
     }
 
-    // Simple secret-based auth (replace with proper JWT/OAuth in production)
-    if (authHeader !== this.adminAuthSecret) {
+    // Use timing-safe comparison to prevent timing attacks
+    try {
+      const authBuffer = Buffer.from(authHeader, 'utf8');
+      const secretBuffer = Buffer.from(this.adminAuthSecret, 'utf8');
+      if (
+        authBuffer.length !== secretBuffer.length ||
+        !crypto.timingSafeEqual(authBuffer, secretBuffer)
+      ) {
+        return { isValid: false, error: 'Invalid admin credentials' };
+      }
+    } catch (error) {
+      // If buffers are not equal length or other error, treat as invalid
       return { isValid: false, error: 'Invalid admin credentials' };
     }
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
+const jobStatusRoutes = require('./routes/jobStatus');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
@@ -24,6 +25,7 @@ app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
+app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
 app.get('/', (req, res) => {

@@ -166,7 +166,9 @@ describe('Response Validation Middleware', () => {
     middleware(mockReq, mockRes, mockNext);
 
     const validResponse = {
-      result: 'Sanitized and processed response',
+      result: {
+        sanitizedData: 'Sanitized and processed response',
+      },
     };
 
     mockRes.json(validResponse);
