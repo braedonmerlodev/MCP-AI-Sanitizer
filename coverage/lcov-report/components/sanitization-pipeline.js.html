@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">17.46% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/63</span>
+                <span class='fraction'>0/63</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">17.46% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/63</span>
+                <span class='fraction'>0/63</span>
             </div>
         
             
@@ -319,18 +319,18 @@
 <a name='L254'></a><a href='#L254'>254</a>
 <a name='L255'></a><a href='#L255'>255</a>
 <a name='L256'></a><a href='#L256'>256</a>
-<a name='L257'></a><a href='#L257'>257</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<a name='L257'></a><a href='#L257'>257</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -574,19 +574,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const crypto = require('node:crypto');
-const UnicodeNormalization = require('./SanitizationPipeline/unicode-normalization.js');
-const SymbolStripping = require('./SanitizationPipeline/symbol-stripping.js');
-const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralization.js');
-const PatternRedaction = require('./SanitizationPipeline/pattern-redaction.js');
-const DataIntegrityValidator = require('./DataIntegrityValidator');
-const TrustTokenGenerator = require('./TrustTokenGenerator');
-const AuditLogger = require('./data-integrity/AuditLogger');
-const winston = require('winston');
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">const crypto = <span class="cstat-no" title="statement not covered" >require('node:crypto');</span>
+const UnicodeNormalization = <span class="cstat-no" title="statement not covered" >require('./SanitizationPipeline/unicode-normalization.js');</span>
+const SymbolStripping = <span class="cstat-no" title="statement not covered" >require('./SanitizationPipeline/symbol-stripping.js');</span>
+const EscapeNeutralization = <span class="cstat-no" title="statement not covered" >require('./SanitizationPipeline/escape-neutralization.js');</span>
+const PatternRedaction = <span class="cstat-no" title="statement not covered" >require('./SanitizationPipeline/pattern-redaction.js');</span>
+const DataIntegrityValidator = <span class="cstat-no" title="statement not covered" >require('./DataIntegrityValidator');</span>
+const TrustTokenGenerator = <span class="cstat-no" title="statement not covered" >require('./TrustTokenGenerator');</span>
+const AuditLogger = <span class="cstat-no" title="statement not covered" >require('./data-integrity/AuditLogger');</span>
+const winston = <span class="cstat-no" title="statement not covered" >require('winston');</span>
 &nbsp;
 // Initialize logger
-const logger = winston.createLogger({
+const logger = <span class="cstat-no" title="statement not covered" >winston.createLogger({</span>
   level: 'info',
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
@@ -830,7 +830,7 @@ class SanitizationPipeline {
   }
 }
 &nbsp;
-module.exports = SanitizationPipeline;
+<span class="cstat-no" title="statement not covered" >module.exports = SanitizationPipeline;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -838,7 +838,7 @@ module.exports = SanitizationPipeline;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-22T19:00:52.864Z
+                at 2025-11-22T21:47:18.716Z
             </div>
         <script src="../prettify.js"></script>
         <script>

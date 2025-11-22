@@ -595,5 +595,139 @@ describe('API Routes', () => {
       expect(response.body).toHaveProperty('metadata');
       expect(response.body.metadata).toHaveProperty('reused', false);
     });
+
+    test('should handle malformed JSON in request body', async () => {
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .set('Content-Type', 'application/json')
+        .send('{invalid json')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should handle very large content gracefully', async () => {
+      const largeContent = 'a'.repeat(100_000);
+      const requestData = {
+        content: largeContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.metadata).toHaveProperty('originalLength', largeContent.length);
+    });
+
+    test('should handle content with special characters', async () => {
+      const specialContent = 'Content with éñü ñoños @#$%^&*()[]{}';
+      const requestData = {
+        content: specialContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+    });
+
+    test('should handle empty content string', async () => {
+      const requestData = {
+        content: '',
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent', '');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.metadata).toHaveProperty('originalLength', 0);
+    });
+
+    test('should handle content with only whitespace', async () => {
+      const whitespaceContent = '   \n\t  ';
+      const requestData = {
+        content: whitespaceContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+    });
+
+    test('should handle content with unicode characters', async () => {
+      const unicodeContent = 'Unicode: 🚀 🌟 💻 🔒';
+      const requestData = {
+        content: unicodeContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+    });
+
+    test('should handle very large content gracefully', async () => {
+      const largeContent = 'a'.repeat(100_000); // 100KB content
+      const requestData = {
+        content: largeContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.sanitizedContent.length).toBe(largeContent.length);
+    });
+
+    test('should handle content with special characters', async () => {
+      const specialContent = 'Content with <script>alert("xss")</script> and &lt;tags&gt;';
+      const requestData = {
+        content: specialContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.sanitizedContent).not.toContain('<script>');
+    });
+
+    test('should handle empty content', async () => {
+      const requestData = {
+        content: '',
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.sanitizedContent).toBe('');
+    });
+
+    test('should handle whitespace-only content', async () => {
+      const requestData = {
+        content: '   \n\t  ',
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.sanitizedContent).toBe('   \n\t  ');
+    });
+
+    test('should handle unicode characters', async () => {
+      const unicodeContent = 'Content with émojis 😀 and 中文';
+      const requestData = {
+        content: unicodeContent,
+      };
+
+      const response = await request(app).post('/api/sanitize/json').send(requestData).expect(200);
+
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.sanitizedContent).toBe(unicodeContent);
+    });
   });
 });

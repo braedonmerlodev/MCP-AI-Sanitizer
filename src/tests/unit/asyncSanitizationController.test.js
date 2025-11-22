@@ -19,10 +19,6 @@ describe('AsyncSanitizationController', () => {
     sinon.restore();
   });
 
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('submitSanitizationJob', () => {
     it('should submit sanitization job successfully', async () => {
       const content = 'test content';
@@ -127,6 +123,24 @@ describe('AsyncSanitizationController', () => {
     it('should return false when no criteria met', () => {
       const criteria = {};
       expect(controller.shouldProcessAsync(criteria)).toBe(false);
+    });
+
+    it('should return false when fileSize is exactly 10MB', () => {
+      const criteria = { fileSize: 10_485_760 }; // Exactly 10MB
+      expect(controller.shouldProcessAsync(criteria)).toBe(false);
+    });
+
+    it('should return false when processingTime is exactly 5 seconds', () => {
+      const criteria = { processingTime: 5000 }; // Exactly 5 seconds
+      expect(controller.shouldProcessAsync(criteria)).toBe(false);
+    });
+
+    it('should handle undefined criteria gracefully', () => {
+      expect(controller.shouldProcessAsync()).toBe(false);
+    });
+
+    it('should handle null criteria gracefully', () => {
+      expect(controller.shouldProcessAsync(null)).toBe(false);
     });
   });
 });

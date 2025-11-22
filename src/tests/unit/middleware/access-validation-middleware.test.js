@@ -240,7 +240,7 @@ describe('AccessValidationMiddleware', () => {
         contentHash: 'hash123',
         signature: 'sig123',
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       });
 
       mockValidateToken.mockReturnValue({ isValid: true });
@@ -258,7 +258,7 @@ describe('AccessValidationMiddleware', () => {
         contentHash: 'hash123',
         signature: 'sig123',
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       });
 
       mockValidateToken.mockReturnValue({ isValid: true });
@@ -276,7 +276,7 @@ describe('AccessValidationMiddleware', () => {
         contentHash: 'hash123',
         signature: 'sig123',
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       });
 
       mockValidateToken.mockReturnValue({ isValid: true });
@@ -294,7 +294,7 @@ describe('AccessValidationMiddleware', () => {
         contentHash: 'hash123',
         signature: 'sig123',
         timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       });
 
       mockValidateToken.mockReturnValue({ isValid: true });
