@@ -12,6 +12,7 @@ describe('AdminOverrideController', () => {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
     };
 
     mockAuditLogger = {
@@ -598,6 +599,195 @@ describe('AdminOverrideController', () => {
       } finally {
         process.env.NODE_ENV = originalEnv;
       }
+    });
+  });
+
+  describe('error handling coverage', () => {
+    describe('activateOverride error handling', () => {
+      it('should handle audit logger errors during activation', () => {
+        // Mock audit logger to throw error
+        mockAuditLogger.logAccessEnforcement = jest.fn(() => {
+          throw new Error('Audit logger failure');
+        });
+
+        mockReq.body = { justification: 'Test audit failure' };
+
+        controller.activateOverride(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'Override activation failed',
+          message: 'An error occurred while activating the override',
+        });
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Admin override activation error',
+          expect.objectContaining({
+            error: 'Audit logger failure',
+          }),
+        );
+      });
+
+      it('should handle unexpected errors during activation', () => {
+        // Mock activeOverrides.set to throw error
+        const originalSet = controller.activeOverrides.set;
+        controller.activeOverrides.set = jest.fn(() => {
+          throw new Error('Map set failure');
+        });
+
+        mockReq.body = { justification: 'Test unexpected error' };
+
+        controller.activateOverride(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'Override activation failed',
+          message: 'An error occurred while activating the override',
+        });
+
+        // Restore original method
+        controller.activeOverrides.set = originalSet;
+      });
+    });
+
+    describe('deactivateOverride error handling', () => {
+      it('should handle audit logger errors during deactivation', () => {
+        // First activate an override
+        mockReq.body = { justification: 'Test deactivation error' };
+        controller.activateOverride(mockReq, mockRes);
+        const overrideId = controller.activeOverrides.keys().next().value;
+
+        // Reset mocks
+        jest.clearAllMocks();
+
+        // Mock audit logger to throw error
+        mockAuditLogger.logAccessEnforcement = jest.fn(() => {
+          throw new Error('Audit logger failure');
+        });
+
+        mockReq.params = { overrideId };
+
+        controller.deactivateOverride(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'Override deactivation failed',
+          message: 'An error occurred while deactivating the override',
+        });
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Admin override deactivation error',
+          expect.objectContaining({
+            error: 'Audit logger failure',
+          }),
+        );
+      });
+
+      it('should handle timer clearing errors during deactivation', () => {
+        // First activate an override with explicit duration (to create timer in test env)
+        mockReq.body = { justification: 'Test timer error', duration: 30_000 };
+        controller.activateOverride(mockReq, mockRes);
+        const overrideId = controller.activeOverrides.keys().next().value;
+
+        // Reset mocks
+        jest.clearAllMocks();
+
+        // Mock clearTimeout to throw error
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
+          throw new Error('Timer clearing failure');
+        });
+
+        mockReq.params = { overrideId };
+
+        controller.deactivateOverride(mockReq, mockRes);
+
+        expect(mockLogger.debug).toHaveBeenCalledWith('Failed to clear override timer', {
+          error: 'Timer clearing failure',
+        });
+
+        // Restore original method
+        globalThis.clearTimeout = originalClearTimeout;
+      });
+    });
+
+    describe('getOverrideStatus error handling', () => {
+      it('should handle unexpected errors during status retrieval', () => {
+        // Mock activeOverrides.entries to throw error
+        const originalEntries = controller.activeOverrides.entries;
+        controller.activeOverrides.entries = jest.fn(() => {
+          throw new Error('Map entries failure');
+        });
+
+        controller.getOverrideStatus(mockReq, mockRes);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'Status retrieval failed',
+          message: 'An error occurred while retrieving override status',
+        });
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Get override status error',
+          expect.objectContaining({
+            error: 'Map entries failure',
+          }),
+        );
+
+        // Restore original method
+        controller.activeOverrides.entries = originalEntries;
+      });
+    });
+
+    describe('clearAllOverrides error handling', () => {
+      it('should handle timer clearing errors in clearAllOverrides', () => {
+        // First activate an override with explicit duration (to create timer in test env)
+        mockReq.body = { justification: 'Test clearAll timer error', duration: 30_000 };
+        controller.activateOverride(mockReq, mockRes);
+
+        // Mock clearTimeout to throw error
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
+          throw new Error('Timer clearing failure');
+        });
+
+        controller.clearAllOverrides();
+
+        expect(mockLogger.debug).toHaveBeenCalledWith(
+          'Failed to clear override timer during clearAllOverrides',
+          expect.objectContaining({
+            error: 'Timer clearing failure',
+          }),
+        );
+
+        // Restore original method
+        globalThis.clearTimeout = originalClearTimeout;
+      });
+    });
+
+    describe('_cleanExpiredOverrides error handling', () => {
+      it('should handle timer clearing errors in _cleanExpiredOverrides', () => {
+        // First activate an override with explicit duration (to create timer in test env)
+        mockReq.body = { justification: 'Test cleanup timer error', duration: 30_000 };
+        controller.activateOverride(mockReq, mockRes);
+
+        // Manually expire the override
+        const overrideId = controller.activeOverrides.keys().next().value;
+        const override = controller.activeOverrides.get(overrideId);
+        override.endTime = new Date(Date.now() - 1000);
+
+        // Mock clearTimeout to throw error
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
+          throw new Error('Timer clearing failure');
+        });
+
+        controller._cleanExpiredOverrides();
+
+        expect(mockLogger.debug).toHaveBeenCalledWith('Failed to clear expired override timer', {
+          error: 'Timer clearing failure',
+        });
+
+        // Restore original method
+        globalThis.clearTimeout = originalClearTimeout;
+      });
     });
   });
 });

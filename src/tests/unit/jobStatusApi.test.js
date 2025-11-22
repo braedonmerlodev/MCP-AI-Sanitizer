@@ -114,6 +114,82 @@ describe('Job Status API Routes', () => {
       expect(response.body.updatedAt).toBe('2025-11-15T10:05:00.000Z');
       expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
     });
+
+    it('should return processing status with fallback message when currentStep is null', async () => {
+      const mockJob = {
+        jobId: '1234567890123',
+        status: 'processing',
+        progress: 75,
+        currentStep: null,
+        createdAt: '2025-11-15T10:00:00.000Z',
+        updatedAt: '2025-11-15T10:03:45.000Z',
+        expiresAt: '2025-11-16T10:00:00.000Z',
+        isExpired: () => false,
+      };
+      JobStatus.load.resolves(mockJob);
+
+      const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+      expect(response.body.taskId).toBe('1234567890123');
+      expect(response.body.status).toBe('processing');
+      expect(response.body.progress).toBe(75);
+      expect(response.body.message).toBe('Processing...');
+      expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+      expect(response.body.updatedAt).toBe('2025-11-15T10:03:45.000Z');
+      expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
+    });
+
+    it('should include estimated completion time for processing jobs with progress', async () => {
+      const mockJob = {
+        jobId: '1234567890123',
+        status: 'processing',
+        progress: 50,
+        currentStep: 'Validating input',
+        createdAt: '2025-11-15T10:00:00.000Z',
+        updatedAt: '2025-11-15T10:02:30.000Z',
+        expiresAt: '2025-11-16T10:00:00.000Z',
+        isExpired: () => false,
+      };
+      JobStatus.load.resolves(mockJob);
+
+      const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+      expect(response.body.taskId).toBe('1234567890123');
+      expect(response.body.status).toBe('processing');
+      expect(response.body.progress).toBe(50);
+      expect(response.body.message).toBe('Processing: Validating input...');
+      expect(response.body.estimatedCompletion).toBeDefined();
+      expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+      expect(response.body.updatedAt).toBe('2025-11-15T10:02:30.000Z');
+      expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
+    });
+
+    it('should include result and completedAt for completed jobs with result', async () => {
+      const jobResult = { sanitizedContent: 'processed content', metadata: { size: 1024 } };
+      const mockJob = {
+        jobId: '1234567890124',
+        status: 'completed',
+        progress: 100,
+        result: jobResult,
+        createdAt: '2025-11-15T10:00:00.000Z',
+        updatedAt: '2025-11-15T10:05:00.000Z',
+        expiresAt: '2025-11-16T10:00:00.000Z',
+        isExpired: () => false,
+      };
+      JobStatus.load.resolves(mockJob);
+
+      const response = await request(app).get('/api/jobs/1234567890124/status').expect(200);
+
+      expect(response.body.taskId).toBe('1234567890124');
+      expect(response.body.status).toBe('completed');
+      expect(response.body.progress).toBe(100);
+      expect(response.body.message).toBe('Completed successfully');
+      expect(response.body.result).toEqual(jobResult);
+      expect(response.body.completedAt).toBe('2025-11-15T10:05:00.000Z');
+      expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+      expect(response.body.updatedAt).toBe('2025-11-15T10:05:00.000Z');
+      expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
+    });
   });
 
   describe('GET /api/jobs/:taskId/result', () => {
@@ -228,6 +304,355 @@ describe('Job Status API Routes', () => {
       const response = await request(app).get('/api/jobs/1234567890123').expect(404);
 
       expect(response.body.error).toBe('Job not found');
+    });
+  });
+
+  describe('JobStatusController State Transition Edge Cases', () => {
+    describe('Invalid state transitions and boundary conditions', () => {
+      it('should handle unknown status values gracefully', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'unknown_status',
+          progress: 0,
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.status).toBe('unknown_status');
+        expect(response.body.message).toBe('Unknown status');
+      });
+
+      it('should not calculate estimated completion for processing jobs with 0 progress', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'processing',
+          progress: 0,
+          currentStep: 'Starting process',
+          createdAt: '2025-11-15T10:00:00.000Z',
+          updatedAt: '2025-11-15T10:00:01.000Z',
+          expiresAt: '2025-11-16T10:00:00.000Z',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.status).toBe('processing');
+        expect(response.body.progress).toBe(0);
+        expect(response.body).not.toHaveProperty('estimatedCompletion');
+      });
+
+      it('should handle processing jobs with 100% progress', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'processing',
+          progress: 100,
+          currentStep: 'Finalizing',
+          createdAt: '2025-11-15T10:00:00.000Z',
+          updatedAt: '2025-11-15T10:05:00.000Z',
+          expiresAt: '2025-11-16T10:00:00.000Z',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.status).toBe('processing');
+        expect(response.body.progress).toBe(100);
+        expect(response.body.estimatedCompletion).toBeDefined();
+      });
+
+      it('should handle concurrent status changes during result retrieval', async () => {
+        // Simulate a job that was completed but status changed to failed during processing
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'completed',
+          progress: 100,
+          result: { data: 'completed result' },
+          isExpired: () => false,
+        };
+
+        // Mock JobResult.load to simulate concurrent access issue
+        let loadCount = 0;
+        JobResult.load.callsFake(() => {
+          loadCount++;
+          // eslint-disable-next-line unicorn/prefer-ternary
+          if (loadCount === 1) {
+            return Promise.resolve(null); // First call returns null (cache miss)
+          } else {
+            // Simulate concurrent update that makes result expired
+            return Promise.resolve({
+              result: { data: 'completed result' },
+              isExpired: () => true,
+            });
+          }
+        });
+
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(200);
+
+        expect(response.body.result).toEqual({ data: 'completed result' });
+        expect(JobResult.load.callCount).toBe(1); // Should only call once due to fallback
+      });
+
+      it('should handle boundary condition of very high progress values', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'processing',
+          progress: 999, // Unrealistically high progress
+          currentStep: 'Processing',
+          createdAt: '2025-11-15T10:00:00.000Z',
+          updatedAt: '2025-11-15T10:01:00.000Z',
+          expiresAt: '2025-11-16T10:00:00.000Z',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.status).toBe('processing');
+        expect(response.body.progress).toBe(999);
+        expect(response.body.estimatedCompletion).toBeDefined();
+      });
+    });
+  });
+
+  describe('JobStatusController Error Handling Coverage', () => {
+    describe('getStatus method', () => {
+      it('should handle JobStatus.load errors', async () => {
+        JobStatus.load.rejects(new Error('Database connection failed'));
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(500);
+
+        expect(response.body.error).toBe('Failed to retrieve job status');
+      });
+
+      it('should return queued status message', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'queued',
+          progress: 0,
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.message).toBe('Queued for processing...');
+      });
+
+      it('should return cancelled status message', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'cancelled',
+          progress: 0,
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.message).toBe('Job cancelled');
+      });
+
+      it('should return unknown status message for invalid status', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'invalid_status',
+          progress: 0,
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.message).toBe('Unknown status');
+      });
+    });
+
+    describe('getResult method', () => {
+      it('should handle JobStatus.load errors in getResult', async () => {
+        JobStatus.load.rejects(new Error('Database error'));
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(500);
+
+        expect(response.body.error).toBe('Failed to retrieve job result');
+      });
+
+      it('should return 410 for expired job in getResult', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'completed',
+          progress: 100,
+          isExpired: () => true,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(410);
+
+        expect(response.body.error).toBe('Job has expired');
+      });
+
+      it('should handle JobResult.load errors with fallback to job status result', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'completed',
+          progress: 100,
+          result: { data: 'test result' },
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+        JobResult.load.rejects(new Error('Result load failed'));
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(200);
+
+        expect(response.body.result).toEqual({ data: 'test result' });
+      });
+
+      it('should handle JSON.stringify errors in result size calculation', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'completed',
+          progress: 100,
+          result: { circular: {} },
+          isExpired: () => false,
+        };
+        // Create circular reference
+        mockJob.result.circular.self = mockJob.result;
+
+        JobStatus.load.resolves(mockJob);
+        JobResult.load.resolves(null);
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(200);
+
+        expect(response.body.resultSize).toBe(0);
+      });
+    });
+
+    describe('cancelJob method', () => {
+      it('should handle JobStatus.load errors in cancelJob', async () => {
+        JobStatus.load.rejects(new Error('Load failed'));
+
+        const response = await request(app).delete('/api/jobs/1234567890123').expect(500);
+
+        expect(response.body.error).toBe('Failed to cancel/delete job');
+      });
+
+      it('should return 410 for expired job in cancelJob', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'processing',
+          isExpired: () => true,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).delete('/api/jobs/1234567890123').expect(410);
+
+        expect(response.body.error).toBe('Job has expired');
+      });
+
+      it('should handle JobResult save errors gracefully', async () => {
+        const mockJob = {
+          jobId: '1234567890124',
+          status: 'completed',
+          save: sinon.stub().resolves(),
+          cancel: sinon.stub().resolves(),
+          isExpired: () => false,
+        };
+        const mockResult = {
+          expiresAt: 'old-date',
+          save: sinon.stub().rejects(new Error('Save failed')),
+        };
+
+        JobStatus.load.resolves(mockJob);
+        JobResult.load.resolves(mockResult);
+
+        const response = await request(app).delete('/api/jobs/1234567890124').expect(200);
+
+        expect(response.body.status).toBe('cancelled');
+        expect(response.body.message).toBe('Job deleted successfully');
+      });
+
+      it('should handle failed job status with error message', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'failed',
+          progress: 100,
+          errorMessage: 'Processing failed due to invalid input',
+          createdAt: '2025-11-15T10:00:00.000Z',
+          updatedAt: '2025-11-15T10:05:00.000Z',
+          expiresAt: '2025-11-16T10:00:00.000Z',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.taskId).toBe('1234567890123');
+        expect(response.body.status).toBe('failed');
+        expect(response.body.progress).toBe(100);
+        expect(response.body.message).toBe('Processing failed due to invalid input');
+        expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+        expect(response.body.updatedAt).toBe('2025-11-15T10:05:00.000Z');
+        expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
+      });
+
+      it('should handle failed job status with default error message', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'failed',
+          progress: 100,
+          errorMessage: null,
+          createdAt: '2025-11-15T10:00:00.000Z',
+          updatedAt: '2025-11-15T10:05:00.000Z',
+          expiresAt: '2025-11-16T10:00:00.000Z',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(200);
+
+        expect(response.body.taskId).toBe('1234567890123');
+        expect(response.body.status).toBe('failed');
+        expect(response.body.progress).toBe(100);
+        expect(response.body.message).toBe('Processing failed');
+        expect(response.body.createdAt).toBe('2025-11-15T10:00:00.000Z');
+        expect(response.body.updatedAt).toBe('2025-11-15T10:05:00.000Z');
+        expect(response.body.expiresAt).toBe('2025-11-16T10:00:00.000Z');
+      });
+
+      it('should propagate database errors in status retrieval', async () => {
+        JobStatus.load.rejects(new Error('Database connection failed'));
+
+        const response = await request(app).get('/api/jobs/1234567890123/status').expect(500);
+
+        expect(response.body.error).toBe('Failed to retrieve job status');
+      });
+
+      it('should propagate database errors in result retrieval', async () => {
+        const mockJob = {
+          jobId: '1234567890123',
+          status: 'completed',
+          isExpired: () => false,
+        };
+        JobStatus.load.resolves(mockJob);
+        JobResult.load.rejects(new Error('Database error'));
+
+        const response = await request(app).get('/api/jobs/1234567890123/result').expect(500);
+
+        expect(response.body.error).toBe('Failed to retrieve job result');
+      });
+
+      it('should propagate database errors in job cancellation', async () => {
+        JobStatus.load.rejects(new Error('Database connection failed'));
+
+        const response = await request(app).delete('/api/jobs/1234567890123').expect(500);
+
+        expect(response.body.error).toBe('Failed to cancel/delete job');
+      });
     });
   });
 });

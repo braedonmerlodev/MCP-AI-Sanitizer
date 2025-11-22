@@ -1,0 +1,105 @@
+# Story 1.12.3.3.4.2.3.2: JobStatusController Uncovered Lines Identification
+
+## Status
+
+Ready for Review
+
+## Story
+
+**As a** QA engineer working in a brownfield security hardening environment,
+**I want to** identify uncovered lines in job status logic, prioritizing state transition paths,
+**so that** testing efforts can focus on high-risk areas for coverage improvement.
+
+## Acceptance Criteria
+
+**Functional Requirements:**
+
+1. All uncovered lines in JobStatusController are cataloged
+2. State transition logic paths are analyzed for coverage gaps
+3. High-risk uncovered paths are prioritized (job failures, invalid transitions, concurrent updates)
+4. Detailed report of uncovered areas with line numbers and risk assessment
+
+**Integration Requirements:** 5. Analysis uses existing code inspection tools 6. No modifications to existing code during identification 7. Findings integrate with coverage analysis from previous substory
+
+**Quality Requirements:** 8. Identification is thorough and accurate 9. Risk prioritization is based on business impact and failure scenarios 10. Documentation includes specific code references and rationale
+
+## Tasks / Subtasks
+
+- [x] Review JobStatusController source code for state transition logic
+  - [x] Examine state machine implementation in getStatus method
+  - [x] Document edge cases in state transitions
+  - [x] Analyze error handling paths
+- [x] Map out all possible state transition paths
+  - [x] Document valid state transitions (queued→processing→completed)
+  - [x] Identify invalid transition scenarios
+  - [x] Map concurrent update scenarios
+- [x] Identify lines not covered by existing tests
+  - [x] Cross-reference with coverage analysis report
+  - [x] Document specific line numbers and code snippets
+  - [x] Categorize by functional area
+- [x] Assess risk levels for uncovered paths
+  - [x] Evaluate business impact of failures
+  - [x] Assess security implications
+  - [x] Prioritize based on reliability requirements
+- [x] Create prioritized list of areas needing test coverage
+  - [x] Rank by risk level (high/medium/low)
+  - [x] Include estimated test complexity
+  - [x] Document rationale for prioritization
+
+## Dev Notes
+
+Build on coverage analysis from substory 1.12.3.3.4.2.3.1 to identify specific gaps in job status management. Target file: `src/controllers/jobStatusController.js` (from docs/architecture/source-tree.md).
+
+### Testing
+
+- Code review and static analysis using existing tools
+- Focus on state machines and error handling paths
+- Prioritize based on security and reliability impact
+- Use Jest testing framework and Istanbul coverage (from docs/architecture/tech-stack.md)
+
+### Dependencies and Risks
+
+- Depends on completion of coverage analysis substory (1.12.3.3.4.2.3.1)
+- Low risk identification task - read-only analysis
+- Brownfield context: Analysis only, preserve existing behavior
+
+### Business Context
+
+Uncovered lines in job status logic represent potential security and reliability gaps in the brownfield environment. Identifying and prioritizing these areas ensures testing efforts focus on high-risk scenarios that could impact production stability.
+
+## Change Log
+
+| Date       | Version | Description                                          | Author        |
+| ---------- | ------- | ---------------------------------------------------- | ------------- |
+| 2025-11-22 | 1.0     | Initial substory creation                            | Product Owner |
+| 2025-11-22 | 1.1     | Updated per PO review - enhanced tasks and dev notes | Product Owner |
+| 2025-11-22 | 1.2     | Completed detailed uncovered lines identification    | Dev Agent     |
+
+## Dev Agent Record
+
+_To be populated by development agent during implementation_
+
+### Agent Model Used
+
+bmad-dev (James) - Full Stack Developer
+
+### Debug Log References
+
+- Source code analysis of src/controllers/jobStatusController.js and src/models/JobStatus.js
+- State transition mapping from JobStatus.cancel() method
+- No debug logs generated (analysis-only task)
+
+### Completion Notes List
+
+- State transition analysis completed with full state machine mapping
+- Identified 24 uncovered lines with detailed code snippets and risk assessment
+- Categorized uncovered areas into High/Medium/Low risk with implementation roadmap
+- Created comprehensive identification report for development team reference
+
+### File List
+
+- docs/stories/security stories/1.12/jobstatuscontroller-uncovered-lines-identification.md (Detailed identification report)
+
+## QA Results
+
+_Results from QA Agent QA review of the completed story implementation_
