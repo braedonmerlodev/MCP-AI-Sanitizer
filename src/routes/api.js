@@ -106,7 +106,14 @@ const n8nWebhookSchema = Joi.object({
 });
 
 const trustTokenValidateSchema = Joi.object({
-  trustToken: Joi.object().required(),
+  contentHash: Joi.string().required(),
+  originalHash: Joi.string().required(),
+  sanitizationVersion: Joi.string().required(),
+  rulesApplied: Joi.array().items(Joi.string()).required(),
+  timestamp: Joi.string().required(),
+  expiresAt: Joi.string().required(),
+  signature: Joi.string().required(),
+  nonce: Joi.string().required(),
 });
 
 const sanitizeJsonSchema = Joi.object({

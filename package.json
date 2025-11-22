@@ -9,8 +9,10 @@
     "lint": "eslint src",
     "start": "node src/app.js",
     "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "jest --coverage && npm run test:coverage:verify && npm run test:performance",
+    "test:coverage:verify": "node scripts/verify-coverage.js",
     "test:integration": "jest src/tests/integration",
+    "test:performance": "node scripts/measure-performance.js",
     "test:unit": "jest src/tests/unit"
   },
   "jest": {

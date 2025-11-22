@@ -1,5 +1,6 @@
 const request = require('supertest');
 const app = require('../../app');
+const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 
 describe('API Contract Validation Integration Tests', () => {
   describe('GET /health', () => {
@@ -73,16 +74,9 @@ describe('API Contract Validation Integration Tests', () => {
 
   describe('POST /api/trust-tokens/validate', () => {
     it('should validate valid trust token', async () => {
-      // Mock a valid token payload
-      const validToken = {
-        contentHash: 'mockhash',
-        originalHash: 'mockhash',
-        sanitizationVersion: '1.0',
-        rulesApplied: ['rule1'],
-        timestamp: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-        signature: 'mocksignature',
-      };
+      // Generate a valid token
+      const generator = new TrustTokenGenerator();
+      const validToken = generator.generateToken('test content', 'test content', ['rule1']);
 
       const response = await request(app)
         .post('/api/trust-tokens/validate')
