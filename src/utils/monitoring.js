@@ -1,5 +1,3 @@
-const winston = require('winston');
-
 // Monitoring metrics storage (in-memory for simplicity; in production, use Redis or DB)
 let metrics = {
   uptime: process.uptime(),
@@ -27,7 +25,7 @@ let metrics = {
 // Update uptime
 setInterval(() => {
   metrics.uptime = process.uptime();
-}, 60000); // Update every minute
+}, 60_000); // Update every minute
 
 // Functions to update metrics
 const recordRequest = (method, endpoint, responseTime) => {
