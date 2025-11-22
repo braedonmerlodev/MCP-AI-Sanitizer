@@ -5,6 +5,7 @@ const jobStatusRoutes = require('./routes/jobStatus');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
+const { recordRequest, recordError } = require('./utils/monitoring');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -19,6 +20,16 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Monitoring middleware for performance and request tracking
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    recordRequest(req.method, req.originalUrl, duration);
+  });
+  next();
+});
 
 // Response validation middleware (non-blocking)
 app.use(responseValidationMiddleware);
@@ -54,9 +65,16 @@ app.get(
   },
 );
 
+// Monitoring endpoint for security metrics, performance, and stability
+app.get('/api/monitoring/metrics', (req, res) => {
+  const { getMetrics } = require('./utils/monitoring');
+  res.json(getMetrics());
+});
+
 // Error handling
 app.use((err, req, res) => {
   logger.error(err.stack);
+  recordError();
   res.status(500).json({ error: 'Internal Server Error' });
 });
 

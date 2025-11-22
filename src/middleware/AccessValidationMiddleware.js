@@ -15,6 +15,7 @@
 const winston = require('winston');
 const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLoggerAccess = require('../components/AuditLoggerAccess');
+const { recordSecurityEvent } = require('../utils/monitoring');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -94,6 +95,7 @@ function accessValidationMiddleware(req, res, next) {
         logger.warn('Audit logger failed during missing token log', { error: logErr.message });
       }
 
+      recordSecurityEvent('authFailure');
       return res.status(403).json({
         error: 'Trust token required',
         message: 'Access denied: Trust token is required for AI agent document access',
@@ -127,6 +129,7 @@ function accessValidationMiddleware(req, res, next) {
         logger.warn('Audit logger failed during invalid format log', { error: logErr.message });
       }
 
+      recordSecurityEvent('authFailure');
       return res.status(403).json({
         error: 'Invalid trust token format',
         message: 'Trust token must be valid JSON',
@@ -157,6 +160,7 @@ function accessValidationMiddleware(req, res, next) {
         });
       }
 
+      recordSecurityEvent('authFailure');
       return res.status(403).json({
         error: 'Invalid trust token format',
         message: 'Trust token must be a JSON object',
@@ -191,6 +195,7 @@ function accessValidationMiddleware(req, res, next) {
         logger.warn('Audit logger failed during failed validation log', { error: logErr.message });
       }
 
+      recordSecurityEvent('authFailure');
       return res.status(403).json({
         error: 'Invalid trust token',
         message: validation.error,

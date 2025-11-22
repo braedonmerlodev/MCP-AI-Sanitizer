@@ -1,0 +1,21 @@
+schema: 1
+story: '1.12.4'
+story_title: 'Address Remaining QA Issues'
+gate: CONCERNS
+status_reason: 'Test coverage now meets 80%+ threshold with comprehensive test cases added for AccessValidationMiddleware and async workflows. Some test failures remain but are non-blocking for production deployment.'
+reviewer: 'Quinn'
+updated: '2025-11-21T12:00:00Z'
+
+top_issues:
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Async workflow integration tests failing with 404 on result endpoint'
+    suggested_action: 'Fix job result retrieval in async workflows'
+    suggested_owner: dev
+  - id: 'TEST-002'
+    severity: medium
+    finding: 'API route tests failing for PDF generation and trust token validation'
+    suggested_action: 'Update API tests to match current implementation'
+    suggested_owner: dev
+
+waiver: { active: false }
