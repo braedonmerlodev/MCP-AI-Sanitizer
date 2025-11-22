@@ -110,6 +110,91 @@ describe('AccessControlEnforcer', () => {
       const result = enforcer.enforce(mockReq);
       expect(result.allowed).toBe(true);
     });
+
+    it('should allow access via admin override when active', () => {
+      const mockAdminOverrideController = {
+        isOverrideActive: jest.fn(() => true),
+        getActiveOverride: jest.fn(() => ({
+          id: 'override-123',
+          adminId: 'admin-456',
+          justification: 'Emergency maintenance',
+        })),
+      };
+
+      const enforcerWithOverride = new AccessControlEnforcer({
+        logger: mockLogger,
+        adminOverrideController: mockAdminOverrideController,
+      });
+
+      const result = enforcerWithOverride.enforce(mockReq, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.code).toBe('ADMIN_OVERRIDE');
+      expect(result.override.id).toBe('override-123');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Access granted via admin override',
+        expect.any(Object),
+      );
+    });
+
+    it('should not use admin override when not active', () => {
+      const mockAdminOverrideController = {
+        isOverrideActive: jest.fn(() => false),
+      };
+
+      const enforcerWithOverride = new AccessControlEnforcer({
+        logger: mockLogger,
+        adminOverrideController: mockAdminOverrideController,
+      });
+
+      const result = enforcerWithOverride.enforce(mockReq, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.code).toBe(null);
+    });
+
+    it('should allow system operation without trust token validation', () => {
+      const reqSystem = {
+        method: 'POST',
+        path: '/export/training-data',
+        ip: '127.0.0.1',
+        // no trustTokenValidation
+      };
+
+      const result = enforcer.enforce(reqSystem, 'strict');
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBe(null);
+      expect(result.code).toBe('SYSTEM_OPERATION');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Allowing system operation without trust token validation',
+        expect.any(Object),
+      );
+    });
+
+    it('should deny access for non-system operation without trust token validation', () => {
+      const reqNoValidation = {
+        method: 'POST',
+        path: '/api/documents',
+        ip: '127.0.0.1',
+        // no trustTokenValidation
+      };
+
+      const result = enforcer.enforce(reqNoValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Trust token validation required');
+      expect(result.code).toBe('NO_VALIDATION');
+    });
+
+    it('should handle trust token without expiresAt', () => {
+      const reqNoExpires = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: true,
+          // no expiresAt
+        },
+      };
+
+      const result = enforcer.enforce(reqNoExpires, 'strict');
+      expect(result.allowed).toBe(true);
+    });
   });
 
   describe('getValidationLevels', () => {
@@ -128,6 +213,130 @@ describe('AccessControlEnforcer', () => {
       const end = process.hrtime.bigint();
       const duration = Number(end - start) / 1_000_000; // Convert to milliseconds
       expect(duration).toBeLessThan(1);
+    });
+  });
+
+  describe('private methods', () => {
+    describe('_isSignatureValid', () => {
+      it('should return true for valid signature', () => {
+        const validation = { isValid: true };
+        expect(enforcer._isSignatureValid(validation)).toBe(true);
+      });
+
+      it('should return false for invalid signature', () => {
+        const validation = { isValid: false };
+        expect(enforcer._isSignatureValid(validation)).toBe(false);
+      });
+    });
+
+    describe('_isExpired', () => {
+      it('should return false when no expiresAt', () => {
+        const validation = {};
+        expect(enforcer._isExpired(validation)).toBe(false);
+      });
+
+      it('should return false when not expired', () => {
+        const validation = { expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
+        expect(enforcer._isExpired(validation)).toBe(false);
+      });
+
+      it('should return true when expired', () => {
+        const validation = { expiresAt: new Date(Date.now() - 3_600_000).toISOString() };
+        expect(enforcer._isExpired(validation)).toBe(true);
+      });
+    });
+
+    describe('_contentMatches', () => {
+      it('should return true (placeholder implementation)', () => {
+        expect(enforcer._contentMatches()).toBe(true);
+      });
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle null request object', () => {
+      expect(() => enforcer.enforce(null)).toThrow();
+    });
+
+    it('should handle undefined request object', () => {
+      expect(() => enforcer.enforce()).toThrow();
+    });
+
+    it('should handle request with null trustTokenValidation', () => {
+      const reqWithNullValidation = {
+        ...mockReq,
+        trustTokenValidation: null,
+      };
+
+      const result = enforcer.enforce(reqWithNullValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Trust token validation required');
+    });
+
+    it('should handle malformed expiresAt date', () => {
+      const reqWithBadDate = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: true,
+          expiresAt: 'not-a-date',
+        },
+      };
+
+      // Should not throw and should allow access in lenient mode
+      const result = enforcer.enforce(reqWithBadDate, 'lenient');
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should handle empty validation object', () => {
+      const reqWithEmptyValidation = {
+        ...mockReq,
+        trustTokenValidation: {},
+      };
+
+      const result = enforcer.enforce(reqWithEmptyValidation, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Invalid trust token');
+    });
+
+    it('should handle validation with error message', () => {
+      const reqWithError = {
+        ...mockReq,
+        trustTokenValidation: {
+          isValid: false,
+          error: 'Custom validation error',
+        },
+      };
+
+      const result = enforcer.enforce(reqWithError, 'strict');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBe('Custom validation error');
+    });
+
+    it('should handle different HTTP methods for system operations', () => {
+      const systemReqs = [
+        { method: 'GET', path: '/export/training-data' },
+        { method: 'PUT', path: '/export/training-data' },
+        { method: 'DELETE', path: '/export/training-data' },
+      ];
+
+      for (const req of systemReqs) {
+        const result = enforcer.enforce({ ...req, ip: '127.0.0.1' }, 'strict');
+        expect(result.allowed).toBe(false); // Should deny non-POST methods
+        expect(result.code).toBe('NO_VALIDATION');
+      }
+    });
+
+    it('should handle concurrent access enforcement', () => {
+      // Test that multiple calls work correctly
+      const results = [];
+      for (let i = 0; i < 10; i++) {
+        results.push(enforcer.enforce(mockReq, 'strict'));
+      }
+
+      for (const result of results) {
+        expect(result.allowed).toBe(true);
+        expect(result.error).toBe(null);
+      }
     });
   });
 });

@@ -255,5 +255,32 @@ Key points:
       expect(extractedText).toContain('PDF generation with PDFKit');
       expect(extractedText).toContain('Text extraction with pdf-parse');
     });
+
+    test('should handle empty content with trust token', async () => {
+      const emptyContent = '';
+      const pdfBuffer = await pdfGenerator.generatePDF(emptyContent, validTrustToken);
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+      expect(pdfBuffer.length).toBeGreaterThan(0);
+    });
+
+    test('should handle very large content', async () => {
+      const largeContent = 'Large content\n\n'.repeat(1000) + 'End of large content';
+      const pdfBuffer = await pdfGenerator.generatePDF(largeContent, validTrustToken);
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+      expect(pdfBuffer.length).toBeGreaterThan(10_000); // Should be substantial
+    });
+
+    test('should handle content with special characters', async () => {
+      const specialContent = 'Content with éñü ñoños @#$%^&*()';
+      const pdfBuffer = await pdfGenerator.generatePDF(specialContent, validTrustToken);
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+    });
+
+    test('should handle trust token with missing fields gracefully', async () => {
+      const incompleteToken = { ...validTrustToken };
+      delete incompleteToken.sanitizationVersion;
+      const pdfBuffer = await pdfGenerator.generatePDF('test', incompleteToken);
+      expect(pdfBuffer).toBeInstanceOf(Buffer);
+    });
   });
 });

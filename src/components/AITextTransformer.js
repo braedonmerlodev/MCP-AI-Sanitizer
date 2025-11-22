@@ -20,8 +20,8 @@ class AITextTransformer {
     this.openai = new ChatOpenAI({
       openAIApiKey: aiConfig.openai.apiKey,
       modelName: options.model || 'gpt-3.5-turbo',
-      temperature: 0.1,
-      maxTokens: 2000,
+      temperature: options.temperature ?? 0.1,
+      maxTokens: options.maxTokens ?? 2000,
     });
 
     this.sanitizer = new SanitizationPipeline(options.sanitizerOptions || {});

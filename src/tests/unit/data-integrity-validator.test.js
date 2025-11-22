@@ -518,4 +518,40 @@ describe('DataIntegrityValidator', () => {
       expect(id1).not.toBe(id2);
     });
   });
+
+  describe('edge cases', () => {
+    test('should handle null data input', async () => {
+      const result = await validator.validateData(null);
+      expect(result).toHaveProperty('isValid');
+      expect(result.metadata.dataType).toBe('object'); // typeof null
+    });
+
+    test('should handle undefined data input', async () => {
+      const result = await validator.validateData();
+      expect(result).toHaveProperty('isValid');
+      expect(result.metadata.dataType).toBe('undefined');
+    });
+
+    test('should handle very large data objects', async () => {
+      const largeData = { data: 'x'.repeat(100_000) };
+      const result = await validator.validateData(largeData);
+      expect(result).toHaveProperty('isValid');
+      expect(result.metadata.dataSize).toBeGreaterThan(100_000);
+    });
+
+    test('should handle array data', async () => {
+      const arrayData = [{ id: 1 }, { id: 2 }];
+      const result = await validator.validateData(arrayData);
+      expect(result.isValid).toBe(true);
+      expect(result.metadata.dataType).toBe('object');
+    });
+
+    test('should handle circular references gracefully', async () => {
+      const circularObj = { prop: 'value' };
+      circularObj.self = circularObj;
+      const result = await validator.validateData(circularObj);
+      expect(result).toHaveProperty('isValid');
+      // Should not crash, even if validation fails due to circular ref
+    });
+  });
 });
