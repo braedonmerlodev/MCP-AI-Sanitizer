@@ -10,6 +10,7 @@
  */
 
 const winston = require('winston');
+const { recordSecurityEvent } = require('../utils/monitoring');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -33,6 +34,7 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
       const requestValidation = requestSchema.validate(req.body, { abortEarly: false });
 
       if (requestValidation.error) {
+        recordSecurityEvent('failedValidation');
         logger.warn('Request validation failed', {
           endpoint: req.originalUrl,
           method: req.method,
@@ -61,6 +63,7 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
         const responseValidation = responseSchema.validate(data, { abortEarly: false });
 
         if (responseValidation.error) {
+          recordSecurityEvent('failedValidation');
           logger.warn('Response validation failed', {
             endpoint: req.originalUrl,
             method: req.method,

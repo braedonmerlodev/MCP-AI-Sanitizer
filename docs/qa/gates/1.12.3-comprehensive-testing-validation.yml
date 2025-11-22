@@ -1,0 +1,20 @@
+schema: 1
+story: '1.12.3'
+gate: FAIL
+status_reason: 'Despite recent fixes, multiple test failures, insufficient coverage (72.94% < 80%), and linting errors prevent production readiness.'
+reviewer: 'Quinn'
+updated: '2025-11-21T12:00:00Z'
+top_issues:
+  - id: 'TEST-001'
+    severity: high
+    finding: 'Multiple unit and integration tests failing including API routes, trust token validation, and async workflows'
+    suggested_action: 'Fix failing tests in api.test.js and async-workflow-integration.test.js'
+  - id: 'TEST-002'
+    severity: high
+    finding: 'Test coverage at 72.94% below required 80% threshold'
+    suggested_action: 'Add comprehensive test cases to achieve 80%+ coverage across statements, branches, functions, and lines'
+  - id: 'MNT-001'
+    severity: medium
+    finding: 'Linting error in queueManager.js (numeric separator style)'
+    suggested_action: 'Fix the numeric separator style error to ensure clean code quality'
+waiver: { active: false }

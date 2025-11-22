@@ -6,6 +6,8 @@ const app = require('../../app');
 const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
+const ProxySanitizer = require('../../components/proxy-sanitizer');
+const AITextTransformer = require('../../components/AITextTransformer');
 
 describe('Async Workflow E2E Tests', () => {
   let validTrustToken;
@@ -22,6 +24,15 @@ describe('Async Workflow E2E Tests', () => {
     // Stub queue operations to avoid real processing
     sinon.stub(queueManager, 'addJob');
     sinon.stub(JobStatus, 'load');
+    // Stub AI and sanitization components to avoid external calls
+    sinon.stub(ProxySanitizer.prototype, 'sanitize').resolves({
+      sanitizedData: 'sanitized content',
+      trustToken: { id: 'token123' },
+    });
+    sinon.stub(AITextTransformer.prototype, 'transform').resolves({
+      text: '{"structured": "content"}',
+      metadata: { aiProcessed: true },
+    });
   });
 
   afterEach(() => {
@@ -59,16 +70,15 @@ describe('Async Workflow E2E Tests', () => {
         isExpired: () => false,
       });
 
-      // Step 1: Submit PDF upload job
+      // Step 1: Submit PDF upload job (force async)
       const uploadResponse = await request(app)
-        .post('/api/documents/upload')
+        .post('/api/documents/upload?async=true')
         .set('x-trust-token', JSON.stringify(validTrustToken))
         .attach('pdf', pdfBuffer, 'test-valid.pdf')
-        .expect(200);
+        .expect(202);
 
-      expect(uploadResponse.body).toHaveProperty('message');
-      expect(uploadResponse.body).toHaveProperty('fileName', 'test-valid.pdf');
-      expect(uploadResponse.body).toHaveProperty('status', 'processed');
+      expect(uploadResponse.body).toHaveProperty('taskId');
+      expect(uploadResponse.body).toHaveProperty('status', 'processing');
 
       const returnedTaskId = uploadResponse.body.taskId;
 
