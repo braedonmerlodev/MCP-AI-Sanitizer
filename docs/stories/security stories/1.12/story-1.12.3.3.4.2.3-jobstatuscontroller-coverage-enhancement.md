@@ -33,6 +33,18 @@ Ready for Development
 - [ ] Run coverage analysis to verify improvements
 - [ ] Ensure integration with existing test suite
 
+## Substories
+
+This story has been broken down into the following substories for focused development:
+
+1. [Story 1.12.3.3.4.2.3.1: JobStatusController Coverage Analysis](story-1.12.3.3.4.2.3.1.md)
+2. [Story 1.12.3.3.4.2.3.2: JobStatusController Uncovered Lines Identification](story-1.12.3.3.4.2.3.2.md)
+3. [Story 1.12.3.3.4.2.3.3: JobStatusController Status Update Tests](story-1.12.3.3.4.2.3.3.md)
+4. [Story 1.12.3.3.4.2.3.4: JobStatusController Failure and Error Handling Tests](story-1.12.3.3.4.2.3.4.md)
+5. [Story 1.12.3.3.4.2.3.5: JobStatusController State Transition Edge Cases Tests](story-1.12.3.3.4.2.3.5.md)
+6. [Story 1.12.3.3.4.2.3.6: JobStatusController Coverage Verification](story-1.12.3.3.4.2.3.6.md)
+7. [Story 1.12.3.3.4.2.3.7: JobStatusController Test Suite Integration](story-1.12.3.3.4.2.3.7.md)
+
 ## Dev Notes
 
 Focus on JobStatusController's job tracking, status updates, and state management within the brownfield security context.
