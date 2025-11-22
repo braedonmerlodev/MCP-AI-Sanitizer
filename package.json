@@ -13,7 +13,8 @@
     "test:coverage:verify": "node scripts/verify-coverage.js",
     "test:integration": "jest src/tests/integration",
     "test:performance": "node scripts/measure-performance.js",
-    "test:unit": "jest src/tests/unit"
+    "test:unit": "jest src/tests/unit",
+    "validate": "npm run lint && npm run format:check && npm run test:unit"
   },
   "jest": {
     "collectCoverageFrom": [

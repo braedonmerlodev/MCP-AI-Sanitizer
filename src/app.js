@@ -1,4 +1,7 @@
 const express = require('express');
+// Load environment variables
+require('dotenv').config();
+
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
 const jobStatusRoutes = require('./routes/jobStatus');
