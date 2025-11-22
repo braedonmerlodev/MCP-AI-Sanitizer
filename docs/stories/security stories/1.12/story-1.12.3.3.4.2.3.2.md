@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved
+Ready for Review
 
 ## Story
 
@@ -25,26 +25,26 @@ Approved
 
 ## Tasks / Subtasks
 
-- [ ] Review JobStatusController source code for state transition logic
-  - [ ] Examine state machine implementation in getStatus method
-  - [ ] Document edge cases in state transitions
-  - [ ] Analyze error handling paths
-- [ ] Map out all possible state transition paths
-  - [ ] Document valid state transitions (queued→processing→completed)
-  - [ ] Identify invalid transition scenarios
-  - [ ] Map concurrent update scenarios
-- [ ] Identify lines not covered by existing tests
-  - [ ] Cross-reference with coverage analysis report
-  - [ ] Document specific line numbers and code snippets
-  - [ ] Categorize by functional area
-- [ ] Assess risk levels for uncovered paths
-  - [ ] Evaluate business impact of failures
-  - [ ] Assess security implications
-  - [ ] Prioritize based on reliability requirements
-- [ ] Create prioritized list of areas needing test coverage
-  - [ ] Rank by risk level (high/medium/low)
-  - [ ] Include estimated test complexity
-  - [ ] Document rationale for prioritization
+- [x] Review JobStatusController source code for state transition logic
+  - [x] Examine state machine implementation in getStatus method
+  - [x] Document edge cases in state transitions
+  - [x] Analyze error handling paths
+- [x] Map out all possible state transition paths
+  - [x] Document valid state transitions (queued→processing→completed)
+  - [x] Identify invalid transition scenarios
+  - [x] Map concurrent update scenarios
+- [x] Identify lines not covered by existing tests
+  - [x] Cross-reference with coverage analysis report
+  - [x] Document specific line numbers and code snippets
+  - [x] Categorize by functional area
+- [x] Assess risk levels for uncovered paths
+  - [x] Evaluate business impact of failures
+  - [x] Assess security implications
+  - [x] Prioritize based on reliability requirements
+- [x] Create prioritized list of areas needing test coverage
+  - [x] Rank by risk level (high/medium/low)
+  - [x] Include estimated test complexity
+  - [x] Document rationale for prioritization
 
 ## Dev Notes
 
@@ -73,6 +73,7 @@ Uncovered lines in job status logic represent potential security and reliability
 | ---------- | ------- | ---------------------------------------------------- | ------------- |
 | 2025-11-22 | 1.0     | Initial substory creation                            | Product Owner |
 | 2025-11-22 | 1.1     | Updated per PO review - enhanced tasks and dev notes | Product Owner |
+| 2025-11-22 | 1.2     | Completed detailed uncovered lines identification    | Dev Agent     |
 
 ## Dev Agent Record
 
@@ -84,15 +85,20 @@ bmad-dev (James) - Full Stack Developer
 
 ### Debug Log References
 
-_Reference any debug logs or traces generated_
+- Source code analysis of src/controllers/jobStatusController.js and src/models/JobStatus.js
+- State transition mapping from JobStatus.cancel() method
+- No debug logs generated (analysis-only task)
 
 ### Completion Notes List
 
-- _To be populated_
+- State transition analysis completed with full state machine mapping
+- Identified 24 uncovered lines with detailed code snippets and risk assessment
+- Categorized uncovered areas into High/Medium/Low risk with implementation roadmap
+- Created comprehensive identification report for development team reference
 
 ### File List
 
-- _To be populated_
+- docs/stories/security stories/1.12/jobstatuscontroller-uncovered-lines-identification.md (Detailed identification report)
 
 ## QA Results
 
