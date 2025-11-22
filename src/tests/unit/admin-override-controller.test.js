@@ -683,7 +683,7 @@ describe('AdminOverrideController', () => {
 
       it('should handle timer clearing errors during deactivation', () => {
         // First activate an override with explicit duration (to create timer in test env)
-        mockReq.body = { justification: 'Test timer error', duration: 30000 };
+        mockReq.body = { justification: 'Test timer error', duration: 30_000 };
         controller.activateOverride(mockReq, mockRes);
         const overrideId = controller.activeOverrides.keys().next().value;
 
@@ -691,8 +691,8 @@ describe('AdminOverrideController', () => {
         jest.clearAllMocks();
 
         // Mock clearTimeout to throw error
-        const originalClearTimeout = global.clearTimeout;
-        global.clearTimeout = jest.fn(() => {
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
           throw new Error('Timer clearing failure');
         });
 
@@ -705,7 +705,7 @@ describe('AdminOverrideController', () => {
         });
 
         // Restore original method
-        global.clearTimeout = originalClearTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
       });
     });
 
@@ -739,12 +739,12 @@ describe('AdminOverrideController', () => {
     describe('clearAllOverrides error handling', () => {
       it('should handle timer clearing errors in clearAllOverrides', () => {
         // First activate an override with explicit duration (to create timer in test env)
-        mockReq.body = { justification: 'Test clearAll timer error', duration: 30000 };
+        mockReq.body = { justification: 'Test clearAll timer error', duration: 30_000 };
         controller.activateOverride(mockReq, mockRes);
 
         // Mock clearTimeout to throw error
-        const originalClearTimeout = global.clearTimeout;
-        global.clearTimeout = jest.fn(() => {
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
           throw new Error('Timer clearing failure');
         });
 
@@ -758,14 +758,14 @@ describe('AdminOverrideController', () => {
         );
 
         // Restore original method
-        global.clearTimeout = originalClearTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
       });
     });
 
     describe('_cleanExpiredOverrides error handling', () => {
       it('should handle timer clearing errors in _cleanExpiredOverrides', () => {
         // First activate an override with explicit duration (to create timer in test env)
-        mockReq.body = { justification: 'Test cleanup timer error', duration: 30000 };
+        mockReq.body = { justification: 'Test cleanup timer error', duration: 30_000 };
         controller.activateOverride(mockReq, mockRes);
 
         // Manually expire the override
@@ -774,8 +774,8 @@ describe('AdminOverrideController', () => {
         override.endTime = new Date(Date.now() - 1000);
 
         // Mock clearTimeout to throw error
-        const originalClearTimeout = global.clearTimeout;
-        global.clearTimeout = jest.fn(() => {
+        const originalClearTimeout = globalThis.clearTimeout;
+        globalThis.clearTimeout = jest.fn(() => {
           throw new Error('Timer clearing failure');
         });
 
@@ -786,7 +786,7 @@ describe('AdminOverrideController', () => {
         });
 
         // Restore original method
-        global.clearTimeout = originalClearTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
       });
     });
   });
