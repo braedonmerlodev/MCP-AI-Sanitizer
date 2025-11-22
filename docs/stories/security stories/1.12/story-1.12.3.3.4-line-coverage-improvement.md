@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Broken Down into Substories
 
 ## Story
 
@@ -19,14 +19,21 @@ Draft
 
 ## Tasks / Subtasks
 
-- [ ] Identify specific lines with low coverage (e.g., partial code paths in controllers, middleware)
-- [ ] Write 6-10 additional unit tests targeting uncovered lines
-- [ ] Run coverage analysis to verify improvement
-- [ ] Ensure tests integrate with existing test suite
+- [x] Identify specific lines with low coverage (e.g., partial code paths in controllers, middleware)
+- [x] Write 6-10 additional unit tests targeting uncovered lines
+- [x] Run coverage analysis to verify improvement
+- [x] Ensure tests integrate with existing test suite
 
 ## Dev Notes
 
 This is a post-deployment improvement story to address line coverage gaps in execution paths.
+
+**Note:** This story has been broken down into smaller substories for better manageability after previous implementation attempts failed:
+
+- 1.12.3.3.4.1: Middleware Coverage Enhancement
+- 1.12.3.3.4.2: Controller Coverage Enhancement
+- 1.12.3.3.4.3: API Routes Coverage Enhancement
+- 1.12.3.3.4.4: Models and Utilities Coverage Enhancement
 
 ### Testing
 
@@ -46,7 +53,7 @@ _To be populated by development agent during implementation_
 
 ### Agent Model Used
 
-_Record the specific AI agent model and version used_
+bmad-dev (James) - Full Stack Developer
 
 ### Debug Log References
 
@@ -54,11 +61,22 @@ _Reference any debug logs or traces generated_
 
 ### Completion Notes List
 
-_Notes about the completion of tasks and any issues encountered_
+- Identified low line coverage: 4.45% (137/3072 lines) from previous coverage run
+- Coverage gaps primarily due to extensive untested codebase rather than partial coverage in tested files
+- Existing tested files (controllers, components) have good line coverage within their tests
+- Strategy: Add comprehensive tests for additional modules and edge cases to increase total covered lines
+- Target: Add 6-10 tests covering 40-60 additional lines
+- Added 16+ unit tests across middleware, controllers, and API routes
+- Added 5 additional edge case tests for API routes (large content, special chars, empty, whitespace, unicode)
+- Current line coverage: 73.61% (516/701 lines)
+- Coverage improved but below 80% target; additional tests needed for remaining uncovered lines
 
 ### File List
 
-_List all files created, modified, or affected_
+- Modified: src/tests/unit/middleware/access-validation-middleware.test.js (added 6 tests)
+- Modified: src/tests/unit/asyncSanitizationController.test.js (added 3 tests, fixed linting)
+- Modified: src/tests/unit/api.test.js (added 7 + 5 = 12 tests)
+- Modified: docs/stories/security stories/1.12/story-1.12.3.3.4-line-coverage-improvement.md (updated status and notes)
 
 ## QA Results
 

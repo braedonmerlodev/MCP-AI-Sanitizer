@@ -14,7 +14,7 @@ describe('AccessValidationMiddleware', () => {
   beforeEach(() => {
     mockReq = {
       method: 'POST',
-      path: '/documents/upload',
+      path: '/documents/list',
       ip: '127.0.0.1',
       headers: {},
     };
@@ -33,6 +33,7 @@ describe('AccessValidationMiddleware', () => {
 
   describe('Missing trust token header', () => {
     test('should return 403 when x-trust-token header is missing', () => {
+      mockReq.path = '/documents/list';
       accessValidationMiddleware(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
@@ -46,6 +47,7 @@ describe('AccessValidationMiddleware', () => {
 
   describe('Invalid JSON in trust token header', () => {
     test('should return 403 when trust token is not valid JSON', () => {
+      mockReq.path = '/documents/list';
       mockReq.headers['x-trust-token'] = 'invalid json';
 
       accessValidationMiddleware(mockReq, mockRes, mockNext);
@@ -61,6 +63,7 @@ describe('AccessValidationMiddleware', () => {
 
   describe('Invalid trust token', () => {
     test('should return 403 when trust token validation fails', () => {
+      mockReq.path = '/documents/list';
       const invalidToken = { some: 'data' };
       mockReq.headers['x-trust-token'] = JSON.stringify(invalidToken);
       mockValidateToken.mockReturnValue({ isValid: false, error: 'Invalid signature' });
@@ -79,6 +82,7 @@ describe('AccessValidationMiddleware', () => {
 
   describe('Valid trust token', () => {
     test('should call next and attach validation result when token is valid', () => {
+      mockReq.path = '/documents/list';
       const validToken = {
         contentHash: 'hash123',
         originalHash: 'orig123',
@@ -104,6 +108,7 @@ describe('AccessValidationMiddleware', () => {
 
   describe('Error handling', () => {
     test('should return 500 when an unexpected error occurs', () => {
+      mockReq.path = '/documents/list';
       mockReq.headers['x-trust-token'] = JSON.stringify({});
       mockValidateToken.mockImplementation(() => {
         throw new Error('Unexpected error');
@@ -117,6 +122,187 @@ describe('AccessValidationMiddleware', () => {
         message: 'An error occurred during trust token validation',
       });
       expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Admin override bypass', () => {
+    test('should bypass trust token when admin override is active', () => {
+      mockReq.path = '/documents/list';
+      // Mock global admin override controller
+      globalThis.adminOverrideController = {
+        isOverrideActive: jest.fn().mockReturnValue(true),
+        getActiveOverride: jest.fn().mockReturnValue({
+          id: 'override123',
+          adminId: 'admin456',
+        }),
+      };
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockReq.trustTokenValidation).toEqual({ isValid: true, bypass: 'admin_override' });
+      expect(mockReq.trustToken).toEqual({
+        override: { id: 'override123', adminId: 'admin456' },
+      });
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
+    test('should not bypass when admin override check fails', () => {
+      mockReq.path = '/documents/list';
+      globalThis.adminOverrideController = {
+        isOverrideActive: jest.fn().mockImplementation(() => {
+          throw new Error('Override check error');
+        }),
+      };
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Trust token required',
+        message: 'Access denied: Trust token is required for AI agent document access',
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Non-object trust token', () => {
+    test('should return 403 when trust token is null', () => {
+      mockReq.path = '/documents/list';
+      mockReq.headers['x-trust-token'] = JSON.stringify(null);
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid trust token format',
+        message: 'Trust token must be a JSON object',
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test('should return 403 when trust token is an array', () => {
+      mockReq.path = '/documents/list';
+      mockReq.headers['x-trust-token'] = JSON.stringify(['invalid']);
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid trust token format',
+        message: 'Trust token must be a JSON object',
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test('should return 403 when trust token is a string', () => {
+      mockReq.path = '/documents/list';
+      mockReq.headers['x-trust-token'] = JSON.stringify('invalid');
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid trust token format',
+        message: 'Trust token must be a JSON object',
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Validation timing', () => {
+    test('should include validation timing in result', () => {
+      mockReq.path = '/documents/list';
+      const validToken = {
+        contentHash: 'hash123',
+        originalHash: 'orig123',
+        sanitizationVersion: '1.0',
+        rulesApplied: ['rule1'],
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        signature: 'sig123',
+      };
+      mockReq.headers['x-trust-token'] = JSON.stringify(validToken);
+      const validationResult = { isValid: true };
+      mockValidateToken.mockReturnValue(validationResult);
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockReq.trustTokenValidation.validationTime).toBeDefined();
+      expect(typeof mockReq.trustTokenValidation.validationTime).toBe('number');
+      expect(mockReq.trustTokenValidation.validationTime).toBeGreaterThanOrEqual(0);
+    });
+
+    test('should allow GET requests with valid trust token', () => {
+      mockReq.method = 'GET';
+      mockReq.path = '/documents/list';
+      mockReq.headers['x-trust-token'] = JSON.stringify({
+        contentHash: 'hash123',
+        signature: 'sig123',
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      mockValidateToken.mockReturnValue({ isValid: true });
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.trustTokenValidation.isValid).toBe(true);
+    });
+
+    test('should allow PUT requests with valid trust token', () => {
+      mockReq.method = 'PUT';
+      mockReq.path = '/documents/update';
+      mockReq.headers['x-trust-token'] = JSON.stringify({
+        contentHash: 'hash123',
+        signature: 'sig123',
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      mockValidateToken.mockReturnValue({ isValid: true });
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.trustTokenValidation.isValid).toBe(true);
+    });
+
+    test('should allow DELETE requests with valid trust token', () => {
+      mockReq.method = 'DELETE';
+      mockReq.path = '/documents/delete';
+      mockReq.headers['x-trust-token'] = JSON.stringify({
+        contentHash: 'hash123',
+        signature: 'sig123',
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      mockValidateToken.mockReturnValue({ isValid: true });
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.trustTokenValidation.isValid).toBe(true);
+    });
+
+    test('should handle requests with different IP addresses', () => {
+      mockReq.path = '/documents/list';
+      mockReq.ip = '192.168.1.100';
+      mockReq.headers['x-trust-token'] = JSON.stringify({
+        contentHash: 'hash123',
+        signature: 'sig123',
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      mockValidateToken.mockReturnValue({ isValid: true });
+
+      accessValidationMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockReq.trustTokenValidation.isValid).toBe(true);
     });
   });
 });
