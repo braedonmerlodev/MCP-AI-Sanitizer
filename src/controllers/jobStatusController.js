@@ -79,6 +79,12 @@ const JobStatusController = {
         expiresAt: jobStatus.expiresAt,
       };
 
+      // Include result for completed jobs
+      if (jobStatus.status === 'completed' && jobStatus.result) {
+        response.result = jobStatus.result;
+        response.completedAt = jobStatus.updatedAt;
+      }
+
       // Add estimated completion time for processing jobs
       if (jobStatus.status === 'processing' && jobStatus.progress > 0) {
         const elapsed = Date.now() - new Date(jobStatus.createdAt).getTime();
