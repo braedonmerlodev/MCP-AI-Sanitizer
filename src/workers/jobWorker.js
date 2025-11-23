@@ -104,7 +104,8 @@ async function processJob(job) {
 
       // Sanitize converted text
       const sanitizer = new ProxySanitizer();
-      result = await sanitizer.sanitize(processedText, job.options);
+      const sanitized = await sanitizer.sanitize(processedText, job.options);
+      result = { sanitizedData: sanitized };
 
       // If AI structure was applied, parse as JSON
       if (job.options?.aiTransformType === 'structure') {
@@ -127,7 +128,8 @@ async function processJob(job) {
     } else {
       // Default: sanitize content
       const sanitizer = new ProxySanitizer();
-      result = await sanitizer.sanitize(job.data, job.options);
+      const sanitized = await sanitizer.sanitize(job.data, job.options);
+      result = { sanitizedData: sanitized };
       // Format result to match sync response
       result.sanitizedContent = result.sanitizedData;
       delete result.sanitizedData;
