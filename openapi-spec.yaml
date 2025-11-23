@@ -21,23 +21,6 @@ security:
   - apiKey: []
 
 paths:
-                properties:
-                  sanitizedData:
-                    type: string
-                    description: Sanitized text content
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          description: Sanitization failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
   /api/sanitize/json:
     post:
       summary: JSON content sanitization with trust tokens
@@ -639,7 +622,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/export/training-data:
+   /api/export/training-data:
     post:
       summary: Export training data
       description: Exports training data for AI model improvement
@@ -684,6 +667,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/monitoring/metrics:
+    get:
+      summary: Get system monitoring metrics
+      description: Retrieves comprehensive system metrics including uptime, requests, performance, security, and stability
+      operationId: getMonitoringMetrics
+      tags:
+        - Monitoring
+      responses:
+        "200":
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uptime:
+                    type: number
+                    description: Process uptime in seconds
+                  startTime:
+                    type: number
+                    description: Process start time as timestamp
+                  requests:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      byMethod:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      byEndpoint:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                  performance:
+                    type: object
+                    properties:
+                      responseTimes:
+                        type: array
+                        items:
+                          type: number
+                      avgResponseTime:
+                        type: number
+                  security:
+                    type: object
+                    properties:
+                      failedValidations:
+                        type: integer
+                      authFailures:
+                        type: integer
+                      suspiciousRequests:
+                        type: integer
+                  stability:
+                    type: object
+                    properties:
+                      errors:
+                        type: integer
+                      errorRate:
+                        type: number
 
 components:
   schemas:
@@ -827,3 +892,5 @@ tags:
     description: System monitoring and statistics
   - name: Data Export
     description: Training data export for AI improvement
+  - name: Health
+    description: API health and status checks
