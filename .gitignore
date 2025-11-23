@@ -47,6 +47,7 @@ sample-project/*
 flattened-codebase.xml
 *.stats.md
 
-# Generated HTML files (except coverage reports)
+# Generated HTML files (except essential coverage reports)
 *.html
-!coverage/**/*.html
+!coverage/index.html
+!coverage/lcov-report/**/*.html
