@@ -3,7 +3,7 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
-[![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](#testing--quality-assurance)
+[![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](coverage/index.html)
 [![Security Hardened](https://img.shields.io/badge/security-hardened-blue)](docs/security/security-hardening-completion-certificate.md)
 
 A production-ready API service that sanitizes data flows in agentic AI systems, protecting against hidden instructions, malicious content, and security vulnerabilities. Features comprehensive trust token validation, AI-enhanced processing, PDF document handling, and seamless n8n integration.
