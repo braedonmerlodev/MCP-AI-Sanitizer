@@ -1,36 +1,36 @@
-# Epic 3: Red-Flagging and Error Recovery
+# Epic 3: MAKER Red-Flagging Agent Creation
 
-Integrate MAKER red-flagging into BMAD risk profiles for automatic error detection and recovery.
+Create red-flagging agents using BMAD Builder (bmb/) for automatic error detection and recovery.
 
-## Story 3.1: Risk Profile Red-Flagging
+## Story 3.1: Red-Flagging Agent Template
 
-As a developer, I want to extend BMAD risk profiles with MAKER red-flagging, so that errors are automatically detected.
-
-**Acceptance Criteria**
-
-1. Modify risk-profile.md to include red-flag criteria
-2. Implement automatic error detection in risk assessments
-3. Flag formatting errors and inconsistencies
-4. Generate red-flag reports
-
-## Story 3.2: BMAD Orchestrator Fallbacks
-
-As a developer, I want the BMAD orchestrator to handle red-flagged failures, so that tasks recover automatically.
+As a developer, I want to create red-flagging agent templates in bmb/, so that errors can be automatically detected in any process.
 
 **Acceptance Criteria**
 
-1. Configure bmad-orchestrator for fallback logic
-2. Implement automatic retry on red-flags
-3. Maintain task state during recovery
-4. Log fallback actions in story files
+1. Design red-flagging agent template in bmb/templates/
+2. Implement error pattern detection logic
+3. Create configurable red-flag criteria
+4. Include automatic recovery triggers
 
-## Story 3.3: Red-Flag Analytics in QA
+## Story 3.2: Recovery Agent Creation
 
-As a developer, I want red-flag data integrated into QA reports, so that error patterns are tracked.
+As a developer, I want to build recovery agents using bmb/, so that red-flagged tasks can be automatically corrected.
 
 **Acceptance Criteria**
 
-1. Include red-flag metrics in qa-gate files
-2. Track error frequency per agent
-3. Generate red-flag analytics reports
-4. Use analytics to improve agent reliability
+1. Create recovery agent template in bmb/
+2. Implement fallback strategy logic
+3. Handle different error types appropriately
+4. Maintain task continuity during recovery
+
+## Story 3.3: Red-Flagging System Testing
+
+As a developer, I want to test red-flagging agents created with bmb/, so that error detection works accurately.
+
+**Acceptance Criteria**
+
+1. Create test scenarios for red-flagging agents
+2. Validate error detection accuracy
+3. Test recovery mechanisms
+4. Measure system reliability improvements

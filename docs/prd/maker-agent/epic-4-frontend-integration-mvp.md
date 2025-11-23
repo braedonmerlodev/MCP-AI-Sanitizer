@@ -1,36 +1,36 @@
-# Epic 4: MAKER PDF Processing Integration MVP
+# Epic 4: MAKER PDF Agent Creation MVP
 
-Integrate MAKER principles with the PDF AI enhancement pipeline to demonstrate zero-error GPT processing and JSON generation.
+Create MAKER-enabled PDF processing agents using BMAD Builder (bmb/) to demonstrate zero-error GPT processing.
 
-## Story 4.1: GPT Processing Agent Creation
+## Story 4.1: PDF Processing Agent in BMB
 
-As a backend developer, I want to create BMAD agents for GPT-based PDF processing, so that MAKER principles ensure reliable text-to-JSON transformation.
-
-**Acceptance Criteria**
-
-1. Create GPT-specific agent using maker-agent-tmpl.yaml
-2. Implement microagent decomposition for complex PDF prompts
-3. Integrate voting consensus for JSON output validation
-4. Add red-flagging for malformed or hallucinated JSON
-
-## Story 4.2: PDF Pipeline MAKER Integration
-
-As a backend developer, I want to integrate MAKER into the PDF enhancement pipeline, so that sanitization + GPT processing achieves zero-error results.
+As a developer, I want to create PDF processing agents using bmb/, so that GPT text-to-JSON conversion is MAKER-enhanced.
 
 **Acceptance Criteria**
 
-1. Extend existing PDF processing stories in docs/stories/pdf-ai-enhancement/
-2. Implement MAKER voting on GPT-generated JSON structures
-3. Add red-flagging for inconsistent key-value pairs
-4. Ensure fallback maintains pipeline reliability
+1. Build PDF agent using bmb/ templates
+2. Implement microagent decomposition for PDF content
+3. Integrate voting for JSON validation
+4. Add red-flagging for GPT hallucinations
 
-## Story 4.3: MAKER Pipeline Validation
+## Story 4.2: MAKER Pipeline Orchestration
 
-As a developer, I want to validate the MAKER-enhanced PDF pipeline, so that it delivers reliable JSON output from raw PDF text.
+As a developer, I want to create orchestration agents with bmb/, so that the complete PDF pipeline uses MAKER principles.
 
 **Acceptance Criteria**
 
-1. Test end-to-end MAKER processing with sample PDFs
-2. Validate voting consensus on complex document structures
-3. Demonstrate red-flag recovery for GPT hallucinations
-4. Confirm zero-error processing for key use cases
+1. Build pipeline orchestrator agent in bmb/
+2. Coordinate sanitization, GPT processing, and MAKER validation
+3. Implement end-to-end error recovery
+4. Ensure zero-error pipeline execution
+
+## Story 4.3: PDF MAKER System Testing
+
+As a developer, I want to test the complete MAKER PDF system created with bmb/, so that the MVP demonstrates zero-error processing.
+
+**Acceptance Criteria**
+
+1. Test full PDF processing pipeline with MAKER agents
+2. Validate JSON output accuracy and consistency
+3. Measure error reduction compared to non-MAKER processing
+4. Document MVP capabilities and limitations
