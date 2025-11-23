@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const winston = require('winston');
 const apiRoutes = require('./routes/api');
@@ -44,12 +46,13 @@ app.get('/', (req, res) => {
     message: 'Obfuscation-Aware Sanitizer API',
     version: '1.0.0',
     endpoints: {
-      'POST /api/sanitize': 'Sanitize input data',
+      'POST /api/sanitize/json': 'Sanitize input data with trust tokens',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
       'POST /api/documents/upload': 'Upload PDF documents for processing',
       'GET /health': 'Health check',
+      'GET /api/monitoring/reuse-stats': 'Get trust token reuse statistics',
     },
-    documentation: 'See README.md for usage details',
+    documentation: 'See openapi-spec.yaml for full API documentation',
   });
 });
 
