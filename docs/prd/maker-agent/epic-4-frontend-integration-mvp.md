@@ -1,36 +1,36 @@
-# Epic 4: Frontend Integration MVP
+# Epic 4: MAKER PDF Processing Integration MVP
 
-Customize BMAD agents for frontend applications with MAKER principles to demonstrate real-world value.
+Integrate MAKER principles with the PDF AI enhancement pipeline to demonstrate zero-error GPT processing and JSON generation.
 
-## Story 4.1: Frontend Agent Customization
+## Story 4.1: GPT Processing Agent Creation
 
-As a frontend developer, I want to customize BMAD agents for form validation, so that MAKER principles apply to UI interactions.
-
-**Acceptance Criteria**
-
-1. Create frontend-specific agent using maker-agent-tmpl.yaml
-2. Implement microagent validation patterns
-3. Integrate voting for form field validation
-4. Add red-flagging for invalid inputs
-
-## Story 4.2: API Agent with MAKER
-
-As a frontend developer, I want BMAD agents to handle API orchestration with MAKER reliability, so that network operations are error-free.
+As a backend developer, I want to create BMAD agents for GPT-based PDF processing, so that MAKER principles ensure reliable text-to-JSON transformation.
 
 **Acceptance Criteria**
 
-1. Customize dev agent for API request formatting
-2. Implement voting for response validation
-3. Add red-flagging for API errors
-4. Support fallback for failed requests
+1. Create GPT-specific agent using maker-agent-tmpl.yaml
+2. Implement microagent decomposition for complex PDF prompts
+3. Integrate voting consensus for JSON output validation
+4. Add red-flagging for malformed or hallucinated JSON
 
-## Story 4.3: MAKER UI Demonstration
+## Story 4.2: PDF Pipeline MAKER Integration
 
-As a user, I want to see MAKER principles in action, so that I understand the reliability improvements.
+As a backend developer, I want to integrate MAKER into the PDF enhancement pipeline, so that sanitization + GPT processing achieves zero-error results.
 
 **Acceptance Criteria**
 
-1. Create demo UI showing microagent decomposition
-2. Display voting consensus in real-time
-3. Show red-flag recovery without user disruption
-4. Demonstrate zero-error task completion
+1. Extend existing PDF processing stories in docs/stories/pdf-ai-enhancement/
+2. Implement MAKER voting on GPT-generated JSON structures
+3. Add red-flagging for inconsistent key-value pairs
+4. Ensure fallback maintains pipeline reliability
+
+## Story 4.3: MAKER Pipeline Validation
+
+As a developer, I want to validate the MAKER-enhanced PDF pipeline, so that it delivers reliable JSON output from raw PDF text.
+
+**Acceptance Criteria**
+
+1. Test end-to-end MAKER processing with sample PDFs
+2. Validate voting consensus on complex document structures
+3. Demonstrate red-flag recovery for GPT hallucinations
+4. Confirm zero-error processing for key use cases
