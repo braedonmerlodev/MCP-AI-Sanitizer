@@ -29,6 +29,30 @@ Ready for Review
 - [x] Run coverage analysis to verify improvement in API routes coverage
 - [x] Ensure tests integrate with existing test suite without conflicts
 
+## Substories
+
+To achieve the target of 90+% coverage, the following substories have been created to break down the work:
+
+1. [Story 1.12.3.3.4.3.1: Error Handling in Webhook Processing and Document Upload Endpoints](story-1.12.3.3.4.3.1-error-handling-webhook-document-upload.md)
+   - Focuses on webhook processing failures and multer file upload error scenarios
+   - Targets uncovered lines in `/api/webhooks/n8n` and `/api/documents/upload` endpoints
+
+2. [Story 1.12.3.3.4.3.2: Test Edge Cases in JSON Sanitization Chains and Transformations](story-1.12.3.3.4.3.2-json-sanitization-chains-transformations.md)
+   - Covers complex chain operations, transformation errors, and malformed JSON inputs
+   - Targets `/api/sanitize/json` route edge cases
+
+3. [Story 1.12.3.3.4.3.3: Async Processing Error Path Tests](story-1.12.3.3.4.3.3-async-processing-error-paths-queue-failures.md)
+   - Tests async job submission errors, queue manager failures, and worker timeouts
+   - Focuses on SQLite DB errors and concurrent access conflicts
+
+4. [Story 1.12.3.3.4.3.4: Enhance API Routes Test Coverage for Trust Token Validation and Audit Logging](story-1.12.3.3.4.3.4-trust-token-validation-edge-cases-audit-logging.md)
+   - Tests invalid token formats, expired tokens, and audit logging scenarios
+   - Covers token reuse statistics and security compliance
+
+5. [Story 1.12.3.3.4.3.5: Add AI Processing Error Scenario Tests](story-1.12.3.3.4.3.5-ai-processing-error-scenarios-fallback-behavior.md)
+   - Tests AI transformation failures, model errors, and fallback processing
+   - Ensures graceful degradation when AI services fail
+
 ## Dev Notes
 
 This is a focused substory to address line coverage gaps in API route execution paths within the brownfield security hardening context.

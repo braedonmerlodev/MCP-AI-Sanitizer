@@ -146,8 +146,15 @@ const JobStatusController = {
       }
 
       // Try to get result from cache first
-      let jobResult = await JobResult.load(taskId);
+      let jobResult;
       let resultData;
+
+      try {
+        jobResult = await JobResult.load(taskId);
+      } catch (loadError) {
+        logger.warn('Error loading job result from cache', { taskId, error: loadError.message });
+        jobResult = null;
+      }
 
       if (jobResult && !jobResult.isExpired()) {
         resultData = jobResult.result;
@@ -155,12 +162,16 @@ const JobStatusController = {
       } else if (jobStatus.result) {
         // Fallback to job status result and cache it
         resultData = jobStatus.result;
-        jobResult = new JobResult({
-          jobId: taskId,
-          result: resultData,
-        });
-        await jobResult.save();
-        logger.info('Job result cached', { taskId });
+        try {
+          jobResult = new JobResult({
+            jobId: taskId,
+            result: resultData,
+          });
+          await jobResult.save();
+          logger.info('Job result cached', { taskId });
+        } catch (cacheError) {
+          logger.warn('Failed to cache job result', { taskId, error: cacheError.message });
+        }
       } else {
         return res.status(404).json({
           error: 'No result available',
@@ -182,6 +193,8 @@ const JobStatusController = {
         resultSize = str ? str.length : 0;
       } catch (error) {
         resultSize = 0;
+        // If result is circular, we can't send it as JSON, so set to a placeholder
+        response.result = '[Circular structure detected]';
       }
 
       logger.info('Job result retrieved', {
