@@ -15,6 +15,24 @@ jest.mock('pdf-parse', () => {
   return jest.fn().mockResolvedValue({ text: 'Hello World' });
 });
 
+// Mock multer for testing
+const mockMulterSingle = jest.fn(() => (req, res, next) => next());
+jest.mock('multer', () => {
+  const multerMock = jest.fn(() => ({
+    single: mockMulterSingle,
+  }));
+  multerMock.diskStorage = jest.fn();
+  multerMock.memoryStorage = jest.fn();
+  multerMock.MulterError = class MulterError extends Error {
+    constructor(code, message) {
+      super(message);
+      this.code = code;
+      this.name = 'MulterError';
+    }
+  };
+  return multerMock;
+});
+
 const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
@@ -55,6 +73,13 @@ jest.mock('pdfjs-dist', () => ({
     workerSrc: '',
   },
 }));
+
+// Mock ProxySanitizer for testing
+jest.mock('../../components/proxy-sanitizer', () => {
+  return jest.fn().mockImplementation(() => ({
+    handleN8nWebhook: jest.fn(),
+  }));
+});
 
 // Mock MarkdownConverter for testing
 jest.mock('../../components/MarkdownConverter', () => {
@@ -1199,6 +1224,108 @@ describe('API Integration Tests - Access Validation Middleware', () => {
         expect(parsed).toHaveProperty('text');
         expect(parsed).toHaveProperty('unicode');
         expect(parsed).toHaveProperty('emojis');
+      });
+
+      test('should handle webhook processing failures', async () => {
+        // Access the mocked ProxySanitizer instance created in api.js
+        const ProxySanitizerMock = require('../../components/proxy-sanitizer');
+        const mockInstance = ProxySanitizerMock.mock.results[0].value;
+        mockInstance.handleN8nWebhook.mockRejectedValue(new Error('Webhook processing failed'));
+
+        const response = await request(app)
+          .post('/api/webhook/n8n')
+          .send({ data: 'test webhook data' });
+
+        expect(response.status).toBe(500);
+        expect(response.body.error).toBe('Webhook processing failed');
+
+        // Reset the mock
+        mockInstance.handleN8nWebhook.mockReset();
+      });
+
+      test('should handle multer LIMIT_FILE_SIZE error', async () => {
+        // Mock multer to trigger LIMIT_FILE_SIZE error
+        const multer = require('multer');
+        const mockMulterError = new multer.MulterError('LIMIT_FILE_SIZE');
+        mockMulterError.code = 'LIMIT_FILE_SIZE';
+
+        // Mock the single method to call next with the error
+        mockMulterSingle.mockImplementation(() => (req, res, next) => {
+          next(mockMulterError);
+        });
+
+        const response = await request(app)
+          .post('/api/documents/upload')
+          .attach('pdf', Buffer.from('fake pdf content'), 'test.pdf');
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'File too large. Maximum size is 25MB.');
+
+        // Reset the mock
+        mockMulterSingle.mockReset();
+        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      });
+
+      test('should handle other multer errors', async () => {
+        // Mock multer to throw a general multer error
+        const multer = require('multer');
+        const mockMulterError = new multer.MulterError('Unexpected field');
+        mockMulterError.code = 'Unexpected field';
+        mockMulterError.message = 'Unexpected field error';
+
+        mockMulterSingle.mockImplementation(() => (req, res, next) => {
+          next(mockMulterError);
+        });
+
+        const response = await request(app)
+          .post('/api/documents/upload')
+          .attach('pdf', Buffer.from('fake pdf content'), 'test.pdf');
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'File upload error: Unexpected field error');
+
+        // Reset the mock
+        mockMulterSingle.mockReset();
+        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      });
+
+      test('should handle non-multer upload errors', async () => {
+        // Mock multer to throw a non-multer error
+        const mockError = new Error('Disk write failed');
+
+        mockMulterSingle.mockImplementation(() => (req, res, next) => {
+          next(mockError);
+        });
+
+        const response = await request(app)
+          .post('/api/documents/upload')
+          .attach('pdf', Buffer.from('fake pdf content'), 'test.pdf');
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'Disk write failed');
+
+        // Reset the mock
+        mockMulterSingle.mockReset();
+        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      });
+
+      test('should handle invalid file type in document upload', async () => {
+        // Mock multer to simulate fileFilter rejecting non-PDF files
+        const fileFilterError = new Error('Only PDF files are allowed');
+        mockMulterSingle.mockImplementation(() => (req, res, next) => {
+          next(fileFilterError);
+        });
+
+        const response = await request(app)
+          .post('/api/documents/upload')
+          .attach('pdf', Buffer.from('not a pdf file'), 'test.txt');
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'Only PDF files are allowed');
+
+        // Reset the mock
+        mockMulterSingle.mockReset();
+        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
       });
     });
   });

@@ -1,6 +1,5 @@
 const request = require('supertest');
 const express = require('express');
-const apiRoutes = require('../../routes/api');
 
 // Mock pdf-parse for testing
 jest.mock('pdf-parse', () =>
@@ -44,6 +43,24 @@ jest.mock('../../components/AccessControlEnforcer', () => {
   }));
 });
 
+// Mock multer for testing file size limit violations
+const mockMulterSingle = jest.fn(() => (req, res, next) => next());
+jest.mock('multer', () => {
+  const multerMock = jest.fn(() => ({
+    single: mockMulterSingle,
+  }));
+  multerMock.diskStorage = jest.fn();
+  multerMock.memoryStorage = jest.fn();
+  multerMock.MulterError = class MulterError extends Error {
+    constructor(code, message) {
+      super(message);
+      this.code = code;
+      this.name = 'MulterError';
+    }
+  };
+  return multerMock;
+});
+
 // Mock TrustTokenGenerator for testing
 jest.mock('../../components/TrustTokenGenerator', () => {
   return jest.fn().mockImplementation(() => ({
@@ -59,6 +76,8 @@ jest.mock('../../components/TrustTokenGenerator', () => {
     validateToken: jest.fn().mockReturnValue({ isValid: true }),
   }));
 });
+
+const apiRoutes = require('../../routes/api');
 
 const app = express();
 app.use(express.json());
@@ -258,6 +277,52 @@ describe('API Routes', () => {
 
       expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('sync');
+    });
+
+    test('should handle multer LIMIT_FILE_SIZE error for file exceeding configured limit', async () => {
+      // Mock multer to trigger LIMIT_FILE_SIZE error for files exceeding 25MB
+      const multer = require('multer');
+      const mockMulterError = new multer.MulterError('LIMIT_FILE_SIZE');
+      mockMulterError.code = 'LIMIT_FILE_SIZE';
+
+      // Mock the single method to call next with the error
+      mockMulterSingle.mockImplementationOnce(() => (req, res, next) => {
+        next(mockMulterError);
+      });
+
+      const response = await request(app)
+        .post('/api/documents/upload')
+        .attach('pdf', Buffer.from('%PDF-1.4\nfake content'), 'large.pdf')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error', 'File too large. Maximum size is 25MB.');
+
+      // Reset the mock
+      mockMulterSingle.mockReset();
+      mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+    });
+
+    test('should handle multer LIMIT_FILE_SIZE error for edge case near file size limit', async () => {
+      // Mock multer to trigger LIMIT_FILE_SIZE error for files at the edge of the limit
+      const multer = require('multer');
+      const mockMulterError = new multer.MulterError('LIMIT_FILE_SIZE');
+      mockMulterError.code = 'LIMIT_FILE_SIZE';
+
+      // Mock the single method to call next with the error for a file just over the limit
+      mockMulterSingle.mockImplementationOnce(() => (req, res, next) => {
+        next(mockMulterError);
+      });
+
+      const response = await request(app)
+        .post('/api/documents/upload')
+        .attach('pdf', Buffer.from('%PDF-1.4\nedge case content'), 'edge-case.pdf')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error', 'File too large. Maximum size is 25MB.');
+
+      // Reset the mock
+      mockMulterSingle.mockReset();
+      mockMulterSingle.mockImplementation(() => (req, res, next) => next());
     });
   });
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready for Development
+In Development
 
 ## Story
 
@@ -23,10 +23,10 @@ Ready for Development
 
 ## Tasks / Subtasks
 
-- [ ] Identify uncovered error paths in webhook processing (/api/webhooks/n8n)
-- [ ] Identify uncovered error paths in document upload (/api/documents/upload)
-- [ ] Write tests for webhook processing failures (catch block in line 589)
-- [ ] Write tests for multer file upload errors (lines 611-618)
+- [x] Identify uncovered error paths in webhook processing (/api/webhooks/n8n)
+- [x] Identify uncovered error paths in document upload (/api/documents/upload)
+- [x] Write tests for webhook processing failures (catch block in line 589) - Implemented and passing
+- [x] Write tests for multer file upload errors (lines 611-618) - Mocking approach refined and implemented
 - [ ] Write tests for file size limit violations
 - [ ] Write tests for invalid file type handling
 - [ ] Run coverage analysis to verify improvement
@@ -52,13 +52,14 @@ This substory focuses on error handling edge cases in API routes that were not c
 
 ### Agent Model Used
 
-bmad-po (Product Owner) - Created substory for error handling coverage
+bmad-dev (James) - Full Stack Developer
 
 ### Debug Log References
 
-- N/A - Planning phase
+- Starting implementation of error handling tests for webhook and document upload endpoints
 
 ### Completion Notes List
 
-- To be completed during implementation</content>
+- Identified uncovered error paths in webhook processing (line 589 catch block) and document upload multer errors (lines 611-618)
+- Beginning implementation of comprehensive error scenario tests</content>
   <parameter name="filePath">docs/stories/security stories/1.12/story-1.12.3.3.4.3.1-error-handling-webhook-document-upload.md
