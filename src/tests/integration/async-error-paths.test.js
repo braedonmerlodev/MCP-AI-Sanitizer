@@ -42,7 +42,7 @@ jest.mock('../../models/JobResult', () => {
 });
 
 // Mock multer
-const multerSingleHandler = (req, res, next) => {
+function multerSingleHandler(req, res, next) {
   req.file = {
     buffer: Buffer.from(
       '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n' + 'x'.repeat(1_000_000),
@@ -52,7 +52,7 @@ const multerSingleHandler = (req, res, next) => {
     mimetype: 'application/pdf',
   };
   next();
-};
+}
 
 jest.mock('multer', () => {
   const multerMock = jest.fn(() => ({

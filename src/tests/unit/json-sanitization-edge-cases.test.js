@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/consistent-function-scoping */
+
 const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
@@ -7,11 +9,11 @@ process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-edge-cases';
 process.env.ADMIN_AUTH_SECRET = 'test-admin-secret';
 
 // Mock multer for file uploads
-const multerSingleHandler = (req, res, next) => next();
+const mockHandler = (req, res, next) => next();
 
 jest.mock('multer', () => {
   const multerMock = jest.fn(() => ({
-    single: jest.fn(() => multerSingleHandler),
+    single: jest.fn(() => mockHandler),
   }));
   multerMock.diskStorage = jest.fn();
   multerMock.memoryStorage = jest.fn();
