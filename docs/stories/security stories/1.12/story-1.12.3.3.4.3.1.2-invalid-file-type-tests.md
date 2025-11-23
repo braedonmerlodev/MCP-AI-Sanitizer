@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready for Development
+Ready for Review
 
 ## Story
 
@@ -23,11 +23,11 @@ Ready for Development
 
 ## Tasks / Subtasks
 
-- [ ] Write unit test for invalid file type (e.g., executable files, unsupported formats)
-- [ ] Write unit test for missing or malformed file type metadata
-- [ ] Mock file type validation to simulate rejection
-- [ ] Verify error response format and status codes
-- [ ] Run tests to ensure they pass
+- [x] Write unit test for invalid file type (e.g., executable files, unsupported formats)
+- [x] Write unit test for missing or malformed file type metadata
+- [x] Mock file type validation to simulate rejection
+- [x] Verify error response format and status codes
+- [x] Run tests to ensure they pass
 
 ## Dev Notes
 
@@ -41,9 +41,14 @@ This substory focuses specifically on invalid file type handling in the document
 
 ## Change Log
 
-| Date       | Version | Description               | Author        |
-| ---------- | ------- | ------------------------- | ------------- |
-| 2025-11-22 | 1.0     | Initial substory creation | Product Owner |
+| Date       | Version | Description                                  | Author               |
+| ---------- | ------- | -------------------------------------------- | -------------------- |
+| 2025-11-22 | 1.0     | Initial substory creation                    | Product Owner        |
+| 2025-11-22 | 1.1     | Implemented invalid file type handling tests | Full Stack Developer |
+
+## File List
+
+- Modified: src/tests/unit/api.test.js (added unit tests for invalid file type handling)
 
 ## Dev Agent Record
 
@@ -53,4 +58,11 @@ bmad-dev (James) - Full Stack Developer
 
 ### Debug Log References
 
-- Pending implementation of invalid file type handling tests
+- Implemented invalid file type handling tests with mocking
+
+### Completion Notes
+
+- Added 3 new unit tests for invalid file type handling in src/tests/unit/api.test.js
+- Tests cover executable files, malformed MIME types, and mocked validation rejection
+- All tests pass and verify proper 400 error responses with appropriate messages
+- No regressions introduced, existing tests continue to pass
