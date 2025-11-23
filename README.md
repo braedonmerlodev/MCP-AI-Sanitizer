@@ -43,19 +43,41 @@ The API will be available at `http://localhost:3000`
 
 ### Docker Deployment
 
+#### Quick Start with Docker Compose
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your configuration
+nano .env
+
+# Start all services (API, Redis, n8n)
+docker-compose up
+
+# Or run in background
+docker-compose up -d
+```
+
+#### Manual Docker Commands
+
 ```bash
 # Build and run with Docker
 docker build -t mcp-security:latest .
-docker run -p 3000:3000 mcp-security:latest
+docker run -p 3000:3000 \
+  -e OPENAI_API_KEY=your-key \
+  -e TRUST_TOKEN_SECRET=your-secret \
+  -v ./data:/app/data \
+  mcp-security:latest
 
 # Check health status
 curl http://localhost:3000/health
 
-# Or use Docker Compose (includes n8n for testing)
-docker-compose up
+# View logs
+docker-compose logs
 ```
 
-The Docker container includes a healthcheck that verifies the API is responding correctly.
+The Docker setup includes healthchecks and automatic service dependencies.
 
 ## 📚 API Documentation
 
@@ -276,29 +298,19 @@ tests/
 
 ## 🐳 Docker Usage
 
-### Build Image
+### Environment Configuration
+
+Before running, copy and configure your environment:
 
 ```bash
-docker build -t mcp-security:latest .
+cp .env.example .env
+# Edit .env with your API keys and secrets
 ```
 
-### Run Container
+### Docker Compose (Recommended)
 
 ```bash
-# Basic run
-docker run -p 3000:3000 mcp-security:latest
-
-# With environment variables
-docker run -p 3000:3000 -e NODE_ENV=production mcp-security:latest
-
-# Run in background
-docker run -d -p 3000:3000 --name mcp-security mcp-security:latest
-```
-
-### Docker Compose (with n8n)
-
-```bash
-# Start both services
+# Start all services (API + Redis + n8n)
 docker-compose up
 
 # Run in background
@@ -307,9 +319,41 @@ docker-compose up -d
 # View logs
 docker-compose logs
 
+# View specific service logs
+docker-compose logs mcp-security
+
 # Stop services
 docker-compose down
+
+# Rebuild after code changes
+docker-compose up --build
 ```
+
+### Manual Docker Commands
+
+```bash
+# Build image
+docker build -t mcp-security:latest .
+
+# Run with environment file
+docker run -p 3000:3000 --env-file .env \
+  -v ./data:/app/data \
+  -v ./logs:/app/logs \
+  mcp-security:latest
+
+# Run with Redis (for caching)
+docker run -d --name redis redis:7-alpine
+docker run -p 3000:3000 --link redis:redis \
+  --env-file .env \
+  -v ./data:/app/data \
+  mcp-security:latest
+```
+
+### Service Ports
+
+- **API**: http://localhost:3000
+- **n8n**: http://localhost:5678 (admin/admin123)
+- **Redis**: localhost:6379 (internal only)
 
 ## 🔗 n8n Integration
 

@@ -2,42 +2,112 @@ version: '3.8'
 
 services:
   mcp-security:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=development
+      - PORT=3000
+      # AI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Security Secrets (CHANGE THESE IN PRODUCTION!)
+      - TRUST_TOKEN_SECRET=${TRUST_TOKEN_SECRET:-change-this-secret-in-production}
+      - ADMIN_AUTH_SECRET=${ADMIN_AUTH_SECRET:-change-this-admin-secret-in-production}
+      - AUDIT_SECRET=${AUDIT_SECRET:-change-this-audit-secret-in-production}
+      # Sanitization Configuration
+      - SANITIZATION_RISK_MAPPINGS=${SANITIZATION_RISK_MAPPINGS:-}
+      # API Contract Validation
+      - API_CONTRACT_VALIDATION_ENABLED=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./exports:/app/exports
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
+    depends_on:
+      - redis
+    networks:
+      - mcp-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - mcp-network
 
   n8n:
     image: n8nio/n8n:latest
     ports:
-      - "5678:5678"
+      - '5678:5678'
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=http://mcp-security:3000/api/webhook/n8n
       - N8N_LOG_LEVEL=info
       - N8N_LOG_OUTPUT=console
       - DB_TYPE=sqlite
       - DB_SQLITE_DATABASE=n8n.sqlite
+      # N8N Webhook configuration for MCP Security integration
+      - N8N_WEBHOOK_TUNNEL_URL=
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change-this-encryption-key}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
       mcp-security:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Optional: PostgreSQL for production use (uncomment if needed)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=mcp_security
+  #     - POSTGRES_USER=mcp_user
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-this-password}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U mcp_user -d mcp_security"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   restart: unless-stopped
+  #   networks:
+  #     - mcp-network
 
 volumes:
   n8n_data:
     driver: local
+  redis_data:
+    driver: local
+  # postgres_data:
+  #   driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
