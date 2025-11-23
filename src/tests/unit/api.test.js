@@ -53,8 +53,16 @@ const multerSingleFn = (req, res, next) => next();
 const mockMulterSingle = jest.fn(() => multerSingleFn);
 
 // Helper functions for test arrow functions
-const createMulterErrorHandler = (error) => (req, res, next) => next(error);
-const createMulterSuccessHandler = () => (req, res, next) => next();
+const createMulterErrorHandlerFn = function (error) {
+  return function (req, res, next) {
+    next(error);
+  };
+};
+const createMulterSuccessHandlerFn = function () {
+  return function (req, res, next) {
+    next();
+  };
+};
 jest.mock('multer', () => {
   const multerMock = jest.fn(() => ({
     single: mockMulterSingle,
@@ -320,9 +328,7 @@ describe('API Routes', () => {
       mockMulterError.code = 'LIMIT_FILE_SIZE';
 
       // Mock the single method to call next with the error
-      mockMulterSingle.mockImplementationOnce(() => (req, res, next) => {
-        next(mockMulterError);
-      });
+      mockMulterSingle.mockImplementationOnce(createMulterErrorHandlerFn(mockMulterError));
 
       const response = await request(app)
         .post('/api/documents/upload')
@@ -333,15 +339,13 @@ describe('API Routes', () => {
 
       // Reset the mock
       mockMulterSingle.mockReset();
-      mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
     });
 
     test('should handle mocked file type validation rejection', async () => {
       // Mock multer to simulate file type validation rejection
       const fileTypeError = new Error('Only PDF files are allowed');
-      mockMulterSingle.mockImplementationOnce(() => (req, res, next) => {
-        next(fileTypeError);
-      });
+      mockMulterSingle.mockImplementationOnce(createMulterErrorHandlerFn(fileTypeError));
 
       const response = await request(app)
         .post('/api/documents/upload')
@@ -352,7 +356,7 @@ describe('API Routes', () => {
 
       // Reset the mock
       mockMulterSingle.mockReset();
-      mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
     });
 
     test('should handle multer LIMIT_FILE_SIZE error for edge case near file size limit', async () => {
@@ -362,9 +366,7 @@ describe('API Routes', () => {
       mockMulterError.code = 'LIMIT_FILE_SIZE';
 
       // Mock the single method to call next with the error for a file just over the limit
-      mockMulterSingle.mockImplementationOnce(() => (req, res, next) => {
-        next(mockMulterError);
-      });
+      mockMulterSingle.mockImplementationOnce(createMulterErrorHandlerFn(mockMulterError));
 
       const response = await request(app)
         .post('/api/documents/upload')
@@ -375,7 +377,7 @@ describe('API Routes', () => {
 
       // Reset the mock
       mockMulterSingle.mockReset();
-      mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+      mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
     });
   });
 

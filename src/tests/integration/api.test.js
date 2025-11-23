@@ -16,11 +16,17 @@ jest.mock('pdf-parse', () => {
 });
 
 // Mock multer for testing
-const mockMulterSingle = jest.fn(() => (req, res, next) => next());
-jest.mock('multer', () => {
-  const multerMock = jest.fn(() => ({
-    single: mockMulterSingle,
-  }));
+const mockMulterSingle = jest.fn(function () {
+  return function (req, res, next) {
+    next();
+  };
+});
+jest.mock('multer', function () {
+  const multerMock = jest.fn(function () {
+    return {
+      single: mockMulterSingle,
+    };
+  });
   multerMock.diskStorage = jest.fn();
   multerMock.memoryStorage = jest.fn();
   multerMock.MulterError = class MulterError extends Error {
@@ -32,6 +38,18 @@ jest.mock('multer', () => {
   };
   return multerMock;
 });
+
+// Helper functions for test arrow functions
+const createMulterErrorHandlerFn = function (error) {
+  return function (req, res, next) {
+    next(error);
+  };
+};
+const createMulterSuccessHandlerFn = function () {
+  return function (req, res, next) {
+    next();
+  };
+};
 
 const request = require('supertest');
 const express = require('express');
@@ -1250,9 +1268,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
         mockMulterError.code = 'LIMIT_FILE_SIZE';
 
         // Mock the single method to call next with the error
-        mockMulterSingle.mockImplementation(() => (req, res, next) => {
-          next(mockMulterError);
-        });
+        mockMulterSingle.mockImplementation(createMulterErrorHandlerFn(mockMulterError));
 
         const response = await request(app)
           .post('/api/documents/upload')
@@ -1263,7 +1279,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
         // Reset the mock
         mockMulterSingle.mockReset();
-        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+        mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
       });
 
       test('should handle other multer errors', async () => {
@@ -1273,9 +1289,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
         mockMulterError.code = 'Unexpected field';
         mockMulterError.message = 'Unexpected field error';
 
-        mockMulterSingle.mockImplementation(() => (req, res, next) => {
-          next(mockMulterError);
-        });
+        mockMulterSingle.mockImplementation(createMulterErrorHandlerFn(mockMulterError));
 
         const response = await request(app)
           .post('/api/documents/upload')
@@ -1286,16 +1300,14 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
         // Reset the mock
         mockMulterSingle.mockReset();
-        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+        mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
       });
 
       test('should handle non-multer upload errors', async () => {
         // Mock multer to throw a non-multer error
         const mockError = new Error('Disk write failed');
 
-        mockMulterSingle.mockImplementation(() => (req, res, next) => {
-          next(mockError);
-        });
+        mockMulterSingle.mockImplementation(createMulterErrorHandlerFn(mockError));
 
         const response = await request(app)
           .post('/api/documents/upload')
@@ -1306,15 +1318,13 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
         // Reset the mock
         mockMulterSingle.mockReset();
-        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+        mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
       });
 
       test('should handle invalid file type in document upload', async () => {
         // Mock multer to simulate fileFilter rejecting non-PDF files
         const fileFilterError = new Error('Only PDF files are allowed');
-        mockMulterSingle.mockImplementation(() => (req, res, next) => {
-          next(fileFilterError);
-        });
+        mockMulterSingle.mockImplementation(createMulterErrorHandlerFn(fileFilterError));
 
         const response = await request(app)
           .post('/api/documents/upload')
@@ -1325,7 +1335,7 @@ describe('API Integration Tests - Access Validation Middleware', () => {
 
         // Reset the mock
         mockMulterSingle.mockReset();
-        mockMulterSingle.mockImplementation(() => (req, res, next) => next());
+        mockMulterSingle.mockImplementation(createMulterSuccessHandlerFn());
       });
     });
   });
