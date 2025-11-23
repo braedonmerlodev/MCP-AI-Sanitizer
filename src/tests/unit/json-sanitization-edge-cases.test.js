@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/consistent-function-scoping */
-
 const request = require('supertest');
 const express = require('express');
 const apiRoutes = require('../../routes/api');
