@@ -7,9 +7,11 @@ process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-edge-cases';
 process.env.ADMIN_AUTH_SECRET = 'test-admin-secret';
 
 // Mock multer for file uploads
+const multerSingleHandler = (req, res, next) => next();
+
 jest.mock('multer', () => {
   const multerMock = jest.fn(() => ({
-    single: jest.fn(() => (req, res, next) => next()),
+    single: jest.fn(() => multerSingleHandler),
   }));
   multerMock.diskStorage = jest.fn();
   multerMock.memoryStorage = jest.fn();
@@ -34,7 +36,7 @@ jest.mock('../../components/TrustTokenGenerator', () => {
       sanitizationVersion: '1.0',
       rulesApplied: rules || [],
       timestamp: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       signature: 'mock-signature',
     })),
     validateToken: jest.fn((token) => {
@@ -349,11 +351,11 @@ describe('JSON Sanitization Chains and Transformations - Edge Cases', () => {
   describe('Task 6: Large Payload Handling', () => {
     test('should handle large JSON payloads (100KB+)', async () => {
       const largeData = {
-        largeString: 'x'.repeat(50000), // 50KB string
+        largeString: 'x'.repeat(50_000), // 50KB string
         largeArray: Array.from({ length: 1000 }, (_, i) => ({ id: i, data: 'x'.repeat(50) })),
         nested: {
           deep: {
-            data: 'x'.repeat(25000), // 25KB
+            data: 'x'.repeat(25_000), // 25KB
           },
         },
       };
@@ -366,14 +368,14 @@ describe('JSON Sanitization Chains and Transformations - Edge Cases', () => {
 
       expect(response.status).toBe(200);
       const result = JSON.parse(response.body.sanitizedContent);
-      expect(result.largeString).toHaveLength(50000);
+      expect(result.largeString).toHaveLength(50_000);
       expect(result.largeArray).toHaveLength(1000);
-      expect(result.nested.deep.data).toHaveLength(25000);
+      expect(result.nested.deep.data).toHaveLength(25_000);
     });
 
     test('should trigger async processing for very large payloads', async () => {
       const veryLargeData = {
-        hugeString: 'x'.repeat(100000), // 100KB
+        hugeString: 'x'.repeat(100_000), // 100KB
         hugeArray: Array.from({ length: 5000 }, (_, i) => ({ id: i, data: 'x'.repeat(100) })),
       };
 

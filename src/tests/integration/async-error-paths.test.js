@@ -42,19 +42,21 @@ jest.mock('../../models/JobResult', () => {
 });
 
 // Mock multer
+const multerSingleHandler = (req, res, next) => {
+  req.file = {
+    buffer: Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n' + 'x'.repeat(1_000_000),
+    ), // Make it large for async
+    originalname: 'test.pdf',
+    size: 11_000_000, // 11MB to trigger async
+    mimetype: 'application/pdf',
+  };
+  next();
+};
+
 jest.mock('multer', () => {
   const multerMock = jest.fn(() => ({
-    single: jest.fn(() => (req, res, next) => {
-      req.file = {
-        buffer: Buffer.from(
-          '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n' + 'x'.repeat(1000000),
-        ), // Make it large for async
-        originalname: 'test.pdf',
-        size: 11000000, // 11MB to trigger async
-        mimetype: 'application/pdf',
-      };
-      next();
-    }),
+    single: jest.fn(() => multerSingleHandler),
   }));
   multerMock.diskStorage = jest.fn();
   multerMock.memoryStorage = jest.fn();
