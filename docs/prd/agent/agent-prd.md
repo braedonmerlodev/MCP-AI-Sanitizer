@@ -16,12 +16,12 @@
 - Develop an autonomous security agent capable of learning from security data and threat patterns to improve detection and response.
 - Implement monitoring capabilities to continuously observe system activities and identify anomalies.
 - Enable orchestration of automated security responses, integrating with existing backend APIs for seamless operation.
-- Utilize DeepAgent CLI for agent management and LangSmith for advanced monitoring, logging, and analytics.
+- Utilize the DeepAgent Python package for agent development and LangSmith for advanced monitoring, logging, and analytics.
 - Enable agent learning from backend risk assessment logging, high-risk audit trails, pipeline test results, and monitoring endpoints.
 
 ### Background Context
 
-This PRD outlines the requirements for developing an autonomous security agent that enhances the overall security posture of the system. The agent will leverage machine learning techniques to learn from historical security data, continuously monitor system activities for potential threats, and orchestrate appropriate responses. By integrating with the existing backend APIs, the agent ensures compatibility and leverages existing infrastructure including risk assessment logging (Story 9.1), high-risk audit trails (Story 9.2), end-to-end pipeline tests (Story 9.4.3.1.1), and monitoring endpoints like /api/monitoring/reuse-stats. DeepAgent CLI will be used for deploying and managing the agent, while LangSmith provides robust monitoring and logging capabilities to track agent performance and decision-making processes.
+This PRD outlines the requirements for developing an autonomous security agent that enhances the overall security posture of the system. The agent will leverage machine learning techniques to learn from historical security data, continuously monitor system activities for potential threats, and orchestrate appropriate responses. By integrating with the existing backend APIs, the agent ensures compatibility and leverages existing infrastructure including risk assessment logging (Story 9.1), high-risk audit trails (Story 9.2), end-to-end pipeline tests (Story 9.4.3.1.1), and monitoring endpoints like /api/monitoring/reuse-stats. The DeepAgent Python package will be used for building and deploying the agent, while LangSmith provides robust monitoring and logging capabilities to track agent performance and decision-making processes.
 
 ### Success Metrics
 
@@ -35,7 +35,7 @@ This PRD outlines the requirements for developing an autonomous security agent t
 
 **MVP Scope**:
 
-- Core agent infrastructure with DeepAgent CLI integration
+- Core agent infrastructure using the DeepAgent Python package
 - Basic monitoring of system activities and anomaly detection
 - Learning from risk assessment logging and audit trails
 - Automated responses for low-risk threats
@@ -85,7 +85,7 @@ This PRD outlines the requirements for developing an autonomous security agent t
 2. **FR2**: Implement real-time monitoring of system activities, detecting anomalies and potential security threats.
 3. **FR3**: Enable orchestration of automated responses to detected threats, such as alerting, blocking, or remediation actions.
 4. **FR4**: Integrate seamlessly with existing backend APIs for data retrieval, authentication, and action execution.
-5. **FR5**: Utilize DeepAgent CLI for agent deployment, configuration, and lifecycle management.
+5. **FR5**: Utilize the DeepAgent Python package for agent development, deployment, configuration, and lifecycle management.
 6. **FR6**: Incorporate LangSmith for comprehensive monitoring, logging, and analytics of agent operations.
 
 7. **FR7**: Enable agent learning from backend risk assessment logging (Story 9.1) to improve threat pattern recognition.
@@ -170,7 +170,7 @@ Full Testing Pyramid - including unit, integration, and end-to-end tests for age
 
 ### Additional Technical Assumptions and Requests
 
-- Use Python for agent development to leverage DeepAgent CLI and LangSmith SDKs.
+- Use Python for agent development to leverage the DeepAgent package and LangSmith SDKs.
 - Ensure compatibility with existing backend APIs (RESTful or GraphQL).
 - Implement containerization (Docker) for easy deployment.
 - Use Kubernetes for orchestration if scaling is required.
@@ -219,22 +219,22 @@ The agent will have access to the following backend tools and APIs for learning,
 
 ## Epic List
 
-1. **Epic 1: Agent Foundation**: Establish the core agent infrastructure, including setup with DeepAgent CLI and integration with all backend API tools (sanitization, trust tokens, document processing, monitoring, admin controls).
+1. **Epic 1: Agent Foundation**: Establish the core agent infrastructure, including setup with the DeepAgent Python package and integration with all backend API tools (sanitization, trust tokens, document processing, monitoring, admin controls).
 2. **Epic 2: Learning Module**: Develop the machine learning capabilities for the agent to learn from security data.
 3. **Epic 3: Monitoring Module**: Implement real-time monitoring and anomaly detection features.
 4. **Epic 4: Orchestration Module**: Build automated response orchestration using backend tools (admin overrides, n8n webhooks, HITL escalation) and integration with LangSmith for monitoring.
 
 ## Epic 1: Agent Foundation
 
-Establish the core agent infrastructure, including setup with DeepAgent CLI and basic integration with backend APIs. This epic delivers the foundational setup necessary for the agent to operate within the existing system.
+Establish the core agent infrastructure, including setup with the DeepAgent Python package and basic integration with backend APIs. This epic delivers the foundational setup necessary for the agent to operate within the existing system.
 
 ### Story 1.1: Setup Agent Environment
 
-As a developer, I want to set up the agent environment using DeepAgent CLI, so that the agent can be deployed and managed.
+As a developer, I want to set up the agent environment using the DeepAgent Python package, so that the agent can be developed and deployed.
 
 #### Acceptance Criteria
 
-1. DeepAgent CLI is installed and configured.
+1. DeepAgent Python package is installed and configured.
 2. Basic agent skeleton is created.
 3. Agent can connect to existing backend APIs for authentication.
 
@@ -396,4 +396,4 @@ Create UI designs for the agent monitoring dashboard based on this PRD, focusing
 
 ### Architect Prompt
 
-Design the system architecture for the autonomous security agent, incorporating DeepAgent CLI and LangSmith integrations, with emphasis on secure API communications and scalable learning pipelines.
+Design the system architecture for the autonomous security agent, incorporating the DeepAgent Python package and LangSmith integrations, with emphasis on secure API communications and scalable learning pipelines.
