@@ -10,10 +10,10 @@ import os
 async def main():
     # Initialize agent with configurable LLM
     llm_config = {
-        "model": os.getenv("AGENT_LLM_MODEL", "gpt-4"),  # Default to GPT-4, can change to gpt-3.5-turbo, claude, etc.
+        "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),  # Default to Gemini
         "temperature": 0.1,  # Low temperature for security decisions
         "max_tokens": 2000,
-        "api_key": os.getenv("AGENT_LLM_API_KEY"),
+        "api_key": os.getenv("GEMINI_API_KEY"),
         "base_url": os.getenv("AGENT_LLM_BASE_URL")  # For local models or different providers
     }
 

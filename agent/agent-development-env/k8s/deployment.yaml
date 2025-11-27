@@ -37,8 +37,8 @@ spec:
 
             # LLM Configuration
             - name: AGENT_LLM_MODEL
-              value: "gpt-4"
-            - name: AGENT_LLM_API_KEY
+              value: "gemini-1.5-flash"
+            - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: llm-secret

@@ -37,14 +37,19 @@ class SecurityAgent(Agent):
     def _create_ai_pdf_tool(self) -> Tool:
         """Tool for AI-powered PDF text enhancement"""
         def enhance_pdf_text(content: str, transformation_type: str = "structure") -> Dict[str, Any]:
-            """Enhance PDF text using Langchain and GPT models"""
+            """Enhance PDF text using Langchain and Gemini models"""
             try:
                 from langchain.chains import LLMChain
                 from langchain.prompts import PromptTemplate
-                from langchain.llms import OpenAI
+                from langchain_google_genai import ChatGoogleGenerativeAI
 
                 # Initialize Langchain components
-                llm = OpenAI(temperature=0.1, model_name="gpt-3.5-turbo")
+                api_key = self.llm_config.get("api_key") if self.llm_config else None
+                llm = ChatGoogleGenerativeAI(
+                    temperature=0.1, 
+                    model="gemini-1.5-flash",
+                    google_api_key=api_key
+                )
                 prompt = self._get_pdf_enhancement_prompt(transformation_type)
 
                 chain = LLMChain(llm=llm, prompt=prompt)
@@ -62,7 +67,7 @@ class SecurityAgent(Agent):
                     "structured_output": structured_output,
                     "transformation_type": transformation_type,
                     "processing_metadata": {
-                        "model_used": "gpt-3.5-turbo",
+                        "model_used": "gemini-1.5-flash",
                         "processing_time": "calculated",
                         "confidence_score": self._calculate_confidence(structured_output)
                     }
