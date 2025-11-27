@@ -6,6 +6,10 @@ from agent.job_tools import JobTools
 from config.agent_prompts import AGENT_SYSTEM_PROMPT
 import asyncio
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 async def main():
     # Initialize agent with configurable LLM

@@ -1,7 +1,9 @@
 # config/backend_config.py
+import os
+
 BACKEND_CONFIG = {
-    "base_url": "https://your-mcp-security-backend.com",
-    "api_key": "your-backend-api-key",
+    "base_url": os.getenv("BACKEND_URL", "https://your-mcp-security-backend.com"),
+    "api_key": os.getenv("BACKEND_API_KEY", "your-backend-api-key"),
     "endpoints": {
         "sanitize": "/api/sanitize/json",  # Bi-directional AI processing available
         "validate_token": "/api/trust-tokens/validate",
