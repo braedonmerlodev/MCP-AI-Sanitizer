@@ -16,10 +16,17 @@ class SecurityAgent(Agent):
         )
         self.backend_config = BACKEND_CONFIG
         self.llm_config = llm_config
-        self.session = aiohttp.ClientSession(headers={
-            "Authorization": f"Bearer {self.backend_config['api_key']}",
-            "Content-Type": "application/json"
-        })
+        self._session = None  # Lazy initialization
+
+    @property
+    def session(self):
+        """Lazy initialization of aiohttp session"""
+        if self._session is None:
+            self._session = aiohttp.ClientSession(headers={
+                "Authorization": f"Bearer {self.backend_config['api_key']}",
+                "Content-Type": "application/json"
+            })
+        return self._session
 
     def _initialize_tools(self) -> list[Tool]:
         """Initialize core intrinsic tools"""
@@ -30,8 +37,9 @@ class SecurityAgent(Agent):
 
     async def close(self):
         """Close the aiohttp session"""
-        if self.session:
-            await self.session.close()
+        if self._session:
+            await self._session.close()
+            self._session = None
 
     @traceable(name="ai_pdf_enhancement")
     def _create_ai_pdf_tool(self) -> Tool:

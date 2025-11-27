@@ -8,21 +8,25 @@ from agent.job_tools import JobTools
 import PyPDF2
 import io
 
-# Initialize agent (global to avoid reinitializing)
-@st.cache_resource
-def get_agent():
-    agent = SecurityAgent()
-    monitoring_tools = MonitoringTools(agent)
-    response_tools = ResponseTools(agent)
-    job_tools = JobTools(agent)
+# Global agent instance (will be initialized when needed)
+agent = None
 
-    agent.add_tools([
-        monitoring_tools.create_monitoring_tool(),
-        monitoring_tools.create_learning_tool(),
-        response_tools.create_orchestration_tool(),
-        response_tools.create_admin_tool(),
-        job_tools.create_job_management_tool()
-    ])
+async def get_agent():
+    """Initialize agent asynchronously"""
+    global agent
+    if agent is None:
+        agent = SecurityAgent()
+        monitoring_tools = MonitoringTools(agent)
+        response_tools = ResponseTools(agent)
+        job_tools = JobTools(agent)
+
+        agent.add_tools([
+            monitoring_tools.create_monitoring_tool(),
+            monitoring_tools.create_learning_tool(),
+            response_tools.create_orchestration_tool(),
+            response_tools.create_admin_tool(),
+            job_tools.create_job_management_tool()
+        ])
     return agent
 
 def extract_pdf_text(uploaded_file):
@@ -44,12 +48,12 @@ async def process_agent_request(agent, user_input):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def main():
+async def main():
     st.title("🛡️ MCP Security Agent - Test Interface")
     st.markdown("Upload PDFs and chat with the autonomous security agent!")
 
     # Initialize agent
-    agent = get_agent()
+    agent = await get_agent()
 
     # PDF Upload Section
     st.header("📄 PDF Upload")
@@ -133,4 +137,4 @@ def main():
     st.markdown("*Built with Streamlit for testing the MCP Security Agent*")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
