@@ -1,6 +1,6 @@
 # Agent Development Environment
 
-This directory contains the isolated testing environment for Deep Agent CLI development.
+This directory contains the isolated testing environment for deepagent package development.
 
 ## Architecture
 
@@ -9,9 +9,9 @@ This directory contains the isolated testing environment for Deep Agent CLI deve
 │   Agent Dev     │    │   Proxy Service │    │   Production    │
 │   Container     │◄──►│   (Node.js)     │◄──►│   Backend API   │
 │                 │    │                 │    │                 │
-│ - Deep Agent CLI│    │ - Request proxy │    │ - Sanitization  │
+│ - deepagent pkg │    │ - Request proxy │    │ - Sanitization  │
 │ - Agent code    │    │ - Response cache│    │ - GPT processing│
-│ - Test scripts  │    │ - Rate limiting │    │ - JSON output   │
+│ - Test scripts  │    │ - Error handling │    │ - JSON output   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -21,16 +21,17 @@ This directory contains the isolated testing environment for Deep Agent CLI deve
 
 - Docker and Docker Compose installed
 - Access to production backend API
-- Deep Agent CLI credentials
+- Python environment with deepagent package
+- LangSmith and OpenAI API credentials
 
 ### Quick Start
 
-1. **Clone and setup**:
+1. **Setup environment**:
 
    ```bash
    cd agent-development-env
    cp .env.example .env
-   # Edit .env with your credentials
+   # Edit .env with your backend URL and other credentials
    ```
 
 2. **Start environment**:
@@ -45,18 +46,22 @@ This directory contains the isolated testing environment for Deep Agent CLI deve
    docker exec -it agent-dev bash
    ```
 
-4. **Install and test Deep Agent CLI**:
+4. **Verify deepagent package installation**:
+
    ```bash
-   deep-agent init
-   deep-agent test-connection
+   # Run the comprehensive test script
+   python test-setup.py
+
+   # Or test manually
+   python -c "from deepagent import Agent, Tool; print('deepagent package ready')"
    ```
 
 ## Services
 
 ### Agent Development Container
 
-- **Base**: Node.js 18 Alpine
-- **Tools**: Deep Agent CLI, Git, Curl
+- **Base**: Python 3.11 Slim
+- **Tools**: deepagent package, Git, Curl, Python development tools
 - **Workspace**: Mounted project directory
 - **Port**: 3000 (for local development)
 
@@ -75,23 +80,67 @@ This directory contains the isolated testing environment for Deep Agent CLI deve
 ```bash
 # .env file
 BACKEND_URL=https://your-production-backend.com
-DEEP_AGENT_API_KEY=your-deep-agent-key
+# DEEP_AGENT_API_KEY=your-deep-agent-key  # Not needed when using deepagent package
 PROXY_PORT=3001
 RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=3600000  # 1 hour in ms
 CACHE_TTL=3600000         # 1 hour in ms
 LOG_LEVEL=info
+
+# Additional Python environment variables
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_API_KEY=your-langsmith-api-key
+LANGCHAIN_PROJECT=mcp-security-agent
+OPENAI_API_KEY=your-openai-api-key
 ```
+
+## Python Dependencies
+
+The `requirements.txt` file contains all necessary Python packages:
+
+- `deepagent`: Core agent framework
+- `langsmith`: For agent memory and tracing
+- `openai`: For AI processing capabilities
+- `requests`: For API communication
+- `python-dotenv`: For environment variable management
+- Additional development tools (pytest, black, flake8)
+
+To add new dependencies:
+
+1. Edit `requirements.txt`
+2. Rebuild the container: `docker-compose up --build agent-dev`
 
 ## Development Workflow
 
 ### Building Agents
 
 ```bash
-# In agent-dev container
-deep-agent create pdf-processor
-deep-agent configure --backend-url http://proxy:3001
-deep-agent test pdf-sample.json
+# In agent-dev container - using deepagent package directly
+
+# Test package import
+python -c "from deepagent import Agent, Tool; print('deepagent package ready')"
+
+# Run the comprehensive test script
+python test-setup.py
+
+# Run the example agent to test integration
+python example-agent.py
+
+# Create and run your custom agent
+python -c "
+from deepagent import Agent, Tool
+
+class MyAgent(Agent):
+    def __init__(self):
+        super().__init__(name='My Custom Agent', description='Custom security agent')
+
+agent = MyAgent()
+print('Agent created successfully')
+"
+
+# Run your agent implementation from the mounted project
+python ../agent-implementation/your_agent_file.py
 ```
 
 ### Testing Integration
@@ -137,11 +186,13 @@ curl http://localhost:3001/api/status
 - Wait for rate limit window to reset
 - Check proxy logs for usage
 
-**Deep Agent CLI issues**:
+**deepagent package issues**:
 
-- Verify DEEP_AGENT_API_KEY
-- Check network connectivity in container
-- Run `deep-agent doctor` for diagnostics
+- Verify Python version: `python --version` (should be 3.8+)
+- Check package installation: `pip list | grep deepagent`
+- Test imports: `python -c "from deepagent import Agent, Tool"`
+- Check environment variables: `python -c "import os; print(os.environ.get('BACKEND_URL'))"`
+- Verify backend connectivity: `curl $BACKEND_URL/health`
 
 ### Logs and Debugging
 

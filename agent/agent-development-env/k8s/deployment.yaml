@@ -1,0 +1,63 @@
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-security-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-security-agent
+  template:
+    metadata:
+      labels:
+        app: mcp-security-agent
+    spec:
+      containers:
+        - name: agent
+          image: mcp-security-agent:latest
+          env:
+            # LangSmith Configuration
+            - name: LANGCHAIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: langsmith-secret
+                  key: api-key
+            - name: LANGCHAIN_PROJECT
+              value: "mcp-security-agent-prod"
+
+            # Backend Configuration
+            - name: BACKEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: api-key
+            - name: BACKEND_URL
+              value: "https://mcp-security-backend:443"
+
+            # LLM Configuration
+            - name: AGENT_LLM_MODEL
+              value: "gemini-1.5-flash"
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-secret
+                  key: api-key
+
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import requests; requests.get('http://localhost:8000/health')"
+            initialDelaySeconds: 30
+            periodSeconds: 10

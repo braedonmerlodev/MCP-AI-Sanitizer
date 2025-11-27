@@ -13,6 +13,12 @@ services:
     depends_on:
       - proxy
     command: tail -f /dev/null # Keep running for development
+    healthcheck:
+      test: ['CMD', 'python', '-c', "from deepagent import Agent; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   proxy:
     image: node:18-alpine
