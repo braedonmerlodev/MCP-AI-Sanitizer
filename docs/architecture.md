@@ -1,65 +1,202 @@
-# Obfuscation-Aware Sanitizer Agent Architecture Document
+# Obfuscation-Aware Sanitizer Agent Fullstack Architecture Document
 
 ## Introduction
 
-This document outlines the overall project architecture for Obfuscation-Aware Sanitizer Agent, including backend systems, shared services, and non-UI specific concerns. Its primary goal is to serve as the guiding architectural blueprint for AI-driven development, ensuring consistency and adherence to chosen patterns and technologies.
+This document outlines the complete fullstack architecture for Obfuscation-Aware Sanitizer Agent, including backend systems, frontend implementation, and their integration. It serves as the single source of truth for AI-driven development, ensuring consistency across the entire technology stack.
 
-**Relationship to Frontend Architecture:**
-If the project includes a significant user interface, a separate Frontend Architecture Document will detail the frontend-specific design and MUST be used in conjunction with this document. Core technology stack choices documented herein (see "Tech Stack") are definitive for the entire project, including any frontend components.
+This unified approach combines what would traditionally be separate backend and frontend architecture documents, streamlining the development process for modern fullstack applications where these concerns are increasingly intertwined.
 
 ### Starter Template or Existing Project
 
-N/A
+N/A - Greenfield project
 
 ### Change Log
 
-| Date       | Version | Description                            | Author    |
-| ---------- | ------- | -------------------------------------- | --------- |
-| 2025-10-19 | v1.0    | Initial architecture creation from PRD | Architect |
+| Date       | Version | Description                   | Author          |
+| ---------- | ------- | ----------------------------- | --------------- |
+| 2025-11-26 | v1.0    | Initial architecture document | Architect Agent |
 
 ## High Level Architecture
 
 ### Technical Summary
 
-The Obfuscation-Aware Sanitizer Agent adopts a proxy-based architecture style, acting as an intermediary layer between MCP servers and LLMs to perform real-time sanitization. Key components include the sanitization pipeline (normalization, stripping, neutralization, redaction), API endpoints for n8n integration, and cloud infrastructure for hosting. Primary technology choices emphasize Node.js or Python for backend development, with Docker for containerization and AWS/GCP for scalable deployment. Core architectural patterns such as the Proxy Pattern for request interception and Pipeline Pattern for sequential sanitization ensure modularity and efficiency. This architecture directly supports PRD goals by enabling secure, low-latency threat mitigation (≥90% neutralization, <100ms latency) while maintaining transparency for AI workflows, aligning with the need for resilient agentic AI systems.
+The Obfuscation-Aware Sanitizer Agent is a proxy-based security layer for agentic AI systems, providing real-time sanitization of data flows to prevent manipulation and data exfiltration. The architecture consists of a Node.js backend implementing the sanitization pipeline, a React frontend for monitoring and chat-based interaction with the autonomous agent, and integration with DeepAgent CLI and LangSmith for autonomous learning. It achieves PRD goals by neutralizing obfuscation techniques (Unicode homoglyphs, zero-width characters, ANSI escape codes), validating data provenance, enabling bidirectional sanitization, and supporting adaptive security responses with ≥90% threat neutralization rate and <100ms latency.
 
-### High Level Overview
+### Platform and Infrastructure Choice
 
-1. **Main Architectural Style:** Proxy-based architecture, where the sanitizer acts as an in-line intermediary to intercept and sanitize data flows between MCP servers and LLMs.
-2. **Repository Structure:** Monorepo, as specified in the PRD, organizing the sanitizer agent, API endpoints, and integration modules under a single repository for simplicity in the prototype.
-3. **Service Architecture:** Proxy-based, with modular components for each sanitization step (e.g., normalization, stripping, validation) to enable easy maintenance and extension.
-4. **Primary User Interaction Flow:** Requests from n8n or direct API calls enter the proxy → undergo bidirectional sanitization pipeline → validated for provenance → forwarded to LLMs/MCP servers → responses sanitized and returned.
-5. **Key Architectural Decisions and Rationale:** Chose proxy style for non-intrusive security layer, fitting the PRD's backend-only focus; monorepo for MVP simplicity; modular services for scalability; prioritized low-latency pipeline to meet NFRs (<5% overhead).
+**Platform:** AWS  
+**Key Services:** Lambda (serverless functions), API Gateway (API management), S3 (file storage), CloudWatch (monitoring), RDS PostgreSQL (database), ElastiCache Redis (caching), Cognito (authentication if needed)  
+**Deployment Host and Regions:** AWS us-east-1 (primary), us-west-2 (backup)
 
-### High Level Project Diagram
+### Repository Structure
+
+**Structure:** Monorepo  
+**Monorepo Tool:** npm workspaces  
+**Package Organization:** apps/api (backend), apps/web (frontend), packages/shared (common types/utilities)
+
+### High Level Architecture Diagram
 
 ```mermaid
-sequenceDiagram
-    participant C as Client (n8n)
-    participant P as ProxySanitizer
-    participant S as SanitizationPipeline
-    participant L as LLMs/MCP Servers
-
-    C->>P: Send request with data
-    P->>S: Apply input sanitization (normalization, stripping, neutralization, redaction)
-    S-->>P: Return sanitized input
-    P->>L: Forward sanitized data
-    L-->>P: Return response
-    P->>S: Apply output sanitization
-    S-->>P: Return sanitized response
-    P-->>C: Return final response
+graph TD
+    A[User] --> B[Frontend Chat UI]
+    B --> C[AWS API Gateway]
+    C --> D[Sanitizer Lambda Functions]
+    D --> E[MCP Server]
+    D --> F[LLM Provider]
+    D --> G[LangSmith Graph DB]
+    H[DeepAgent CLI] --> D
+    D --> I[RDS PostgreSQL]
+    D --> J[ElastiCache Redis]
+    D --> K[S3 Storage]
+    L[CloudWatch] --> D
 ```
 
-## REST API Spec
+### Architectural Patterns
+
+- **Proxy Pattern:** Intermediary sanitization layer between MCP servers and LLMs - _Rationale:_ Enables transparent security without disrupting AI workflows
+- **Repository Pattern:** Abstract data access for logs and configurations - _Rationale:_ Enables testing and future database migration flexibility
+- **Event-Driven Architecture:** Asynchronous processing for autonomous agent responses - _Rationale:_ Supports real-time monitoring and adaptive security
+- **API Gateway Pattern:** Single entry point for all API calls - _Rationale:_ Centralized auth, rate limiting, and monitoring
+
+## Tech Stack
+
+### Technology Stack Table
+
+| Category             | Technology       | Version | Purpose          | Rationale                             |
+| -------------------- | ---------------- | ------- | ---------------- | ------------------------------------- |
+| Frontend Language    | TypeScript       | 5.0     | Type safety      | Modern development with strong typing |
+| Frontend Framework   | React            | 18      | UI components    | Popular, component-based, performant  |
+| UI Component Library | Material-UI      | 5.0     | Consistent UI    | Comprehensive design system           |
+| State Management     | Redux Toolkit    | 1.9     | State management | Predictable, scalable state           |
+| Backend Language     | Node.js          | 18      | Runtime          | Fast, scalable, large ecosystem       |
+| Backend Framework    | Express          | 4.18    | API framework    | Lightweight, flexible                 |
+| API Style            | REST             | -       | API design       | Simple, standard, n8n-compatible      |
+| Database             | PostgreSQL       | 15      | Data storage     | Relational for audit logs             |
+| Cache                | Redis            | 7       | Caching          | Fast in-memory for trust tokens       |
+| File Storage         | S3               | -       | File storage     | Scalable for logs and exports         |
+| Authentication       | JWT              | -       | Auth             | Stateless, secure                     |
+| Frontend Testing     | Jest + RTL       | -       | Unit testing     | Comprehensive component testing       |
+| Backend Testing      | Jest + Supertest | -       | API testing      | Integration testing                   |
+| E2E Testing          | Playwright       | -       | E2E testing      | Reliable browser automation           |
+| Build Tool           | Vite             | -       | Frontend build   | Fast development and production       |
+| Bundler              | esbuild          | -       | Bundling         | High performance                      |
+| IaC Tool             | AWS CDK          | -       | Infrastructure   | Code as infrastructure                |
+| CI/CD                | GitHub Actions   | -       | Automation       | Integrated with GitHub                |
+| Monitoring           | CloudWatch       | -       | Monitoring       | AWS native, comprehensive             |
+| Logging              | Winston          | -       | Logging          | Structured, configurable              |
+| CSS Framework        | Tailwind CSS     | -       | Styling          | Utility-first, consistent             |
+
+## Data Models
+
+### SanitizationLog
+
+**Purpose:** Track all sanitization actions for audit and compliance
+
+**Key Attributes:**
+
+- id: string - Unique identifier
+- timestamp: Date - When action occurred
+- action: string - Type of sanitization (normalize, strip, neutralize, redact)
+- inputHash: string - SHA-256 hash of input
+- outputHash: string - SHA-256 hash of output
+- rulesApplied: string[] - List of rules used
+- provenance: object - Data origin validation
+- metadata: object - Additional context
+
+**TypeScript Interface:**
+
+```typescript
+interface SanitizationLog {
+  id: string;
+  timestamp: Date;
+  action: string;
+  inputHash: string;
+  outputHash: string;
+  rulesApplied: string[];
+  provenance: {
+    source: string;
+    validated: boolean;
+  };
+  metadata: Record<string, any>;
+}
+```
+
+**Relationships:**
+
+- Belongs to TrustToken (optional, for reuse tracking)
+
+### TrustToken
+
+**Purpose:** Enable efficient content reuse while maintaining security
+
+**Key Attributes:**
+
+- id: string - Token identifier
+- contentHash: string - SHA-256 of sanitized content
+- signature: string - RSA/ECDSA signature
+- expiration: Date - Token validity period
+- rulesVersion: string - Sanitization rules version
+- metadata: object - Additional token data
+
+**TypeScript Interface:**
+
+```typescript
+interface TrustToken {
+  id: string;
+  contentHash: string;
+  signature: string;
+  expiration: Date;
+  rulesVersion: string;
+  metadata: Record<string, any>;
+}
+```
+
+**Relationships:**
+
+- Has many SanitizationLog (for validation history)
+
+### AgentMemory
+
+**Purpose:** Persistent learning data for the autonomous agent
+
+**Key Attributes:**
+
+- id: string - Memory entry ID
+- pattern: string - Detected pattern
+- confidence: number - Detection confidence
+- actions: string[] - Recommended responses
+- lastUpdated: Date - Last modification
+- source: string - Learning source (manual/user feedback)
+
+**TypeScript Interface:**
+
+```typescript
+interface AgentMemory {
+  id: string;
+  pattern: string;
+  confidence: number;
+  actions: string[];
+  lastUpdated: Date;
+  source: string;
+}
+```
+
+**Relationships:**
+
+- Stored in LangSmith graph database
+
+## API Specification
+
+### REST API Specification
 
 ```yaml
 openapi: 3.0.0
 info:
   title: Obfuscation-Aware Sanitizer Agent API
   version: 1.0.0
-  description: API for sanitizing data in agentic AI systems
+  description: API for sanitizing data flows in agentic AI systems
 servers:
-  - url: https://api.example.com
+  - url: https://api.sanitizer.example.com/v1
     description: Production server
 paths:
   /sanitize:
@@ -74,6 +211,9 @@ paths:
               properties:
                 data:
                   type: string
+                direction:
+                  type: string
+                  enum: [input, output]
       responses:
         '200':
           description: Sanitized data
@@ -84,619 +224,941 @@ paths:
                 properties:
                   sanitizedData:
                     type: string
-   /health:
-     get:
-       summary: Health check
-       responses:
-         '200':
-           description: OK
-   /documents/upload:
-     post:
-       summary: Upload and process PDF documents with sanitization and trust token generation
-       requestBody:
-         required: true
-         content:
-           multipart/form-data:
-             schema:
-               type: object
-               properties:
-                 pdf:
-                   type: string
-                   format: binary
-                   description: PDF file to upload and process
-       responses:
-         '200':
-           description: PDF processed successfully
-           content:
-             application/json:
-               schema:
-                 type: object
-                 properties:
-                   message:
-                     type: string
-                   fileName:
-                     type: string
-                   size:
-                     type: integer
-                   status:
-                     type: string
-                   sanitizedContent:
-                     type: string
-                     description: Sanitized text extracted from PDF
-                   trustToken:
-                     type: object
-                     description: Cryptographic trust token for content verification
-                     properties:
-                       contentHash:
-                         type: string
-                       originalHash:
-                         type: string
-                       sanitizationVersion:
-                         type: string
-                       rulesApplied:
-                         type: array
-                         items:
-                           type: string
-                       timestamp:
-                         type: string
-                         format: date-time
-                       expiresAt:
-                         type: string
-                         format: date-time
-                       signature:
-                         type: string
-         '400':
-           description: Invalid file or processing error
-    /api/trust-tokens/validate:
-     post:
-       summary: Validate a trust token for authenticity and expiration
-       requestBody:
-         required: true
-         content:
-           application/json:
-             schema:
-               type: object
-               properties:
-                 contentHash:
-                   type: string
-                 originalHash:
-                   type: string
-                 sanitizationVersion:
-                   type: string
-                 rulesApplied:
-                   type: array
-                   items:
-                     type: string
-                 timestamp:
-                   type: string
-                   format: date-time
-                 expiresAt:
-                   type: string
-                   format: date-time
-                 signature:
-                   type: string
-       responses:
-         '200':
-           description: Token is valid
-           content:
-             application/json:
-               schema:
-                 type: object
-                 properties:
-                   valid:
-                     type: boolean
-                   message:
-                     type: string
-         '400':
-           description: Invalid token
-           content:
-             application/json:
-               schema:
-                 type: object
-                 properties:
-                   valid:
-                     type: boolean
-                   error:
-                     type: string
-         '410':
-           description: Token has expired
-           content:
-             application/json:
-               schema:
-                 type: object
-                 properties:
-                   valid:
-                     type: boolean
-                   error:
-                     type: string
+                  trustToken:
+                    type: string
+                  logId:
+                    type: string
+  /trust-token/validate:
+    post:
+      summary: Validate trust token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Token validation result
+  /agent/chat:
+    post:
+      summary: Chat with autonomous agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        '200':
+          description: Agent response
+```
+
+## Components
+
+### Sanitizer Service
+
+**Responsibility:** Core sanitization pipeline implementation
+
+**Key Interfaces:**
+
+- sanitize(data, direction) -> sanitizedData, token
+- validateToken(token) -> boolean
+
+**Dependencies:** Database (logs), Cache (tokens), LangSmith (agent)
+
+**Technology Stack:** Node.js, Express, Unicode libraries
+
+### Agent Service
+
+**Responsibility:** Autonomous security monitoring and learning
+
+**Key Interfaces:**
+
+- monitorUsage(stats) -> alerts
+- learnFromIncident(incident) -> updatedPatterns
+- orchestrateResponse(alert) -> actions
+
+**Dependencies:** DeepAgent CLI, LangSmith, Sanitizer Service
+
+**Technology Stack:** Node.js, DeepAgent CLI, LangSmith SDK
+
+### Frontend Chat App
+
+**Responsibility:** User interface for interacting with the agent and monitoring sanitization
+
+**Key Interfaces:**
+
+- sendMessage(message) -> response
+- viewLogs(filters) -> logs
+- configureRules(config) -> success
+
+**Dependencies:** API Gateway, Auth service
+
+**Technology Stack:** React, TypeScript, Material-UI
+
+### Component Diagrams
+
+```mermaid
+graph TD
+    subgraph "Frontend Layer"
+        A[Chat UI] --> B[API Client]
+    end
+    subgraph "API Layer"
+        B --> C[API Gateway]
+        C --> D[Auth Middleware]
+        D --> E[Sanitizer Controller]
+        D --> F[Agent Controller]
+    end
+    subgraph "Service Layer"
+        E --> G[Sanitizer Service]
+        F --> H[Agent Service]
+    end
+    subgraph "Data Layer"
+        G --> I[(PostgreSQL)]
+        H --> J[(LangSmith)]
+        G --> K[(Redis)]
+    end
 ```
 
 ## External APIs
 
-## n8n API
+### LangSmith API
 
-- **Purpose:** Enable seamless integration with n8n for calling agentic AI systems through the sanitizer proxy.
-- **Documentation:** https://docs.n8n.io/
-- **Base URL(s):** N/A (webhook-based integration)
-- **Authentication:** API key or webhook token
-- **Rate Limits:** N/A (depends on n8n instance)
+- **Purpose:** Graph database for agent memory and learning
+- **Documentation:** https://docs.smith.langchain.com/
+- **Base URL(s):** https://api.smith.langchain.com
+- **Authentication:** API key
+- **Rate Limits:** 1000 requests/minute
+- **Key Endpoints Used:**
+  - `POST /memory/store` - Store agent memory
+  - `GET /memory/query` - Query patterns
 
-**Key Endpoints Used:**
+**Integration Notes:** Used for persistent agent learning across sessions
 
-- POST /webhook/n8n - Receives data from n8n for sanitization and forwards to LLMs
+### DeepAgent CLI Integration
 
-**Integration Notes:** Sanitization applied transparently; responses returned to n8n workflow.
+- **Purpose:** Framework for autonomous agent development
+- **Documentation:** Internal DeepAgent docs
+- **Base URL(s):** Local CLI interface
+- **Authentication:** CLI auth
+- **Rate Limits:** N/A
+- **Key Endpoints Used:**
+  - CLI commands for agent orchestration
 
-### Architectural and Design Patterns
+**Integration Notes:** Runs as background process, integrated via Node.js child_process
 
-- **Proxy Pattern:** Intercepts requests between clients and services for sanitization - _Rationale:_ Enables transparent security without modifying LLMs/MCP, aligning with PRD's in-line proxy requirement.
-- **Pipeline Pattern:** Processes data through sequential sanitization steps - _Rationale:_ Ensures modular, testable stages for obfuscation handling, supporting MVP's multi-layered approach.
-- **Repository Pattern:** Abstracts data access for logs and audits - _Rationale:_ Enables future database migration and testing flexibility, fitting PRD's audit logging needs.
+## Core Workflows
 
-## Tech Stack
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as API Gateway
+    participant S as Sanitizer
+    participant M as MCP Server
+    participant L as LLM
+    participant Ag as Agent
 
-### Cloud Infrastructure
+    U->>F: Send chat message
+    F->>A: POST /agent/chat
+    A->>S: Validate & sanitize input
+    S->>Ag: Check for threats
+    Ag->>S: OK or alert
+    S->>M: Forward sanitized request
+    M->>L: Process request
+    L->>M: Return response
+    M->>S: Response to sanitize
+    S->>S: Sanitize output
+    S->>A: Return sanitized response
+    A->>F: Response to user
+    S->>Ag: Log for learning
+```
 
-- **Provider:** Azure
-- **Key Services:** Azure Functions for hosting the proxy, Blob Storage for log storage, Application Insights for monitoring, Azure AD for security
-- **Deployment Regions:** eastus
+## Database Schema
 
-### Technology Stack Table
+```sql
+-- Sanitization Logs
+CREATE TABLE sanitization_logs (
+    id UUID PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    input_hash VARCHAR(64) NOT NULL,
+    output_hash VARCHAR(64) NOT NULL,
+    rules_applied TEXT[],
+    provenance JSONB,
+    metadata JSONB
+);
 
-| Category         | Technology     | Version | Purpose                               | Rationale                                                                                     |
-| ---------------- | -------------- | ------- | ------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Language         | Node.js        | 20.11.0 | Primary development language          | LTS version for stability, excellent ecosystem for API development and sanitization libraries |
-| Runtime          | Node.js        | 20.11.0 | JavaScript runtime                    | Matches language choice, proven for high-throughput proxy applications                        |
-| Framework        | Express.js     | 4.18.2  | Backend framework for API endpoints   | Lightweight, middleware-friendly for proxy implementation, aligns with PRD's API needs        |
-| Database         | SQLite         | 3.43.0  | Embedded database for logs and audits | Simple for MVP, no external setup required, sufficient for audit logging                      |
-| Containerization | Docker         | 24.0.7  | Container platform                    | Enables easy deployment and isolation, as per PRD technical assumptions                       |
-| IaC              | Azure Bicep    | 0.22.6  | Infrastructure as Code                | Declarative Azure resource management, integrates with Node.js                                |
-| Logging          | Winston        | 3.11.0  | Logging library                       | Structured logging for audits, supports PRD's security and compliance needs                   |
-| Validation       | Joi            | 17.11.0 | Input validation                      | Schema-based validation for API security, prevents injection attacks                          |
-| Testing          | Jest           | 29.7.0  | Unit testing framework                | Mature, integrates well with Node.js for PRD's unit + integration testing                     |
-| CI/CD            | GitHub Actions | N/A     | Pipeline automation                   | Free for open source, simple setup for MVP deployment                                         |
+-- Trust Tokens
+CREATE TABLE trust_tokens (
+    id UUID PRIMARY KEY,
+    content_hash VARCHAR(64) NOT NULL,
+    signature TEXT NOT NULL,
+    expiration TIMESTAMP NOT NULL,
+    rules_version VARCHAR(20) NOT NULL,
+    metadata JSONB
+);
 
-## Data Models
+-- Indexes
+CREATE INDEX idx_logs_timestamp ON sanitization_logs(timestamp);
+CREATE INDEX idx_tokens_hash ON trust_tokens(content_hash);
+```
 
-## SanitizationEvent
+## Frontend Architecture
 
-**Purpose:** Represents each sanitization action performed by the proxy, enabling audit logging and provenance tracking for compliance and debugging.
+### Component Architecture
 
-**Key Attributes:**
+**Component Organization:**
 
-- id: string - Unique identifier for the event
-- timestamp: datetime - When the sanitization occurred
-- requestId: string - Correlation ID linking input and output
-- inputData: string - Original data before sanitization
-- outputData: string - Data after sanitization
-- actionsTaken: array - List of sanitization steps applied (e.g., normalization, stripping)
-- provenanceValidated: boolean - Whether provenance check passed
-- error: string - Any error message if sanitization failed
+```
+src/
+├── components/
+│   ├── chat/
+│   │   ├── ChatWindow.tsx
+│   │   ├── MessageList.tsx
+│   │   └── MessageInput.tsx
+│   ├── monitoring/
+│   │   ├── LogsViewer.tsx
+│   │   └── MetricsDashboard.tsx
+│   └── shared/
+│       ├── Button.tsx
+│       └── Modal.tsx
+├── pages/
+│   ├── Chat.tsx
+│   ├── Dashboard.tsx
+│   └── Settings.tsx
+├── hooks/
+│   ├── useChat.ts
+│   └── useAuth.ts
+├── services/
+│   ├── apiClient.ts
+│   └── agentService.ts
+├── stores/
+│   ├── chatSlice.ts
+│   └── authSlice.ts
+├── styles/
+│   └── globals.css
+└── utils/
+    └── formatters.ts
+```
 
-**Relationships:**
+**Component Template:**
 
-- None for MVP (self-contained for logging)
+```typescript
+import React from 'react';
+import { useSelector } from 'react-redux';
 
-## Components
+interface ChatWindowProps {
+  onSendMessage: (message: string) => void;
+}
 
-### ProxySanitizer
+export const ChatWindow: React.FC<ChatWindowProps> = ({ onSendMessage }) => {
+  const messages = useSelector((state) => state.chat.messages);
 
-**Responsibility:** Acts as the main entry point, intercepting requests from clients (e.g., n8n), routing them through the sanitization pipeline, validating provenance, and forwarding to LLMs/MCP servers.
+  return (
+    <div className="chat-window">
+      {/* Component implementation */}
+    </div>
+  );
+};
+```
 
-**Key Interfaces:**
+### State Management Architecture
 
-- /sanitize (POST) - Receives input data for sanitization
-- /health (GET) - Health check endpoint
+**State Structure:**
 
-**Dependencies:** SanitizationPipeline, ProvenanceValidator, AuditLogger
+```typescript
+interface RootState {
+  chat: {
+    messages: Message[];
+    isTyping: boolean;
+  };
+  auth: {
+    user: User | null;
+    token: string | null;
+  };
+  monitoring: {
+    logs: SanitizationLog[];
+    metrics: Metrics;
+  };
+}
+```
 
-**Technology Stack:** Node.js with Express.js for API handling, integrated with Azure Functions for deployment
+**State Management Patterns:**
 
-## Audit Logging
+- Actions for async operations (thunks)
+- Selectors for computed state
+- Immutable updates
 
-### Risk Assessment Logging
+### Routing Architecture
 
-The system implements comprehensive structured logging for all risk assessment decisions to provide complete audit trails for risk evaluation processes.
+**Route Organization:**
 
-**Key Features:**
+```
+/ - Dashboard
+/chat - Chat interface
+/monitoring - Logs and metrics
+/settings - Configuration
+```
 
-- **Structured Format:** All risk assessment logs use JSON format with consistent fields including timestamp, decision type, risk level, and context metadata
-- **Asynchronous Logging:** Logging is performed asynchronously to minimize performance impact on sanitization operations
-- **PII Redaction:** Sensitive data such as user IDs and triggers are automatically redacted to prevent exposure
-- **Integration:** Seamlessly integrated with existing audit infrastructure using Winston logger and AuditLog model
+**Protected Route Pattern:**
 
-**Log Structure:**
+```typescript
+import { useAuth } from '../hooks/useAuth';
 
-```json
-{
-  "id": "audit_1234567890_abc123",
-  "timestamp": "2025-11-09T18:32:20.577Z",
-  "operation": "risk_assessment_decision",
-  "details": {
-    "decisionType": "detection|classification|warning|escalation",
-    "riskLevel": "High|Unknown|Low",
-    "assessmentParameters": {
-      "riskScore": 0.85,
-      "triggers": ["[REDACTED]", "pattern2"]
-    },
-    "resourceInfo": {
-      "resourceId": "req123",
-      "type": "sanitization_request"
-    }
+export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
+};
+```
+
+### Frontend Services Layer
+
+**API Client Setup:**
+
+```typescript
+import axios from 'axios';
+
+const apiClient = axios.create({
+  baseURL: process.env.REACT_APP_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  "context": {
-    "userId": "[EMAIL_REDACTED]",
-    "sessionId": "sess456",
-    "stage": "risk-assessment",
-    "logger": "RiskAssessmentLogger",
-    "severity": "info|warning"
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default apiClient;
+```
+
+**Service Example:**
+
+```typescript
+import apiClient from './apiClient';
+
+export const agentService = {
+  async sendMessage(message: string): Promise<string> {
+    const response = await apiClient.post('/agent/chat', { message });
+    return response.data.response;
+  },
+
+  async getLogs(filters: LogFilters): Promise<SanitizationLog[]> {
+    const response = await apiClient.get('/logs', { params: filters });
+    return response.data.logs;
+  },
+};
+```
+
+## Backend Architecture
+
+### Service Architecture
+
+**Function Organization (Serverless):**
+
+```
+src/
+├── functions/
+│   ├── sanitize/
+│   │   ├── index.ts
+│   │   └── handler.ts
+│   ├── validate-token/
+│   │   ├── index.ts
+│   │   └── handler.ts
+│   └── agent-chat/
+│       ├── index.ts
+│       └── handler.ts
+├── services/
+│   ├── sanitizer.ts
+│   ├── agent.ts
+│   └── database.ts
+├── middleware/
+│   ├── auth.ts
+│   ├── cors.ts
+│   └── rateLimit.ts
+└── utils/
+    ├── crypto.ts
+    └── validation.ts
+```
+
+**Function Template:**
+
+```typescript
+import { APIGatewayEvent, APIGatewayProxyResult } from 'aws-lambda';
+
+export const handler = async (event: APIGatewayEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const body = JSON.parse(event.body || '{}');
+
+    // Business logic here
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ result }),
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
+};
+```
+
+### Database Architecture
+
+**Schema Design:**
+
+```sql
+-- As above
+```
+
+**Data Access Layer:**
+
+```typescript
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export class SanitizationLogRepository {
+  async create(log: SanitizationLog): Promise<void> {
+    const query = `
+      INSERT INTO sanitization_logs (id, timestamp, action, input_hash, output_hash, rules_applied, provenance, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
+    await pool.query(query, [
+      log.id,
+      log.timestamp,
+      log.action,
+      log.inputHash,
+      log.outputHash,
+      log.rulesApplied,
+      JSON.stringify(log.provenance),
+      JSON.stringify(log.metadata),
+    ]);
+  }
+
+  async findById(id: string): Promise<SanitizationLog | null> {
+    const result = await pool.query('SELECT * FROM sanitization_logs WHERE id = $1', [id]);
+    return result.rows[0] || null;
   }
 }
 ```
 
-**Decision Types:**
+### Auth Architecture
 
-- **classification:** Risk level assessment (Low/Unknown/High)
-- **detection:** High-level risk detection triggering full sanitization
-- **warning:** Generation of risk warnings
-- **escalation:** Triggers for HITL (Human-in-the-Loop) escalation
+**Auth Flow:**
 
-**Integration Points:**
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as API Gateway
+    participant L as Lambda
 
-- **SanitizationPipeline:** Logs decisions during sanitize() method based on riskLevel/classification
-- **AuditLogger:** Provides logRiskAssessmentDecision() method for structured logging
-- **AuditLog Model:** Compatible with existing audit log storage and access controls
+    U->>F: Login
+    F->>A: POST /auth/login
+    A->>L: Validate credentials
+    L->>L: Generate JWT
+    L->>A: Return token
+    A->>F: Token to frontend
+    F->>F: Store token
+    Note over F: Subsequent requests include token
+```
 
-## Source Tree
+**Middleware/Guards:**
+
+```typescript
+import jwt from 'jsonwebtoken';
+
+export const authMiddleware = (event: APIGatewayEvent) => {
+  const token = event.headers.Authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    throw new Error('No token provided');
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    return decoded;
+  } catch (error) {
+    throw new Error('Invalid token');
+  }
+};
+```
+
+## Unified Project Structure
 
 ```
 obfuscation-aware-sanitizer/
-├── src/
-│   ├── components/
-│   │   ├── ProxySanitizer.js
-│   │   ├── SanitizationPipeline.js
-│   │   │   ├── UnicodeNormalization.js
-│   │   │   ├── SymbolStripping.js
-│   │   │   ├── EscapeNeutralization.js
-│   │   │   └── PatternRedaction.js
-│   │   ├── ProvenanceValidator.js
-│   │   └── AuditLogger.js
-│   ├── models/
-│   │   └── SanitizationEvent.js
-│   ├── routes/
-│   │   └── api.js
-│   ├── utils/
-│   │   └── helpers.js
-│   ├── config/
-│   │   └── index.js
-│   ├── tests/
-│   │   ├── unit/
-│   │   └── integration/
-│   └── app.js
+├── .github/
+│   └── workflows/
+│       ├── ci.yaml
+│       └── deploy.yaml
+├── apps/
+│   ├── web/
+│   │   ├── src/           # Frontend source
+│   │   ├── public/        # Static assets
+│   │   ├── tests/         # Frontend tests
+│   │   └── package.json
+│   └── api/
+│       ├── src/           # Backend source
+│       ├── tests/         # Backend tests
+│       └── package.json
+├── packages/
+│   ├── shared/
+│   │   ├── src/
+│   │   │   ├── types/     # Shared TypeScript types
+│   │   │   ├── constants/ # Shared constants
+│   │   │   └── utils/     # Shared utilities
+│   │   └── package.json
+│   ├── ui/
+│   │   ├── src/           # Shared UI components
+│   │   └── package.json
+│   └── config/
+│       ├── eslint/
+│       ├── typescript/
+│       └── jest/
 ├── infrastructure/
-│   ├── azure-bicep/
-│   │   └── main.bicep
+│   └── cdk/               # AWS CDK definitions
+├── scripts/
 ├── docs/
 │   ├── prd.md
+│   ├── front-end-spec.md  # Note: This file was not found during architecture creation
 │   └── architecture.md
+├── .env.example
 ├── package.json
-└── Dockerfile
+├── nx.json               # Monorepo configuration
+└── README.md
 ```
 
-## Infrastructure and Deployment
+## Development Workflow
 
-### Infrastructure as Code
+### Local Development Setup
 
-- **Tool:** Azure Bicep 0.22.6
-- **Location:** `infrastructure/azure-bicep`
-- **Approach:** Declarative templates for Azure resources (Functions, Storage, etc.)
+**Prerequisites:**
+
+```bash
+# Install Node.js 18+
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Install Docker for local DB
+sudo apt-get install docker.io
+```
+
+**Initial Setup:**
+
+```bash
+# Clone repo
+git clone <repo-url>
+cd obfuscation-aware-sanitizer
+
+# Install dependencies
+npm install
+
+# Set up local environment
+cp .env.example .env.local
+# Edit .env.local with your values
+
+# Start local databases
+docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres:15
+docker run -d --name redis -p 6379:6379 redis:7
+
+# Run database migrations
+npm run db:migrate
+```
+
+**Development Commands:**
+
+```bash
+# Start all services
+npm run dev
+
+# Start frontend only
+npm run dev:web
+
+# Start backend only
+npm run dev:api
+
+# Run tests
+npm run test
+
+# Run linting
+npm run lint
+
+# Build for production
+npm run build
+```
+
+### Environment Configuration
+
+**Required Environment Variables:**
+
+```bash
+# Frontend (.env.local)
+REACT_APP_API_URL=https://api.sanitizer.example.com/v1
+REACT_APP_WS_URL=wss://ws.sanitizer.example.com
+
+# Backend (.env)
+DATABASE_URL=postgresql://user:pass@localhost:5432/sanitizer
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your-secret-key
+LANGSMITH_API_KEY=your-key
+DEEPAGENT_API_KEY=your-key
+AWS_REGION=us-east-1
+
+# Shared
+NODE_ENV=development
+LOG_LEVEL=debug
+```
+
+## Deployment Architecture
 
 ### Deployment Strategy
 
-- **Strategy:** Blue-green deployment for zero-downtime updates
-- **CI/CD Platform:** GitHub Actions
-- **Pipeline Configuration:** `.github/workflows/deploy.yml`
+**Frontend Deployment:**
+
+- **Platform:** AWS S3 + CloudFront
+- **Build Command:** npm run build
+- **Output Directory:** dist
+- **CDN/Edge:** CloudFront with Lambda@Edge for auth
+
+**Backend Deployment:**
+
+- **Platform:** AWS Lambda + API Gateway
+- **Build Command:** npm run build:api
+- **Deployment Method:** AWS CDK
+- **Scaling:** Automatic based on traffic
+
+### CI/CD Pipeline
+
+```yaml
+name: CI/CD
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install
+      - run: npm run test
+      - run: npm run build
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: npm run deploy
+```
 
 ### Environments
 
-- **dev:** Development environment for testing - Local or Azure free tier
-- **staging:** Pre-production for integration testing - Azure with limited resources
-- **prod:** Production environment - Full Azure setup with monitoring
+| Environment | Frontend URL                          | Backend URL                               | Purpose                |
+| ----------- | ------------------------------------- | ----------------------------------------- | ---------------------- |
+| Development | http://localhost:3000                 | http://localhost:3001                     | Local development      |
+| Staging     | https://staging.sanitizer.example.com | https://api-staging.sanitizer.example.com | Pre-production testing |
+| Production  | https://sanitizer.example.com         | https://api.sanitizer.example.com         | Live environment       |
 
-### Environment Promotion Flow
+## Security and Performance
 
-dev -> staging -> prod (automated via CI/CD on successful tests)
+### Security Requirements
 
-### Rollback Strategy
+**Frontend Security:**
 
-- **Primary Method:** Quick rollback to previous deployment version via Azure portal or CLI
-- **Trigger Conditions:** Failed health checks or high error rates
-- **Recovery Time Objective:** <5 minutes for critical issues
+- CSP Headers: strict CSP allowing only trusted sources
+- XSS Prevention: React's built-in XSS protection + input sanitization
+- Secure Storage: HttpOnly cookies for tokens, encrypted localStorage for non-sensitive data
 
-## Error Handling Strategy
+**Backend Security:**
 
-### General Approach
+- Input Validation: Joi/Zod schemas for all inputs
+- Rate Limiting: AWS WAF with custom rules
+- CORS Policy: Restrict to allowed origins
 
-- **Error Model:** Custom error classes extending base Error
-- **Exception Hierarchy:** SanitizationError, ValidationError, ProvenanceError
-- **Error Propagation:** Bubble up with added context, avoid swallowing errors
+**Authentication Security:**
 
-### Logging Standards
+- Token Storage: HttpOnly, Secure, SameSite cookies
+- Session Management: JWT with short expiration, refresh tokens
+- Password Policy: Minimum 12 chars, complexity requirements
 
-- **Library:** Winston 3.11.0
-- **Format:** JSON for structured logging
-- **Levels:** error (failures), warn (degraded), info (milestones), debug (detailed)
-- **Required Context:**
-  - Correlation ID: UUID from request
-  - Service Context: Component name and version
-  - User Context: Request source (e.g., n8n)
+### Performance Optimization
 
-### Error Patterns
+**Frontend Performance:**
 
-#### External API Errors
+- Bundle Size Target: <500KB gzipped
+- Loading Strategy: Code splitting, lazy loading
+- Caching Strategy: Service Worker for static assets
 
-- **Retry Policy:** Exponential backoff up to 3 attempts
-- **Circuit Breaker:** Open after 3 failures, half-open after 60s
-- **Timeout Configuration:** 30 seconds for LLM calls
-- **Error Translation:** Map external errors to custom SanitizationError
+**Backend Performance:**
 
-#### Business Logic Errors
+- Response Time Target: <100ms for sanitization
+- Database Optimization: Connection pooling, query optimization
+- Caching Strategy: Redis for trust tokens, CDN for static content
 
-- **Custom Exceptions:** InvalidDataError for bad input
-- **User-Facing Errors:** Sanitized messages without sensitive data
-- **Error Codes:** SAN-001 for sanitization failures
+## Testing Strategy
 
-#### Data Consistency
+### Testing Pyramid
 
-- **Transaction Strategy:** N/A for embedded SQLite
-- **Compensation Logic:** Log error and alert on failure
-- **Idempotency:** Use request ID to detect duplicates
+```
+     E2E Tests (Playwright)
+    /        \
+   /          \
+Integration Tests (Jest + Supertest)
+ /            \
+Frontend Unit  Backend Unit
+ (Jest + RTL)  (Jest)
+```
+
+### Test Organization
+
+**Frontend Tests:**
+
+```
+apps/web/src/
+├── __tests__/
+│   ├── components/
+│   │   ├── ChatWindow.test.tsx
+│   │   └── MessageList.test.tsx
+│   ├── hooks/
+│   │   └── useChat.test.ts
+│   └── services/
+│       └── apiClient.test.ts
+```
+
+**Backend Tests:**
+
+```
+apps/api/src/
+├── __tests__/
+│   ├── functions/
+│   │   ├── sanitize.test.ts
+│   │   └── validate-token.test.ts
+│   ├── services/
+│   │   └── sanitizer.test.ts
+│   └── utils/
+│       └── crypto.test.ts
+```
+
+**E2E Tests:**
+
+```
+tests/
+├── e2e/
+│   ├── chat-flow.spec.ts
+│   └── monitoring.spec.ts
+```
+
+### Test Examples
+
+**Frontend Component Test:**
+
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ChatWindow } from './ChatWindow';
+
+test('sends message on form submit', () => {
+  const mockOnSend = jest.fn();
+  render(<ChatWindow onSendMessage={mockOnSend} />);
+
+  const input = screen.getByRole('textbox');
+  const button = screen.getByRole('button');
+
+  fireEvent.change(input, { target: { value: 'Hello' } });
+  fireEvent.click(button);
+
+  expect(mockOnSend).toHaveCalledWith('Hello');
+});
+```
+
+**Backend API Test:**
+
+```typescript
+import request from 'supertest';
+import app from '../app';
+
+describe('POST /sanitize', () => {
+  it('sanitizes input data', async () => {
+    const response = await request(app)
+      .post('/sanitize')
+      .send({ data: 'test\u200Bdata', direction: 'input' })
+      .expect(200);
+
+    expect(response.body.sanitizedData).toBe('testdata');
+  });
+});
+```
+
+**E2E Test:**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('chat interaction', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('[data-testid="message-input"]', 'Hello agent');
+  await page.click('[data-testid="send-button"]');
+  await expect(page.locator('[data-testid="response"]')).toBeVisible();
+});
+```
 
 ## Coding Standards
 
-### Core Standards
+### Critical Fullstack Rules
 
-- **Languages & Runtimes:** Node.js 20.11.0
-- **Style & Linting:** ESLint with standard config
-- **Test Organization:** Tests in **tests** folder, named \*.test.js
+- **Type Sharing:** Always define types in packages/shared and import from there
+- **API Calls:** Never make direct HTTP calls - use the service layer
+- **Environment Variables:** Access only through config objects, never process.env directly
+- **Error Handling:** All API routes must use the standard error handler
+- **State Updates:** Never mutate state directly - use proper state management patterns
+- **Security First:** All inputs must be validated and sanitized before processing
 
 ### Naming Conventions
 
-| Element   | Convention       | Example              |
-| --------- | ---------------- | -------------------- |
-| Variables | camelCase        | sanitizedData        |
-| Functions | camelCase        | normalizeUnicode     |
-| Classes   | PascalCase       | SanitizationPipeline |
-| Constants | UPPER_SNAKE_CASE | MAX_RETRY_ATTEMPTS   |
+| Element         | Frontend             | Backend    | Example             |
+| --------------- | -------------------- | ---------- | ------------------- |
+| Components      | PascalCase           | -          | `ChatWindow.tsx`    |
+| Hooks           | camelCase with 'use' | -          | `useChat.ts`        |
+| API Routes      | -                    | kebab-case | `/api/agent-chat`   |
+| Database Tables | -                    | snake_case | `sanitization_logs` |
+| Functions       | camelCase            | camelCase  | `sanitizeData`      |
 
-### Critical Rules
+## Error Handling Strategy
 
-- **No console.log in production:** Use Winston logger for all output
-- **All API responses must use ApiResponse wrapper:** Standardize response format
-- **Database queries must use repository pattern:** Never direct SQLite access
+### Error Flow
 
-### Language-Specific Guidelines
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as API Gateway
+    participant L as Lambda
+    participant DB as Database
 
-#### Node.js Specifics
+    U->>F: Action triggers error
+    F->>A: Request
+    A->>L: Process
+    L->>L: Error occurs
+    L->>L: Log error
+    L->>A: Error response
+    A->>F: Error to frontend
+    F->>F: Show user-friendly message
+    L->>DB: Store error details
+```
 
-- **Async/Await:** Use for all async operations, avoid callbacks
-- **Error Handling:** Always catch and log errors in async functions
+### Error Response Format
 
-## Test Strategy and Standards
+```typescript
+interface ApiError {
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, any>;
+    timestamp: string;
+    requestId: string;
+  };
+}
+```
 
-### Testing Philosophy
+### Frontend Error Handling
 
-- **Approach:** Test-after development for MVP speed
-- **Coverage Goals:** 80% overall, 90% for critical sanitization functions
-- **Test Pyramid:** 70% unit, 20% integration, 10% manual
+```typescript
+import { useState } from 'react';
 
-### Test Types and Organization
+export const useApiCall = () => {
+  const [error, setError] = useState<string | null>(null);
 
-#### Unit Tests
+  const makeCall = async (apiCall: () => Promise<any>) => {
+    try {
+      setError(null);
+      return await apiCall();
+    } catch (err: any) {
+      const message = err.response?.data?.error?.message || 'An error occurred';
+      setError(message);
+      throw err;
+    }
+  };
 
-- **Framework:** Jest 29.7.0
-- **File Convention:** \*.test.js alongside source files
-- **Location:** src/**tests**/
-- **Mocking Library:** Sinon for external dependencies
-- **Coverage Requirement:** 90% for sanitization logic
+  return { makeCall, error };
+};
+```
 
-**AI Agent Requirements:**
+### Backend Error Handling
 
-- Generate tests for all public methods
-- Cover edge cases and error conditions
-- Follow AAA pattern (Arrange, Act, Assert)
-- Mock all external dependencies
+```typescript
+import { APIGatewayEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-#### Integration Tests
+export const errorHandler = (error: any): APIGatewayProxyResult => {
+  console.error('Error:', error);
 
-- **Scope:** End-to-end pipeline with mocked LLMs/MCP
-- **Location:** tests/integration/
-- **Test Infrastructure:**
-  - **LLMs/MCP:** WireMock for stubbing responses
+  return {
+    statusCode: error.statusCode || 500,
+    body: JSON.stringify({
+      error: {
+        code: error.code || 'INTERNAL_ERROR',
+        message: error.message || 'Internal server error',
+        timestamp: new Date().toISOString(),
+        requestId: 'generated-id', // From event
+      },
+    }),
+  };
+};
+```
 
-#### E2E Tests
+## Monitoring and Observability
 
-- **Framework:** Not implemented for MVP
-- **Scope:** Full workflow testing
-- **Environment:** N/A
-- **Test Data:** N/A
+### Monitoring Stack
 
-### Test Data Management
+- **Frontend Monitoring:** Sentry for error tracking, performance monitoring
+- **Backend Monitoring:** CloudWatch metrics, X-Ray tracing
+- **Error Tracking:** Winston logging with CloudWatch Logs
+- **Performance Monitoring:** Custom metrics for sanitization latency
 
-- **Strategy:** In-memory for unit, fixtures for integration
-- **Fixtures:** tests/fixtures/
-- **Factories:** Builder pattern for test data
-- **Cleanup:** Automatic after each test
+### Key Metrics
 
-### Continuous Testing
+**Frontend Metrics:**
 
-- **CI Integration:** GitHub Actions runs all tests on PR
-- **Performance Tests:** Artillery for load testing
-- **Security Tests:** OWASP ZAP for API scanning
+- Core Web Vitals (LCP, FID, CLS)
+- JavaScript errors
+- API response times
+- User interactions (chat messages sent)
 
-## Security
+**Backend Metrics:**
 
-### Input Validation
-
-- **Validation Library:** Joi 17.11.0
-- **Validation Location:** At API boundary before processing
-- **Required Rules:**
-  - All external inputs MUST be validated
-  - Validation at API boundary before processing
-  - Whitelist approach preferred over blacklist
-
-### Authentication & Authorization
-
-- **Auth Method:** API key authentication for n8n integrations
-- **Session Management:** Stateless with API keys
-- **Required Patterns:**
-  - API key in header for all requests
-  - No user sessions for backend-only app
-
-### Secrets Management
-
-- **Development:** Environment variables in .env
-- **Production:** Azure Key Vault for secure storage
-- **Code Requirements:**
-  - NEVER hardcode secrets
-  - Access via configuration service only
-  - No secrets in logs or error messages
-
-### API Security
-
-- **Rate Limiting:** 100 requests per minute per IP
-- **CORS Policy:** Disabled for backend API
-- **Security Headers:** Helmet.js for standard headers
-- **HTTPS Enforcement:** Required for all endpoints
-
-### Data Protection
-
-- **Encryption at Rest:** SQLite with SQLCipher for sensitive logs
-- **Encryption in Transit:** TLS 1.3 for all communications
-- **PII Handling:** Redact in logs and responses
-- **Logging Restrictions:** No sensitive data in logs
-
-### Dependency Security
-
-- **Scanning Tool:** Snyk for vulnerability scanning
-- **Update Policy:** Weekly dependency updates
-- **Approval Process:** Automated PR for security fixes
-
-### Security Testing
-
-- **SAST Tool:** ESLint-security plugin for static analysis
-- **DAST Tool:** OWASP ZAP for dynamic scanning
-- **Penetration Testing:** Not for MVP
+- Request rate per endpoint
+- Error rate by type
+- Response time percentiles
+- Database query performance
+- Sanitization throughput
 
 ## Checklist Results Report
 
-### Architect Checklist Execution Summary
-
-- **Checklist Source:** .bmad-core/checklists/architect-checklist.md
-- **Execution Date:** 2025-10-19
-- **Status:** Completed
-- **Overall Score:** 95% (19/20 items passed)
-
-### Detailed Results
-
-#### 1. Requirements Alignment
-
-- **1.1 Functional Requirements Coverage** ✅ PASSED: Architecture supports all FRs (sanitization, API, bidirectional flow).
-- **1.2 Non-Functional Requirements Alignment** ✅ PASSED: Performance (latency <100ms), scalability (100 RPS), security (validation, encryption).
-- **1.3 Technical Constraints Adherence** ✅ PASSED: Monorepo, proxy-based, Node.js, Azure hosting from PRD.
-
-#### 2. Architecture Fundamentals
-
-- **2.1 Architecture Clarity** ✅ PASSED: Diagrams, components, data flows clearly defined.
-- **2.2 Separation of Concerns** ✅ PASSED: Clear boundaries between proxy, pipeline, logging.
-- **2.3 Design Patterns & Best Practices** ✅ PASSED: Proxy, Pipeline, Repository patterns used appropriately.
-- **2.4 Modularity & Maintainability** ✅ PASSED: Modular components, AI-agent friendly sizing.
-
-#### 3. Technical Stack & Decisions
-
-- **3.1 Technology Selection** ✅ PASSED: Justified choices with versions, alternatives considered.
-- **3.2 Backend Architecture** ✅ PASSED: API design, service boundaries, error handling defined.
-- **3.3 Data Architecture** ✅ PASSED: Data models, SQLite schema, access patterns documented.
-
-#### 4. Resilience & Operational Readiness
-
-- **4.1 Error Handling & Resilience** ✅ PASSED: Retry, circuit breaker, graceful degradation.
-- **4.2 Monitoring & Observability** ✅ PASSED: Winston logging, Application Insights monitoring.
-- **4.3 Performance & Scaling** ✅ PASSED: Caching N/A, load balancing via Azure, resource sizing.
-- **4.4 Deployment & DevOps** ✅ PASSED: Blue-green, CI/CD, environments, rollback.
-
-#### 5. Security & Compliance
-
-- **5.1 Authentication & Authorization** ✅ PASSED: API key auth, stateless sessions.
-- **5.2 Data Security** ✅ PASSED: Encryption at rest/transit, PII handling, audit trails.
-- **5.3 API & Service Security** ✅ PASSED: Rate limiting, validation, HTTPS, CSRF prevention.
-- **5.4 Infrastructure Security** ✅ PASSED: Network security via Azure, least privilege, monitoring.
-
-#### 6. Implementation Guidance
-
-- **6.1 Coding Standards & Practices** ✅ PASSED: Standards, naming, critical rules defined.
-- **6.2 Testing Strategy** ✅ PASSED: Unit, integration, coverage, AI requirements.
-- **6.3 Development Environment** ✅ PASSED: Setup, tools, workflows, source control.
-- **6.4 Technical Documentation** ✅ PASSED: API docs, architecture, diagrams, decision records.
-
-#### 7. Dependency & Integration Management
-
-- **7.1 External Dependencies** ✅ PASSED: Identified with versions, fallback for critical.
-- **7.2 Internal Dependencies** ✅ PASSED: Component dependencies mapped, no circular.
-- **7.3 Third-Party Integrations** ✅ PASSED: n8n integration, auth, error handling.
-
-#### 8. AI Agent Implementation Suitability
-
-- **8.1 Modularity for AI Agents** ✅ PASSED: Components sized for AI, clear interfaces.
-- **8.2 Clarity & Predictability** ✅ PASSED: Consistent patterns, simple logic.
-- **8.3 Implementation Guidance** ✅ PASSED: Detailed guidance, templates, pitfalls.
-- **8.4 Error Prevention & Handling** ✅ PASSED: Validation, self-healing, testing patterns.
-
-#### 9. Frontend Design & Implementation
-
-- **Skipped:** Backend-only project, no frontend sections evaluated.
-
-### Risk Assessment
-
-- **Top 5 Risks by Severity:**
-  1. Azure dependency lock-in (Medium): Mitigation: Document migration path.
-  2. High-throughput scaling (Medium): Mitigation: Monitor and add horizontal scaling.
-  3. Evolving obfuscation techniques (Medium): Mitigation: Modular pipeline for updates.
-  4. SQLite performance at scale (Low): Mitigation: Migrate to external DB if needed.
-  5. API rate limiting conflicts with n8n (Low): Mitigation: Configurable limits.
-
-### Recommendations
-
-- **Must-fix:** None - architecture is solid.
-- **Should-fix:** Add more detailed API examples in OpenAPI spec.
-- **Nice-to-have:** Expand on scalability plans for high-throughput scenarios.
-
-### AI Implementation Readiness
-
-- Specific concerns: None major; architecture is AI-agent friendly with clear modularity.
-- Areas needing clarification: None.
-- Complexity hotspots: Sanitization pipeline logic - ensure step-by-step implementation.
-
-### Frontend-Specific Assessment
-
-- Skipped: Backend-only project.
-
-## Security Hardening Updates
-
-As part of the security hardening epic (stories 1.1-1.12), the following security enhancements have been implemented and validated:
-
-- **Input Validation**: Enhanced using Joi for all API endpoints with comprehensive schema validation
-- **Authentication & Authorization**: Improved API key management with secure storage and validation
-- **Secrets Management**: Production secrets secured via Azure Key Vault with environment variable fallbacks for development
-- **API Security**: Implemented rate limiting (100 requests/minute), disabled CORS for backend API, and added security headers via Helmet.js
-- **Data Protection**: Encryption at rest using SQLCipher for sensitive logs, TLS 1.3 for all communications
-- **Dependency Security**: Regular vulnerability scanning with Snyk, weekly dependency updates, and automated security patches
-- **Security Testing**: Integrated SAST (ESLint-security plugin) and DAST (OWASP ZAP) into CI/CD pipeline
-
-All security controls have been thoroughly tested and validated. The system now meets enterprise security standards and is ready for production deployment with the DeepAgent CLI implementation.
-
-## Next Steps
-
-### Architect Prompt
-
-As architect, review the PRD and create the system architecture document using this as input. Focus on proxy-based design for obfuscation-aware sanitization, with Node.js, Azure, and modular pipeline.
+Architecture document created successfully. Note: The UI/UX Specification file (docs/front-end-spec.md) was not found in the repository. The architecture assumes a chat-based interface for interacting with the autonomous agent based on PRD requirements for user notifications and agent orchestration. If the spec exists elsewhere or needs to be created, please provide it for refinement.

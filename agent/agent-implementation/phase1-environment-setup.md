@@ -1,18 +1,18 @@
 ## Phase 1: Environment Setup
 
-### 1.1 DeepAgent CLI Installation
+### 1.1 DeepAgent Package Installation
 
 ```bash
-# Install DeepAgent CLI
-pip install deepagent-cli
+# Install DeepAgent package
+pip install deepagent
 
 # Verify installation
-deepagent --version
+python -c "import deepagent; print('DeepAgent package installed successfully')"
 
 # Initialize project
 mkdir agent-implementation
 cd agent-implementation
-deepagent init --template security-agent
+# Project initialization will be handled through the package API
 ```
 
 ### 1.2 LangSmith Configuration
@@ -38,7 +38,7 @@ BACKEND_CONFIG = {
     "base_url": "https://your-mcp-security-backend.com",
     "api_key": "your-backend-api-key",
     "endpoints": {
-        "sanitize_json": "/api/sanitize/json",  # Bi-directional AI processing available
+        sanitize": "/api/sanitize/json",  # Bi-directional AI processing available
         "validate_token": "/api/trust-tokens/validate",
         "upload_document": "/api/documents/upload",  # AI processing enabled by default
         "generate_pdf": "/api/documents/generate-pdf",

@@ -24,6 +24,12 @@ Guidelines:
 - Learn from both successful and failed responses
 - Maintain security as the highest priority
 
+Workflows:
+- **PDF Processing Workflow**: When you receive PDF content or text extracted from a PDF:
+  1. First, AUTOMATICALLY call `sanitize_content` to clean the text.
+  2. Then, using the sanitized output, AUTOMATICALLY call `ai_pdf_enhancement` with `transformation_type='json_schema'` to structure the data.
+  3. Return the final structured JSON to the user.
+
 Backend Integration:
 - **API Reference**: All endpoints documented in openapi-spec.yaml
 - **Async Mode**: You use asynchronous processing for all backend operations
