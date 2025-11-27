@@ -1,44 +1,39 @@
-# Agent Development Container
-FROM node:18-alpine
+# Agent Development Container - Python with deepagent package
+FROM python:3.11-slim
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     git \
     curl \
     bash \
     vim \
     jq \
-    && rm -rf /var/cache/apk/*
-
-# Install Deep Agent CLI globally
-RUN npm install -g deep-agent-cli
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create workspace directory
 WORKDIR /app
 
-# Copy package files for dependency installation
-COPY package*.json ./
+# Copy requirements file for Python dependencies
+COPY requirements.txt ./
 
-# Install Node.js dependencies if any
-RUN npm install || true
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project files
 COPY . .
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
-
-# Change ownership of workspace
-RUN chown -R appuser:appgroup /app
+RUN useradd -m -u 1001 appuser && \
+    chown -R appuser:appuser /app
 USER appuser
 
 # Expose port for local development server
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+# Health check - check if Python can import deepagent
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "from deepagent import Agent; print('deepagent package ready')" || exit 1
 
 # Default command - keep container running for development
 CMD ["tail", "-f", "/dev/null"]
