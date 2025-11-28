@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, field_validator
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.security_agent import SecurityAgent
 import asyncio
 import os
@@ -17,6 +19,10 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 import re
+import time
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
+import psutil
+from monitoring.alerting import alert_manager
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +40,23 @@ rate_limit_store: Dict[str, list] = {}
 
 # Security middleware
 security = HTTPBearer(auto_error=False)
+
+# Performance monitoring metrics
+PDF_PROCESSING_REQUESTS = Counter('pdf_processing_requests_total', 'Total PDF processing requests', ['status', 'stage'])
+PDF_PROCESSING_DURATION = Histogram('pdf_processing_duration_seconds', 'PDF processing duration', ['stage'])
+PDF_PROCESSING_FILE_SIZE = Histogram('pdf_processing_file_size_bytes', 'PDF file sizes processed')
+CHAT_REQUESTS = Counter('chat_requests_total', 'Total chat requests', ['status', 'type'])
+CHAT_DURATION = Histogram('chat_request_duration_seconds', 'Chat request duration', ['type'])
+SYSTEM_CPU_USAGE = Gauge('system_cpu_usage_percent', 'Current CPU usage percentage')
+SYSTEM_MEMORY_USAGE = Gauge('system_memory_usage_percent', 'Current memory usage percentage')
+ACTIVE_CONNECTIONS = Gauge('active_websocket_connections', 'Number of active WebSocket connections')
+
+# Start Prometheus metrics server on port 8000
+try:
+    start_http_server(8000)
+    logging.info("Prometheus metrics server started on port 8000")
+except Exception as e:
+    logging.warning(f"Failed to start Prometheus metrics server: {e}")
 
 app = FastAPI(title="MCP Security Backend API")
 
@@ -123,8 +146,43 @@ def log_security_event(event_type: str, details: Dict[str, Any], client_ip: Opti
     """Log security events for audit"""
     logging.info(f"SECURITY_EVENT: {event_type} - {json.dumps(details)} - IP: {client_ip}")
 
+def update_system_metrics():
+    """Update system resource metrics and check for alerts"""
+    try:
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory_usage = psutil.virtual_memory().percent
+        active_conns = len(active_connections)
+
+        SYSTEM_CPU_USAGE.set(cpu_usage)
+        SYSTEM_MEMORY_USAGE.set(memory_usage)
+        ACTIVE_CONNECTIONS.set(active_conns)
+
+        # Check for system alerts
+        asyncio.create_task(alert_manager.process_metrics_and_alert({
+            'cpu_usage': cpu_usage,
+            'memory_usage': memory_usage,
+            'active_connections': active_conns
+        }))
+    except Exception as e:
+        logging.warning(f"Failed to update system metrics: {e}")
+
+def log_performance_event(event_type: str, duration: float, details: Dict[str, Any], client_ip: Optional[str] = None):
+    """Log performance events with timing data"""
+    logging.info(f"PERFORMANCE_EVENT: {event_type} - Duration: {duration:.3f}s - {json.dumps(details)} - IP: {client_ip}")
+
 # Global agent instance
 agent = None
+
+# Background task for system monitoring
+async def system_monitoring_task():
+    """Background task to periodically update system metrics"""
+    while True:
+        try:
+            update_system_metrics()
+            await asyncio.sleep(30)  # Update every 30 seconds
+        except Exception as e:
+            logging.warning(f"System monitoring task error: {e}")
+            await asyncio.sleep(60)
 
 async def get_agent():
     global agent
@@ -190,22 +248,28 @@ class ProcessPdfResponse(BaseModel):
 async def process_pdf(request: Request, file: UploadFile = File(...), credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Process uploaded PDF: extract text, sanitize content, and enhance with AI"""
     client_ip = request.client.host if request.client else "unknown"
+    start_time = time.time()
+
+    # Update system metrics at start
+    update_system_metrics()
 
     # Rate limiting
     if not check_rate_limit(client_ip):
+        PDF_PROCESSING_REQUESTS.labels(status="rate_limited", stage="rate_limit").inc()
         log_security_event("RATE_LIMIT_EXCEEDED", {"endpoint": "/api/process-pdf"}, client_ip)
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     # Authentication
     if not authenticate_request(credentials):
+        PDF_PROCESSING_REQUESTS.labels(status="unauthorized", stage="auth").inc()
         log_security_event("AUTH_FAILED", {"endpoint": "/api/process-pdf"}, client_ip)
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     processing_stages = []
+    file_size = 0
 
     try:
         # Validate file size
-        file_size = 0
         file_content = b""
 
         # Read file in chunks to check size
@@ -217,28 +281,37 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
             file_content += chunk
 
         # Validate file type
+        validation_start = time.time()
         if not validate_file_type(file_content, file.filename):
+            PDF_PROCESSING_REQUESTS.labels(status="invalid_file", stage="validation").inc()
             log_security_event("INVALID_FILE_TYPE", {"filename": file.filename}, client_ip)
             raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed")
 
-        processing_stages.append({"stage": "file_validation", "status": "completed", "timestamp": datetime.now().isoformat()})
+        validation_duration = time.time() - validation_start
+        PDF_PROCESSING_DURATION.labels(stage="validation").observe(validation_duration)
+        PDF_PROCESSING_FILE_SIZE.observe(file_size)
+        processing_stages.append({"stage": "file_validation", "status": "completed", "timestamp": datetime.now().isoformat(), "duration": validation_duration})
 
         log_security_event("PDF_UPLOAD", {"filename": file.filename, "size": file_size}, client_ip)
 
         # Extract text from PDF
         processing_stages.append({"stage": "text_extraction", "status": "in_progress", "timestamp": datetime.now().isoformat()})
+        extraction_start = time.time()
         extracted_text = extract_pdf_text(file_content)
+        extraction_duration = time.time() - extraction_start
 
         if not extracted_text:
+            PDF_PROCESSING_REQUESTS.labels(status="no_text", stage="extraction").inc()
             raise HTTPException(status_code=400, detail="No text could be extracted from the PDF")
 
         # Sanitize extracted text
         extracted_text = sanitize_input(extracted_text)
 
         processing_stages[-1]["status"] = "completed"
-        processing_stages.append({"stage": "sanitization", "status": "in_progress", "timestamp": "now"})
+        processing_stages.append({"stage": "sanitization", "status": "in_progress", "timestamp": datetime.now().isoformat()})
 
         # Get agent and sanitize content
+        sanitization_start = time.time()
         agent = await get_agent()
 
         # Find the sanitize_content tool
@@ -249,6 +322,7 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
                 break
 
         if not sanitize_tool:
+            PDF_PROCESSING_REQUESTS.labels(status="tool_not_found", stage="sanitization").inc()
             raise HTTPException(status_code=500, detail="Sanitize tool not found")
 
         # Call the sanitize tool
@@ -257,9 +331,14 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
             classification="general"
         )
 
+        sanitization_duration = time.time() - sanitization_start
+        PDF_PROCESSING_DURATION.labels(stage="sanitization").observe(sanitization_duration)
+
         if not sanitize_result.get("success", False):
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = sanitize_result.get("error")
+            processing_stages[-1]["duration"] = sanitization_duration
+            PDF_PROCESSING_REQUESTS.labels(status="sanitization_failed", stage="sanitization").inc()
             return ProcessPdfResponse(
                 success=False,
                 error=sanitize_result.get("error"),
@@ -268,9 +347,11 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
             )
 
         processing_stages[-1]["status"] = "completed"
-        processing_stages.append({"stage": "ai_enhancement", "status": "in_progress", "timestamp": "now"})
+        processing_stages[-1]["duration"] = sanitization_duration
+        processing_stages.append({"stage": "ai_enhancement", "status": "in_progress", "timestamp": datetime.now().isoformat()})
 
         # Find the ai_pdf_enhancement tool
+        enhancement_start = time.time()
         enhance_tool = None
         for tool in agent.tools:
             if tool.name == "ai_pdf_enhancement":
@@ -280,6 +361,8 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
         if not enhance_tool:
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = "Enhancement tool not found"
+            processing_stages[-1]["duration"] = time.time() - enhancement_start
+            PDF_PROCESSING_REQUESTS.labels(status="tool_not_found", stage="enhancement").inc()
             return ProcessPdfResponse(
                 success=False,
                 sanitized_content=sanitize_result.get("sanitized_content"),
@@ -294,9 +377,31 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
             transformation_type="json_schema"
         )
 
+        enhancement_duration = time.time() - enhancement_start
+        PDF_PROCESSING_DURATION.labels(stage="enhancement").observe(enhancement_duration)
+
         processing_stages[-1]["status"] = "completed" if enhance_result.get("success", False) else "failed"
+        processing_stages[-1]["duration"] = enhancement_duration
         if not enhance_result.get("success", False):
             processing_stages[-1]["error"] = enhance_result.get("error")
+            PDF_PROCESSING_REQUESTS.labels(status="enhancement_failed", stage="enhancement").inc()
+
+        # Record final metrics
+        total_duration = time.time() - start_time
+        success = enhance_result.get("success", False)
+        PDF_PROCESSING_REQUESTS.labels(status="success" if success else "failed", stage="total").inc()
+        PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
+
+        # Log performance event
+        log_performance_event("PDF_PROCESSING_COMPLETED", total_duration, {
+            "success": success,
+            "file_size": file_size,
+            "extracted_text_length": len(extracted_text),
+            "stages": len(processing_stages)
+        }, client_ip)
+
+        # Update system metrics at end
+        update_system_metrics()
 
         return ProcessPdfResponse(
             success=enhance_result.get("success", False),
@@ -310,6 +415,15 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
         )
 
     except HTTPException:
+        # Record metrics for HTTP exceptions
+        total_duration = time.time() - start_time
+        PDF_PROCESSING_REQUESTS.labels(status="http_error", stage="total").inc()
+        PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
+        log_performance_event("PDF_PROCESSING_HTTP_ERROR", total_duration, {
+            "error_type": "HTTPException",
+            "file_size": file_size if 'file_size' in locals() else 0
+        }, client_ip)
+        update_system_metrics()
         raise
     except Exception as e:
         # Log error securely without exposing details
@@ -318,6 +432,16 @@ async def process_pdf(request: Request, file: UploadFile = File(...), credential
         if processing_stages:
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = "Internal processing error"
+
+        # Record metrics for general exceptions
+        total_duration = time.time() - start_time
+        PDF_PROCESSING_REQUESTS.labels(status="internal_error", stage="total").inc()
+        PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
+        log_performance_event("PDF_PROCESSING_INTERNAL_ERROR", total_duration, {
+            "error_type": type(e).__name__,
+            "file_size": file_size if 'file_size' in locals() else 0
+        }, client_ip)
+        update_system_metrics()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/sanitize/json", response_model=SanitizeResponse)
@@ -536,19 +660,23 @@ Assistant: """,
 async def http_chat(request: Request, chat_request: ChatMessage, credentials: HTTPAuthorizationCredentials = Depends(security)):
     """HTTP fallback endpoint for chat (non-streaming)"""
     client_ip = request.client.host if request.client else "unknown"
+    start_time = time.time()
 
     # Rate limiting
     if not check_rate_limit(client_ip):
+        CHAT_REQUESTS.labels(status="rate_limited", type="http").inc()
         log_security_event("RATE_LIMIT_EXCEEDED", {"endpoint": "/api/chat"}, client_ip)
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     # Authentication
     if not authenticate_request(credentials):
+        CHAT_REQUESTS.labels(status="unauthorized", type="http").inc()
         log_security_event("AUTH_FAILED", {"endpoint": "/api/chat"}, client_ip)
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     # Validate input
     if len(chat_request.message) > MAX_TEXT_LENGTH:
+        CHAT_REQUESTS.labels(status="input_too_large", type="http").inc()
         log_security_event("INPUT_TOO_LARGE", {"length": len(chat_request.message)}, client_ip)
         raise HTTPException(status_code=413, detail="Message too long")
 
@@ -593,6 +721,15 @@ Assistant: """,
         chain = LLMChain(llm=llm, prompt=prompt)
         response = chain.run(system_context=system_context, message=chat_request.message)
 
+        # Record success metrics
+        duration = time.time() - start_time
+        CHAT_REQUESTS.labels(status="success", type="http").inc()
+        CHAT_DURATION.labels(type="http").observe(duration)
+        log_performance_event("CHAT_COMPLETED", duration, {
+            "message_length": len(chat_request.message),
+            "response_length": len(response)
+        }, client_ip)
+
         return {
             "success": True,
             "response": response,
@@ -600,6 +737,14 @@ Assistant: """,
         }
 
     except Exception as e:
+        # Record error metrics
+        duration = time.time() - start_time
+        CHAT_REQUESTS.labels(status="error", type="http").inc()
+        CHAT_DURATION.labels(type="http").observe(duration)
+        log_performance_event("CHAT_ERROR", duration, {
+            "error_type": type(e).__name__,
+            "message_length": len(chat_request.message)
+        }, client_ip)
         log_security_event("CHAT_ERROR", {"error_type": type(e).__name__}, client_ip)
         raise HTTPException(status_code=500, detail="Internal server error")
 

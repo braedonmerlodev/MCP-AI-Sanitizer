@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Provider } from 'react-redux'
+import { PersistGate } from 'redux-persist/integration/react'
+import { store, persistor } from '@/store'
 import { Header, Main, Footer, UploadZone, ChatInterface } from '@/components'
 
 interface ProcessingStatus {
@@ -187,153 +190,148 @@ function App() {
     }
   }
 
-  const handleSendMessage = async (message: string) => {
-    // TODO: Implement actual chat functionality with the backend
-    console.log('Sending message:', message)
-    // For now, this is a placeholder
-    // In the future, this would send the message to the backend
-    // and receive a response from the AI agent
-  }
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <Main>
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Welcome to MCP Security Agent
-            </h2>
-            <p className="text-gray-600">
-              Upload PDF documents and interact with our AI-powered security
-              analysis tool.
-            </p>
-          </div>
-
-          <div className="mb-8">
-            <UploadZone
-              onFileSelect={handleFileSelect}
-              onFileValidated={handleFileValidated}
-              className="max-w-md mx-auto"
-            />
-          </div>
-
-          {uploadedFile && processingStatus.status !== 'success' && (
-            <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {processingStatus.status === 'processing'
-                  ? 'Processing File'
-                  : processingStatus.status === 'error'
-                    ? 'Processing Failed'
-                    : 'File Ready for Processing'}
-              </h3>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{uploadedFile.name}</span>
-                <span>•</span>
-                <span>{(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <div className="min-h-screen flex flex-col">
+          <Header />
+          <Main>
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Welcome to MCP Security Agent
+                </h2>
+                <p className="text-gray-600">
+                  Upload PDF documents and interact with our AI-powered security
+                  analysis tool.
+                </p>
               </div>
-              <p
-                className={`text-sm mt-2 ${
-                  processingStatus.status === 'error'
-                    ? 'text-red-600'
-                    : processingStatus.status === 'processing'
-                      ? 'text-blue-600'
-                      : 'text-gray-500'
-                }`}
-              >
-                {processingStatus.message}
-              </p>
 
-              {processingStatus.stages &&
-                processingStatus.stages.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {processingStatus.stages.map((stage) => (
-                      <div
-                        key={stage.stage}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full flex items-center justify-center text-xs ${
-                            stage.status === 'completed'
-                              ? 'bg-green-500 text-white'
-                              : stage.status === 'in_progress'
-                                ? 'bg-blue-500 text-white animate-pulse'
-                                : stage.status === 'failed'
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-gray-300 text-gray-600'
-                          }`}
-                        >
-                          {stage.status === 'completed'
-                            ? '✓'
-                            : stage.status === 'in_progress'
-                              ? '⟳'
-                              : stage.status === 'failed'
-                                ? '✗'
-                                : '○'}
-                        </div>
-                        <span
-                          className={`capitalize ${
-                            stage.status === 'completed'
-                              ? 'text-green-600'
-                              : stage.status === 'in_progress'
-                                ? 'text-blue-600'
-                                : stage.status === 'failed'
-                                  ? 'text-red-600'
-                                  : 'text-gray-500'
-                          }`}
-                        >
-                          {stage.stage.replace('_', ' ')}
-                        </span>
-                        {stage.error && (
-                          <span className="text-red-500 text-xs">
-                            ({stage.error})
-                          </span>
-                        )}
-                      </div>
-                    ))}
+              <div className="mb-8">
+                <UploadZone
+                  onFileSelect={handleFileSelect}
+                  onFileValidated={handleFileValidated}
+                  className="max-w-md mx-auto"
+                />
+              </div>
+
+              {uploadedFile && processingStatus.status !== 'success' && (
+                <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {processingStatus.status === 'processing'
+                      ? 'Processing File'
+                      : processingStatus.status === 'error'
+                        ? 'Processing Failed'
+                        : 'File Ready for Processing'}
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="font-medium">{uploadedFile.name}</span>
+                    <span>•</span>
+                    <span>
+                      {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </span>
                   </div>
-                )}
-
-              {processingStatus.status === 'processing' && (
-                <div className="mt-4">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full animate-pulse"
-                      style={{
-                        width: processingStatus.stages
-                          ? `${(processingStatus.stages.filter((s) => s.status === 'completed').length / processingStatus.stages.length) * 100}%`
-                          : '60%',
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {processingStatus.status === 'error' && (
-                <div className="mt-4">
-                  <button
-                    onClick={handleRetry}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                  <p
+                    className={`text-sm mt-2 ${
+                      processingStatus.status === 'error'
+                        ? 'text-red-600'
+                        : processingStatus.status === 'processing'
+                          ? 'text-blue-600'
+                          : 'text-gray-500'
+                    }`}
                   >
-                    Retry Processing
-                  </button>
+                    {processingStatus.message}
+                  </p>
+
+                  {processingStatus.stages &&
+                    processingStatus.stages.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {processingStatus.stages.map((stage) => (
+                          <div
+                            key={stage.stage}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <div
+                              className={`w-4 h-4 rounded-full flex items-center justify-center text-xs ${
+                                stage.status === 'completed'
+                                  ? 'bg-green-500 text-white'
+                                  : stage.status === 'in_progress'
+                                    ? 'bg-blue-500 text-white animate-pulse'
+                                    : stage.status === 'failed'
+                                      ? 'bg-red-500 text-white'
+                                      : 'bg-gray-300 text-gray-600'
+                              }`}
+                            >
+                              {stage.status === 'completed'
+                                ? '✓'
+                                : stage.status === 'in_progress'
+                                  ? '⟳'
+                                  : stage.status === 'failed'
+                                    ? '✗'
+                                    : '○'}
+                            </div>
+                            <span
+                              className={`capitalize ${
+                                stage.status === 'completed'
+                                  ? 'text-green-600'
+                                  : stage.status === 'in_progress'
+                                    ? 'text-blue-600'
+                                    : stage.status === 'failed'
+                                      ? 'text-red-600'
+                                      : 'text-gray-500'
+                              }`}
+                            >
+                              {stage.stage.replace('_', ' ')}
+                            </span>
+                            {stage.error && (
+                              <span className="text-red-500 text-xs">
+                                ({stage.error})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                  {processingStatus.status === 'processing' && (
+                    <div className="mt-4">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full animate-pulse"
+                          style={{
+                            width: processingStatus.stages
+                              ? `${(processingStatus.stages.filter((s) => s.status === 'completed').length / processingStatus.stages.length) * 100}%`
+                              : '60%',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {processingStatus.status === 'error' && (
+                    <div className="mt-4">
+                      <button
+                        onClick={handleRetry}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                      >
+                        Retry Processing
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {processingStatus.status === 'success' && processingResult && (
+                <div className="max-w-4xl mx-auto">
+                  <ChatInterface processingResult={processingResult} />
                 </div>
               )}
             </div>
-          )}
-
-          {processingStatus.status === 'success' && processingResult && (
-            <div className="max-w-4xl mx-auto">
-              <ChatInterface
-                processingResult={processingResult}
-                onSendMessage={handleSendMessage}
-              />
-            </div>
-          )}
+          </Main>
+          <Footer />
         </div>
-      </Main>
-      <Footer />
-    </div>
+      </PersistGate>
+    </Provider>
   )
 }
 

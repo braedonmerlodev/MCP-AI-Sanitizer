@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button'
 import { JsonViewer } from './JsonViewer'
 import { formatTimestamp } from '@/lib/utils'
 import { Check, CheckCheck, Clock, AlertCircle, RotateCcw } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { Message } from '@/store/slices/chatSlice'
 
 interface MessageBubbleProps {
@@ -19,6 +22,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isSending = message.status === 'sending'
   const isSent = message.status === 'sent'
   const isDelivered = message.status === 'delivered'
+
+  const markdownComponents = {
+    code: ({
+      inline,
+      className,
+      children,
+      ...props
+    }: {
+      inline?: boolean
+      className?: string
+      children?: React.ReactNode
+      [key: string]: any
+    }) => {
+      const match = /language-(\w+)/.exec(className || '')
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={oneDark as any}
+          language={match[1]}
+          PreTag="div"
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    },
+  }
 
   const bubbleClasses = `max-w-[80%] sm:max-w-[70%] md:max-w-[60%] rounded-lg p-3 relative ${
     isUser
@@ -51,9 +84,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       aria-label={`${message.role} message`}
     >
       <div className={bubbleClasses}>
-        <p className="text-sm whitespace-pre-wrap break-words">
-          {message.content}
-        </p>
+        {isUser ? (
+          <p className="text-sm whitespace-pre-wrap break-words">
+            {message.content}
+          </p>
+        ) : (
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+            <ReactMarkdown components={markdownComponents}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
         {message.type === 'json' && message.data && (
           <div className="mt-3">
             <JsonViewer data={message.data} />
