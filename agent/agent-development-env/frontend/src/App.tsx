@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Header, Main, Footer, UploadZone } from '@/components'
+import { Header, Main, Footer, UploadZone, ChatInterface } from '@/components'
 
 interface ProcessingStatus {
   status: 'idle' | 'processing' | 'success' | 'error'
@@ -13,11 +13,51 @@ interface ProcessingStatus {
   }>
 }
 
+interface ProcessingResult {
+  success: boolean
+  sanitized_content?: string
+  enhanced_content?: string
+  structured_output?: Record<string, unknown>
+  processing_time?: string
+  error?: string
+  extracted_text_length?: number
+  processing_stages?: Array<{
+    stage: string
+    status: string
+    timestamp?: string
+    error?: string
+  }>
+}
+
 function App() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
     status: 'idle',
   })
+  const [processingResult, setProcessingResult] =
+    useState<ProcessingResult | null>(null)
+
+  const getUserFriendlyError = (error: string): string => {
+    if (error.includes('Failed to extract PDF text')) {
+      return "The PDF file could not be read. Please ensure it's a valid PDF file and try again."
+    }
+    if (error.includes('Only PDF files are allowed')) {
+      return 'Please upload a PDF file only.'
+    }
+    if (error.includes('No text could be extracted')) {
+      return 'No readable text was found in the PDF. It might be an image-based PDF.'
+    }
+    if (error.includes('Sanitize tool not found')) {
+      return 'Processing service is temporarily unavailable. Please try again later.'
+    }
+    if (error.includes('Enhancement tool not found')) {
+      return 'AI enhancement service is temporarily unavailable. Please try again later.'
+    }
+    if (error.includes('HTTP error')) {
+      return 'Network error occurred. Please check your connection and try again.'
+    }
+    return error // fallback to original
+  }
 
   const processPdfFile = async (file: File) => {
     try {
@@ -76,6 +116,7 @@ function App() {
         const result = await processPdfFile(file)
 
         if (result.success) {
+          setProcessingResult(result)
           setProcessingStatus({
             status: 'success',
             message: 'Content processed and enhanced successfully',
@@ -84,7 +125,7 @@ function App() {
         } else {
           setProcessingStatus({
             status: 'error',
-            message: result.error || 'Processing failed',
+            message: getUserFriendlyError(result.error || 'Processing failed'),
             stages: result.processing_stages || [],
           })
         }
@@ -92,14 +133,66 @@ function App() {
         console.error('Processing error:', err)
         setProcessingStatus({
           status: 'error',
-          message:
-            err instanceof Error ? err.message : 'Unknown error occurred',
+          message: getUserFriendlyError(
+            err instanceof Error ? err.message : 'Unknown error occurred'
+          ),
         })
       }
     } else {
       console.error('File validation failed:', error)
       setProcessingStatus({ status: 'idle' })
     }
+  }
+
+  const handleRetry = async () => {
+    if (!uploadedFile) return
+
+    setProcessingStatus({
+      status: 'processing',
+      message: 'Retrying PDF processing...',
+      currentStage: 'Initializing',
+      stages: [
+        { stage: 'file_validation', status: 'completed' },
+        { stage: 'text_extraction', status: 'pending' },
+        { stage: 'sanitization', status: 'pending' },
+        { stage: 'ai_enhancement', status: 'pending' },
+      ],
+    })
+
+    try {
+      const result = await processPdfFile(uploadedFile)
+
+      if (result.success) {
+        setProcessingResult(result)
+        setProcessingStatus({
+          status: 'success',
+          message: 'Content processed and enhanced successfully',
+          stages: result.processing_stages || [],
+        })
+      } else {
+        setProcessingStatus({
+          status: 'error',
+          message: getUserFriendlyError(result.error || 'Processing failed'),
+          stages: result.processing_stages || [],
+        })
+      }
+    } catch (err) {
+      console.error('Retry error:', err)
+      setProcessingStatus({
+        status: 'error',
+        message: getUserFriendlyError(
+          err instanceof Error ? err.message : 'Unknown error occurred'
+        ),
+      })
+    }
+  }
+
+  const handleSendMessage = async (message: string) => {
+    // TODO: Implement actual chat functionality with the backend
+    console.log('Sending message:', message)
+    // For now, this is a placeholder
+    // In the future, this would send the message to the backend
+    // and receive a response from the AI agent
   }
 
   return (
@@ -125,16 +218,14 @@ function App() {
             />
           </div>
 
-          {uploadedFile && (
+          {uploadedFile && processingStatus.status !== 'success' && (
             <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 {processingStatus.status === 'processing'
                   ? 'Processing File'
-                  : processingStatus.status === 'success'
-                    ? 'Processing Complete'
-                    : processingStatus.status === 'error'
-                      ? 'Processing Failed'
-                      : 'File Ready for Processing'}
+                  : processingStatus.status === 'error'
+                    ? 'Processing Failed'
+                    : 'File Ready for Processing'}
               </h3>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium">{uploadedFile.name}</span>
@@ -143,17 +234,14 @@ function App() {
               </div>
               <p
                 className={`text-sm mt-2 ${
-                  processingStatus.status === 'success'
-                    ? 'text-green-600'
-                    : processingStatus.status === 'error'
-                      ? 'text-red-600'
-                      : processingStatus.status === 'processing'
-                        ? 'text-blue-600'
-                        : 'text-gray-500'
+                  processingStatus.status === 'error'
+                    ? 'text-red-600'
+                    : processingStatus.status === 'processing'
+                      ? 'text-blue-600'
+                      : 'text-gray-500'
                 }`}
               >
-                {processingStatus.message ||
-                  'Chat interface and AI processing coming in the next update...'}
+                {processingStatus.message}
               </p>
 
               {processingStatus.stages &&
@@ -220,6 +308,26 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {processingStatus.status === 'error' && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleRetry}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                  >
+                    Retry Processing
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {processingStatus.status === 'success' && processingResult && (
+            <div className="max-w-4xl mx-auto">
+              <ChatInterface
+                processingResult={processingResult}
+                onSendMessage={handleSendMessage}
+              />
             </div>
           )}
         </div>
