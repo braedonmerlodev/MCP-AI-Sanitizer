@@ -1,0 +1,98 @@
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { JsonViewer } from './JsonViewer'
+import { formatTimestamp } from '@/lib/utils'
+import { Check, CheckCheck, Clock, AlertCircle, RotateCcw } from 'lucide-react'
+import type { Message } from '@/store/slices/chatSlice'
+
+interface MessageBubbleProps {
+  message: Message
+  onRetry?: (messageId: string) => void
+}
+
+export const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
+  onRetry,
+}) => {
+  const isUser = message.role === 'user'
+  const isError = message.status === 'error'
+  const isSending = message.status === 'sending'
+  const isSent = message.status === 'sent'
+  const isDelivered = message.status === 'delivered'
+
+  const bubbleClasses = `max-w-[80%] sm:max-w-[70%] md:max-w-[60%] rounded-lg p-3 relative ${
+    isUser
+      ? isError
+        ? 'bg-red-500 text-white'
+        : 'bg-blue-500 text-white'
+      : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+  } ${isSending ? 'opacity-70' : ''}`
+
+  const containerClasses = `flex ${isUser ? 'justify-end' : 'justify-start'}`
+
+  const getStatusIcon = () => {
+    if (isSending) return <Clock className="h-3 w-3" />
+    if (isSent) return <Check className="h-3 w-3" />
+    if (isDelivered) return <CheckCheck className="h-3 w-3" />
+    if (isError) return <AlertCircle className="h-3 w-3" />
+    return null
+  }
+
+  const getStatusColor = () => {
+    if (isError) return 'text-red-500'
+    if (isUser) return 'text-blue-200'
+    return 'text-gray-500'
+  }
+
+  return (
+    <div
+      className={containerClasses}
+      role="article"
+      aria-label={`${message.role} message`}
+    >
+      <div className={bubbleClasses}>
+        <p className="text-sm whitespace-pre-wrap break-words">
+          {message.content}
+        </p>
+        {message.type === 'json' && message.data && (
+          <div className="mt-3">
+            <JsonViewer data={message.data} />
+          </div>
+        )}
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <time
+            className="text-xs opacity-70"
+            dateTime={message.timestamp.toISOString()}
+            aria-label={`Message sent at ${message.timestamp.toLocaleString()}`}
+            title={message.timestamp.toLocaleString()}
+          >
+            {formatTimestamp(message.timestamp)}
+          </time>
+          <div className="flex items-center gap-1">
+            {message.status && getStatusIcon() && (
+              <div
+                className={`${getStatusColor()} opacity-70`}
+                aria-label={`Message status: ${message.status}`}
+                title={message.status}
+              >
+                {getStatusIcon()}
+              </div>
+            )}
+            {isError && onRetry && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-red-600 hover:text-white"
+                onClick={() => onRetry(message.id)}
+                aria-label="Retry sending message"
+                title="Retry"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

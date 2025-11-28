@@ -1,16 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  type?: 'text' | 'json'
-  data?: Record<string, unknown>
-}
+import { useAppDispatch } from '@/store/hooks'
+import { addInitialProcessingResult } from '@/store/slices/chatSlice'
+import { useChat } from '@/hooks/useChat'
+import { MessageBubble } from './MessageBubble'
+import { TypingIndicator } from './TypingIndicator'
+import { ChevronDown } from 'lucide-react'
 
 interface ChatInterfaceProps {
   processingResult?: {
@@ -19,73 +16,92 @@ interface ChatInterfaceProps {
     enhanced_content?: string
     sanitized_content?: string
   }
-  onSendMessage?: (message: string) => Promise<void>
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   processingResult,
-  onSendMessage,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([])
+  const dispatch = useAppDispatch()
+  const {
+    messages,
+    isTyping,
+    sendingMessage,
+    error,
+    sendMessage,
+    retryMessage,
+    dismissError,
+  } = useChat(
+    processingResult
+      ? { processed_data: processingResult.structured_output }
+      : {}
+  )
   const [inputValue, setInputValue] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [hasNewMessages, setHasNewMessages] = useState(false)
+  const prevMessagesLengthRef = useRef(messages.length)
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  }, [])
 
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const { scrollTop, scrollHeight, clientHeight } = container
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 10 // 10px tolerance
+    setIsAtBottom(atBottom)
+
+    if (atBottom && hasNewMessages) {
+      setHasNewMessages(false)
+    }
+  }, [hasNewMessages])
+
+  // Check for new messages and handle auto-scroll
+  useEffect(() => {
+    const hasNewMessage = messages.length > prevMessagesLengthRef.current
+    prevMessagesLengthRef.current = messages.length
+
+    if (hasNewMessage) {
+      if (isAtBottom) {
+        // Auto-scroll if user is at bottom
+        setTimeout(scrollToBottom, 100) // Small delay to ensure DOM update
+      } else {
+        // Mark that there are new messages
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setHasNewMessages(true)
+      }
+    }
+  }, [messages.length, isAtBottom, scrollToBottom])
+
+  // Attach scroll listener
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true })
+      return () => container.removeEventListener('scroll', handleScroll)
+    }
+  }, [handleScroll])
+
+  // Initial scroll to bottom
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [scrollToBottom])
 
   // Add initial message when processing is complete
   useEffect(() => {
     if (processingResult?.success && processingResult.structured_output) {
-      const initialMessage: Message = {
-        id: 'initial-json',
-        role: 'assistant',
-        content:
-          "I've successfully processed your PDF and extracted the structured data. Here's the result:",
-        timestamp: new Date(),
-        type: 'json',
-        data: processingResult.structured_output,
-      }
-      setMessages([initialMessage])
+      dispatch(addInitialProcessingResult(processingResult))
     }
-  }, [processingResult])
+  }, [processingResult, dispatch])
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || !onSendMessage) return
+    if (!inputValue.trim()) return
 
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: inputValue,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
+    await sendMessage(inputValue)
     setInputValue('')
-    setIsTyping(true)
-
-    try {
-      await onSendMessage(inputValue)
-      // For now, just simulate a response
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: "I'm processing your question about the processed data...",
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-      }, 1000)
-    } catch (error) {
-      setIsTyping(false)
-      console.error('Error sending message:', error)
-    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -95,103 +111,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }
 
-  const JsonViewer: React.FC<{ data: Record<string, unknown> }> = ({
-    data,
-  }) => {
-    const [isExpanded, setIsExpanded] = useState(false)
-
-    const formatJson = (obj: unknown, indent = 0): React.ReactElement => {
-      const indentStr = '  '.repeat(indent)
-
-      if (obj === null) {
-        return <span className="text-gray-500">null</span>
-      }
-
-      if (typeof obj === 'boolean') {
-        return <span className="text-purple-600">{obj.toString()}</span>
-      }
-
-      if (typeof obj === 'number') {
-        return <span className="text-blue-600">{obj}</span>
-      }
-
-      if (typeof obj === 'string') {
-        return <span className="text-green-600">"{obj}"</span>
-      }
-
-      if (Array.isArray(obj)) {
-        if (obj.length === 0) return <span className="text-gray-600">[]</span>
-
-        return (
-          <span>
-            [
-            <div className="ml-4">
-              {obj.map((item, index) => (
-                <div key={index}>
-                  {formatJson(item, indent + 1)}
-                  {index < obj.length - 1 && ','}
-                </div>
-              ))}
-            </div>
-            {indentStr}]
-          </span>
-        )
-      }
-
-      if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
-        const objRecord = obj as Record<string, unknown>
-        const keys = Object.keys(objRecord)
-        if (keys.length === 0)
-          return <span className="text-gray-600">{'{}'}</span>
-
-        return (
-          <span>
-            {'{'}
-            <div className="ml-4">
-              {keys.map((key, index) => (
-                <div key={key}>
-                  <span className="text-red-600">"{key}"</span>
-                  <span className="text-gray-600">: </span>
-                  {formatJson(objRecord[key], indent + 1)}
-                  {index < keys.length - 1 && ','}
-                </div>
-              ))}
-            </div>
-            {indentStr}
-            {'}'}
-          </span>
-        )
-      }
-
-      return <span>{String(obj)}</span>
-    }
-
-    return (
-      <div className="border rounded-lg bg-gray-50 dark:bg-gray-900">
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full text-left p-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-800 rounded-t-lg transition-colors"
-        >
-          <span className="font-medium text-sm flex items-center gap-2">
-            <span>📄</span>
-            Structured Output (JSON)
-          </span>
-          <span className="text-xs text-gray-500">
-            {isExpanded ? '▼' : '▶'} Click to{' '}
-            {isExpanded ? 'collapse' : 'expand'}
-          </span>
-        </button>
-        {isExpanded && (
-          <div className="p-3 border-t bg-white dark:bg-gray-800 rounded-b-lg">
-            <div className="text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono leading-relaxed">
-              {formatJson(data)}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader className="pb-3">
@@ -199,73 +118,65 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+          role="log"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
           {messages.map((message) => (
-            <div
+            <MessageBubble
               key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                {message.type === 'json' && message.data && (
-                  <div className="mt-3">
-                    <JsonViewer data={message.data} />
-                  </div>
-                )}
-                <span className="text-xs opacity-70 mt-2 block">
-                  {message.timestamp.toLocaleTimeString()}
-                </span>
-              </div>
-            </div>
+              message={message}
+              onRetry={retryMessage}
+            />
           ))}
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 max-w-[80%]">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: '0.1s' }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: '0.2s' }}
-                    ></div>
-                  </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Agent is typing...
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+          {isTyping && <TypingIndicator />}
           <div ref={messagesEndRef} />
+
+          {/* Scroll to bottom button */}
+          {hasNewMessages && !isAtBottom && (
+            <Button
+              onClick={() => {
+                scrollToBottom()
+                setHasNewMessages(false)
+              }}
+              size="sm"
+              className="absolute bottom-4 right-4 shadow-lg"
+              aria-label="Scroll to latest message"
+            >
+              <ChevronDown className="h-4 w-4 mr-1" />
+              New messages
+            </Button>
+          )}
         </div>
 
         {/* Input Area */}
         <div className="border-t p-4">
+          {error && (
+            <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
           <div className="flex space-x-2">
             <Input
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value)
+                if (error) dismissError() // Clear error when user starts typing
+              }}
               onKeyDown={handleKeyPress}
               placeholder="Ask questions about the processed data..."
               className="flex-1"
-              disabled={isTyping}
+              disabled={sendingMessage}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isTyping}
+              disabled={!inputValue.trim() || sendingMessage}
               size="sm"
             >
-              Send
+              {sendingMessage ? 'Sending...' : 'Send'}
             </Button>
           </div>
         </div>
