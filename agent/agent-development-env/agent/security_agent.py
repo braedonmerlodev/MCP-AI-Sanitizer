@@ -32,7 +32,7 @@ class SecurityAgent(Agent):
 
     def _initialize_tools(self) -> list[Tool]:
         """Initialize core intrinsic tools"""
-        return [self._create_sanitization_tool(), self._create_ai_pdf_tool()]
+        return [self._create_sanitization_tool(), self._create_ai_pdf_tool(), self._create_chat_tool()]
 
     async def close(self):
         """Close the aiohttp session"""
@@ -261,5 +261,71 @@ class SecurityAgent(Agent):
                     },
                 },
                 "required": ["content"],
+            },
+        )
+
+    @traceable(name="chat_response")
+    def _create_chat_tool(self) -> Tool:
+        """Tool for generating chat responses"""
+
+        async def generate_chat_response(
+            message: str, context: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            """Generate a chat response using LLM with security context"""
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                from langchain_core.prompts import PromptTemplate
+                from langchain.chains import LLMChain
+
+                llm = ChatGoogleGenerativeAI(
+                    temperature=0.1,
+                    model=self.llm_config.get("model", "gemini-2.0-flash"),
+                    google_api_key=self.llm_config.get("api_key"),
+                )
+
+                system_context = ""
+                if context and context.get("processed_data"):
+                    system_context = f"You have access to processed PDF data: {json.dumps(context['processed_data'])}. Use this to answer questions about the content."
+
+                prompt = PromptTemplate(
+                    template="""{system_context}
+
+User: {message}
+
+Assistant: """,
+                    input_variables=["system_context", "message"],
+                )
+
+                chain = LLMChain(llm=llm, prompt=prompt)
+                response = chain.run(system_context=system_context, message=message)
+
+                return {
+                    "success": True,
+                    "response": response,
+                    "processing_time": "calculated",
+                }
+
+            except Exception as e:
+                # Fallback response
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "response": "I apologize, but I'm unable to generate a response at this time due to a technical issue.",
+                }
+
+        return Tool(
+            name="chat_response",
+            description="Generate secure chat responses using MCP-Security agent with LLM capabilities",
+            function=generate_chat_response,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "User message to respond to"},
+                    "context": {
+                        "type": "object",
+                        "description": "Optional context data (e.g., processed PDF data)"
+                    },
+                },
+                "required": ["message"],
             },
         )

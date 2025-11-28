@@ -22,6 +22,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isSending = message.status === 'sending'
   const isSent = message.status === 'sent'
   const isDelivered = message.status === 'delivered'
+  const isQueued = message.status === 'queued'
 
   const markdownComponents = {
     code: ({
@@ -65,6 +66,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const getStatusIcon = () => {
     if (isSending) return <Clock className="h-3 w-3" />
+    if (isQueued) return <Clock className="h-3 w-3" />
     if (isSent) return <Check className="h-3 w-3" />
     if (isDelivered) return <CheckCheck className="h-3 w-3" />
     if (isError) return <AlertCircle className="h-3 w-3" />

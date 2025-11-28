@@ -1,0 +1,47 @@
+schema: 1
+story: '1.4'
+story_title: 'Add Progress Indicators for PDF Processing'
+gate: CONCERNS
+status_reason: 'Implementation meets all acceptance criteria with good UX, but missing unit tests for backend status endpoint'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-28T00:00:00Z'
+
+top_issues:
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Missing unit tests for GET /api/process-pdf/{job_id} status endpoint'
+    suggested_action: 'Add unit tests covering status polling, progress calculation, and error states'
+
+waiver: { active: false }
+
+quality_score: 85
+expires: '2025-12-28T00:00:00Z'
+
+evidence:
+  tests_reviewed: 6
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "No security concerns - progress indicators don't handle sensitive data"
+  performance:
+    status: PASS
+    notes: 'Polling every 2 seconds acceptable, localStorage operations minimal'
+  reliability:
+    status: PASS
+    notes: 'Error handling implemented for processing failures and cancellations'
+  maintainability:
+    status: PASS
+    notes: 'Clean component structure, good separation of concerns'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Add unit tests for status endpoint'
+      refs: ['backend/api.py:605-646']
+    - action: 'Consider WebSocket for real-time updates instead of polling'
+      refs: ['frontend/src/components/ProgressIndicator.tsx:109-168']

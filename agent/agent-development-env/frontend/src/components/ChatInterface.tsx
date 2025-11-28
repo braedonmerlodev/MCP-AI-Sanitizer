@@ -8,6 +8,8 @@ import { useChat } from '@/hooks/useChat'
 import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { ChevronDown } from 'lucide-react'
+import { validateChatMessage } from '@/lib/validationUtils'
+import { sanitizeForApi } from '@/lib/sanitizationUtils'
 
 interface ChatInterfaceProps {
   processingResult?: {
@@ -27,6 +29,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     isTyping,
     sendingMessage,
     error,
+    isConnected,
+    isReconnecting,
     sendMessage,
     retryMessage,
     dismissError,
@@ -36,6 +40,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       : {}
   )
   const [inputValue, setInputValue] = useState('')
+  const [inputError, setInputError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
@@ -100,8 +105,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
-    await sendMessage(inputValue)
+    // Validate input before sending
+    const validation = validateChatMessage(inputValue)
+    if (!validation.isValid) {
+      setInputError(validation.error || 'Invalid input')
+      return
+    }
+
+    // Sanitize input for API call
+    const sanitizedMessage = sanitizeForApi(inputValue)
+
+    await sendMessage(sanitizedMessage)
     setInputValue('')
+    setInputError(null)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -114,7 +130,36 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Chat with MCP Security Agent</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">
+            Chat with MCP Security Agent
+          </CardTitle>
+          <div className="flex items-center space-x-2">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? 'bg-green-500'
+                  : isReconnecting
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-red-500'
+              }`}
+              title={
+                isConnected
+                  ? 'Connected'
+                  : isReconnecting
+                    ? 'Reconnecting...'
+                    : 'Disconnected'
+              }
+            />
+            <span className="text-sm text-gray-600">
+              {isConnected
+                ? 'Connected'
+                : isReconnecting
+                  ? 'Reconnecting...'
+                  : 'Disconnected'}
+            </span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
         {/* Messages Area */}
@@ -163,22 +208,37 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <Input
               value={inputValue}
               onChange={(e) => {
-                setInputValue(e.target.value)
+                const newValue = e.target.value
+                setInputValue(newValue)
+
+                // Real-time validation
+                if (newValue.trim()) {
+                  const validation = validateChatMessage(newValue)
+                  setInputError(
+                    validation.isValid ? null : validation.error || null
+                  )
+                } else {
+                  setInputError(null)
+                }
+
                 if (error) dismissError() // Clear error when user starts typing
               }}
               onKeyDown={handleKeyPress}
               placeholder="Ask questions about the processed data..."
-              className="flex-1"
+              className={`flex-1 ${inputError ? 'border-red-500' : ''}`}
               disabled={sendingMessage}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || sendingMessage}
+              disabled={!inputValue.trim() || sendingMessage || !!inputError}
               size="sm"
             >
               {sendingMessage ? 'Sending...' : 'Send'}
             </Button>
           </div>
+          {inputError && (
+            <p className="text-sm text-red-600 mt-1">{inputError}</p>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -7,7 +7,7 @@ export interface Message {
   timestamp: Date
   type?: 'text' | 'json'
   data?: Record<string, unknown>
-  status?: 'sending' | 'sent' | 'delivered' | 'error'
+  status?: 'sending' | 'sent' | 'delivered' | 'error' | 'queued'
 }
 
 export interface ChatState {
