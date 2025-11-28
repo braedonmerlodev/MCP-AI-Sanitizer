@@ -188,7 +188,7 @@ describe('AITextTransformer', () => {
 
     const result = await transformer.transform('test input', 'structure');
 
-    expect(result.metadata.cost).toBeCloseTo(0.000_0105, 6); // (14/1000)*0.00025 + (14/1000)*0.0005 for sanitized text lengths
+    expect(result.metadata.cost).toBeCloseTo(0.000_010_5, 6); // (14/1000)*0.00025 + (14/1000)*0.0005 for sanitized text lengths
     expect(result.metadata.tokens.prompt).toBe(100);
     expect(result.metadata.tokens.completion).toBe(50);
     expect(result.metadata.tokens.total).toBe(150);

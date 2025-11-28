@@ -19,7 +19,7 @@ class AITextTransformer {
   constructor(options = {}) {
     this.gemini = new ChatGoogleGenerativeAI({
       apiKey: aiConfig.gemini.apiKey,
-      modelName: options.model || 'gemini-pro',
+      model: 'models/gemini-pro',
       temperature: options.temperature ?? 0.1,
       maxOutputTokens: options.maxTokens ?? 2000,
     });
@@ -84,7 +84,7 @@ class AITextTransformer {
 
       // Cost calculation: Gemini pricing (as of 2024)
       // Input: $0.00025 per 1K characters, Output: $0.0005 per 1K characters (approximate)
-      const inputCost = (sanitizedInput.length / 1000) * 0.00025;
+      const inputCost = (sanitizedInput.length / 1000) * 0.000_25;
       const outputCost = (sanitizedOutput.length / 1000) * 0.0005;
       const totalCost = inputCost + outputCost;
 
