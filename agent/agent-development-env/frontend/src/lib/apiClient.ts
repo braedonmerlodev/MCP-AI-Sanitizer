@@ -1,5 +1,8 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, AxiosError } from 'axios'
+import { classifyError } from './errorClassifier'
+import { globalCircuitBreaker } from './circuitBreaker'
+import { offlineManager } from './offlineManager'
 
 // Environment configuration
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -9,8 +12,9 @@ const API_KEY = import.meta.env.VITE_API_KEY || ''
 const cache = new Map<string, { data: any; timestamp: number }>()
 
 // Retry configuration
-const MAX_RETRIES = 3
-const RETRY_DELAY = 1000 // 1 second
+const MAX_RETRIES = 10
+const BASE_RETRY_DELAY = 1000 // 1 second
+const MAX_RETRY_DELAY = 30000 // 30 seconds
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -22,9 +26,18 @@ const apiClient: AxiosInstance = axios.create({
   },
 })
 
-// Request interceptor for logging
+// Request interceptor for logging and circuit breaker
 apiClient.interceptors.request.use(
   (config) => {
+    // Check circuit breaker
+    if (globalCircuitBreaker.isOpen()) {
+      const circuitError = new Error(
+        'Circuit breaker is open. Service temporarily unavailable.'
+      )
+      ;(circuitError as any).name = 'CircuitBreakerError'
+      return Promise.reject(circuitError)
+    }
+
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`)
     return config
   },
@@ -34,9 +47,12 @@ apiClient.interceptors.request.use(
   }
 )
 
-// Response interceptor for caching, logging, and error handling
+// Response interceptor for caching, logging, circuit breaker, and error handling
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Record success for circuit breaker
+    globalCircuitBreaker.recordSuccess()
+
     const method = response.config.method?.toUpperCase()
     const url = response.config.url
     const cacheKey = `${method}:${url}`
@@ -53,23 +69,67 @@ apiClient.interceptors.response.use(
     const config = error.config as any
     if (!config) return Promise.reject(error)
 
-    // Implement retry logic for network errors and 5xx responses
+    // Handle offline mode
+    if (offlineManager.isOffline()) {
+      const method = config.method?.toUpperCase()
+      const url = config.url
+
+      // For GET requests, return cached response if available
+      if (method === 'GET') {
+        const cacheKey = `${method}:${url}`
+        const cached = cache.get(cacheKey)
+        if (cached && Date.now() - cached.timestamp < 300000) {
+          // 5 minutes
+          console.log('Returning cached response for offline GET:', url)
+          return Promise.resolve({
+            data: cached.data,
+            status: 200,
+            statusText: 'OK (cached)',
+            headers: {},
+            config,
+          } as AxiosResponse)
+        }
+      }
+
+      // Queue the request for later
+      offlineManager.queueRequest(
+        method || 'GET',
+        url || '',
+        config.data,
+        config.headers
+      )
+
+      const offlineError = new Error(
+        'Network is offline. Request queued for retry when online.'
+      )
+      ;(offlineError as any).name = 'OfflineError'
+      return Promise.reject(offlineError)
+    }
+
+    // Classify the error
+    const classification = classifyError(error)
+
+    // Implement retry logic based on error classification
     const retryCount = config._retryCount || 0
-    const shouldRetry =
-      retryCount < MAX_RETRIES &&
-      (error.code === 'NETWORK_ERROR' ||
-        error.code === 'TIMEOUT' ||
-        (error.response && error.response.status >= 500))
+    const shouldRetry = retryCount < MAX_RETRIES && classification.isRetryable
 
     if (shouldRetry) {
       config._retryCount = retryCount + 1
+      // Exponential backoff: base * 2^(retry-1), capped at max
+      const delay = Math.min(
+        BASE_RETRY_DELAY * Math.pow(2, retryCount - 1),
+        MAX_RETRY_DELAY
+      )
       console.log(
-        `Retrying request (${config._retryCount}/${MAX_RETRIES}): ${config.method?.toUpperCase()} ${config.url}`
+        `Retrying request (${config._retryCount}/${MAX_RETRIES}): ${config.method?.toUpperCase()} ${config.url} - ${classification.userMessage}`
       )
-      await new Promise((resolve) =>
-        setTimeout(resolve, RETRY_DELAY * config._retryCount)
-      )
+      await new Promise((resolve) => setTimeout(resolve, delay))
       return apiClient(config)
+    }
+
+    // Record failure for circuit breaker (only if not a circuit breaker error itself)
+    if (error.name !== 'CircuitBreakerError') {
+      globalCircuitBreaker.recordFailure()
     }
 
     if (error.response) {

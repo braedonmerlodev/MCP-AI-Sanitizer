@@ -1,0 +1,62 @@
+schema: 1
+story: '2.5'
+story_title: 'Implement Error Handling and Retry Logic'
+gate: CONCERNS
+status_reason: 'Core error handling features implemented with good unit test coverage, but missing integration tests for end-to-end error scenarios and offline recovery'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-11-28T00:00:00Z'
+
+top_issues:
+  - id: 'TEST-001'
+    severity: high
+    finding: 'Missing integration tests for combined error handling flows (circuit breaker + retry + offline)'
+    suggested_action: 'Add integration tests covering realistic failure scenarios and recovery paths'
+  - id: 'TEST-002'
+    severity: medium
+    finding: 'Offline request queuing not tested end-to-end'
+    suggested_action: 'Test request persistence and processing on network restoration'
+
+waiver: { active: false }
+
+quality_score: 78
+expires: '2025-12-28T00:00:00Z'
+
+evidence:
+  tests_reviewed: 3
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: [8]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Error handling doesn't expose sensitive information, messages are user-safe"
+  performance:
+    status: PASS
+    notes: 'Exponential backoff and circuit breaker prevent resource exhaustion'
+  reliability:
+    status: CONCERNS
+    notes: 'Missing integration tests for failure recovery and offline scenarios'
+  maintainability:
+    status: PASS
+    notes: 'Modular design with good unit test coverage and clear separation of concerns'
+
+recommendations:
+  immediate:
+    - action: 'Add integration tests for error handling end-to-end flows'
+      refs:
+        [
+          'frontend/src/lib/apiClient.ts',
+          'frontend/src/lib/circuitBreaker.ts',
+          'frontend/src/lib/offlineManager.ts',
+        ]
+    - action: 'Test offline request queuing and recovery'
+      refs: ['frontend/src/lib/offlineManager.ts']
+  future:
+    - action: 'Consider WebSocket for real-time offline status updates'
+      refs: ['frontend/src/lib/offlineManager.ts']
+    - action: 'Add retry metrics and success rate monitoring'
+      refs: ['frontend/src/lib/apiClient.ts']
+    - action: 'Implement request deduplication'
+      refs: ['frontend/src/lib/apiClient.ts']
