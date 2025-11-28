@@ -44,7 +44,7 @@ class SecurityAgent(Agent):
     @traceable(name="ai_pdf_enhancement")
     def _create_ai_pdf_tool(self) -> Tool:
         """Tool for AI-powered PDF text enhancement"""
-        def enhance_pdf_text(content: str, transformation_type: str = "structure") -> Dict[str, Any]:
+        async def enhance_pdf_text(content: str, transformation_type: str = "structure") -> Dict[str, Any]:
             """Enhance PDF text using Langchain and Gemini models"""
             try:
                 from langchain.chains import LLMChain
