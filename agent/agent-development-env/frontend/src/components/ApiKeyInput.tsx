@@ -70,16 +70,19 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>API Key Management</CardTitle>
+        <CardTitle>Gemini API Key Management</CardTitle>
         <CardDescription>
-          Enter your API key to access MCP Security services
+          Enter your Gemini API key to access MCP Security services (we only
+          support Gemini API keys today)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {isAuthenticated && apiKey ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Current API Key:</span>
+              <span className="text-sm font-medium">
+                Current Gemini API Key:
+              </span>
               <Badge variant="secondary">Authenticated</Badge>
             </div>
             <div className="flex items-center space-x-2">
@@ -95,7 +98,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
               </Button>
             </div>
             <Button variant="destructive" onClick={logout} className="w-full">
-              Remove API Key
+              Remove Gemini API Key
             </Button>
           </div>
         ) : (
@@ -105,7 +108,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
                 htmlFor="apiKey"
                 className="block text-sm font-medium mb-1"
               >
-                API Key
+                Gemini API Key
               </label>
               <Input
                 id="apiKey"
@@ -127,7 +130,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 
                   if (error) clearError()
                 }}
-                placeholder="Enter your API key"
+                placeholder="Enter your Gemini API key"
                 disabled={isValidating}
                 className={error || inputError ? 'border-red-500' : ''}
               />
@@ -145,7 +148,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
                 disabled={!inputKey.trim() || isValidating || !!inputError}
                 className="flex-1"
               >
-                {isValidating ? 'Validating...' : 'Save API Key'}
+                {isValidating ? 'Validating...' : 'Save Gemini API Key'}
               </Button>
               {onCancel && (
                 <Button
