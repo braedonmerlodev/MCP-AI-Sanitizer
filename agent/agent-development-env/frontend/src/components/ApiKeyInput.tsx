@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from './ui/card'
 import { Badge } from './ui/badge'
+import { validateApiKey } from '../lib/validationUtils'
 
 interface ApiKeyInputProps {
   onSuccess?: () => void
@@ -31,15 +32,24 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
     clearError,
   } = useAuth()
   const [inputKey, setInputKey] = useState('')
+  const [inputError, setInputError] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputKey.trim()) return
 
+    // Validate API key
+    const validation = validateApiKey(inputKey.trim())
+    if (!validation.isValid) {
+      setInputError(validation.error || 'Invalid API key')
+      return
+    }
+
     try {
-      await setApiKey(inputKey.trim())
+      await setApiKey(validation.sanitizedValue || inputKey.trim())
       setInputKey('')
+      setInputError(null)
       onSuccess?.()
     } catch (err) {
       // Error handled by auth context
@@ -101,23 +111,38 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
                 id="apiKey"
                 type="password"
                 value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value
+                  setInputKey(newValue)
+
+                  // Real-time validation
+                  if (newValue.trim()) {
+                    const validation = validateApiKey(newValue)
+                    setInputError(
+                      validation.isValid ? null : validation.error || null
+                    )
+                  } else {
+                    setInputError(null)
+                  }
+
+                  if (error) clearError()
+                }}
                 placeholder="Enter your API key"
                 disabled={isValidating}
-                className={error ? 'border-red-500' : ''}
+                className={error || inputError ? 'border-red-500' : ''}
               />
             </div>
 
-            {error && (
+            {(error || inputError) && (
               <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                {error}
+                {error || inputError}
               </div>
             )}
 
             <div className="flex space-x-2">
               <Button
                 type="submit"
-                disabled={!inputKey.trim() || isValidating}
+                disabled={!inputKey.trim() || isValidating || !!inputError}
                 className="flex-1"
               >
                 {isValidating ? 'Validating...' : 'Save API Key'}

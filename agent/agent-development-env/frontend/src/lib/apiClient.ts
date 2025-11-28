@@ -3,6 +3,13 @@ import type { AxiosInstance, AxiosResponse, AxiosError } from 'axios'
 import { classifyError } from './errorClassifier'
 import { globalCircuitBreaker } from './circuitBreaker'
 import { offlineManager } from './offlineManager'
+import {
+  validateSanitizeResponse,
+  validateProcessPdfStatusResponse,
+  validateChatResponse,
+  validateHealthResponse,
+  sanitizeApiResponse,
+} from './apiValidationUtils'
 
 // Environment configuration
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -56,6 +63,41 @@ apiClient.interceptors.response.use(
     const method = response.config.method?.toUpperCase()
     const url = response.config.url
     const cacheKey = `${method}:${url}`
+
+    // Validate and sanitize response data
+    try {
+      response.data = sanitizeApiResponse(response.data)
+
+      // Schema validation based on endpoint
+      if (url?.includes('/api/sanitize')) {
+        const validation = validateSanitizeResponse(response.data)
+        if (!validation.isValid) {
+          console.warn('API response validation failed:', validation.errors)
+        }
+      } else if (
+        url?.includes('/api/process-pdf') &&
+        !url.includes('/api/process-pdf/')
+      ) {
+        // Job creation response
+      } else if (url?.includes('/api/process-pdf/')) {
+        const validation = validateProcessPdfStatusResponse(response.data)
+        if (!validation.isValid) {
+          console.warn('API response validation failed:', validation.errors)
+        }
+      } else if (url?.includes('/api/chat')) {
+        const validation = validateChatResponse(response.data)
+        if (!validation.isValid) {
+          console.warn('API response validation failed:', validation.errors)
+        }
+      } else if (url?.includes('/health')) {
+        const validation = validateHealthResponse(response.data)
+        if (!validation.isValid) {
+          console.warn('API response validation failed:', validation.errors)
+        }
+      }
+    } catch (error) {
+      console.error('Response validation error:', error)
+    }
 
     // For GET requests, cache the response
     if (method === 'GET') {

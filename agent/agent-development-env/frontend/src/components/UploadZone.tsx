@@ -31,7 +31,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
 
   const validateFile = useCallback(
     async (file: File): Promise<{ isValid: boolean; error?: string }> => {
-      // Check file type
+      // Check file type by extension and mime type
       if (
         !acceptedFileTypes.includes(file.type) &&
         !file.name.toLowerCase().endsWith('.pdf')
@@ -39,29 +39,100 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         return { isValid: false, error: 'Only PDF files are allowed' }
       }
 
-      // Check file size
+      // Check file size with detailed feedback
       if (file.size > maxFileSize) {
+        const maxMB = Math.round(maxFileSize / (1024 * 1024))
+        const fileMB = Math.round(file.size / (1024 * 1024))
         return {
           isValid: false,
-          error: `File size must be less than ${Math.round(maxFileSize / (1024 * 1024))}MB`,
+          error: `File too large (${fileMB}MB). Maximum size: ${maxMB}MB`,
         }
       }
 
-      // Validate PDF structure
+      if (file.size === 0) {
+        return { isValid: false, error: 'File appears to be empty' }
+      }
+
+      // Validate file content and structure
       try {
         const arrayBuffer = await file.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+
+        // Check PDF magic bytes
+        if (
+          uint8Array.length < 4 ||
+          !(
+            uint8Array[0] === 0x25 && // %
+            uint8Array[1] === 0x50 && // P
+            uint8Array[2] === 0x44 && // D
+            uint8Array[3] === 0x46 // F
+          )
+        ) {
+          return {
+            isValid: false,
+            error: 'File is not a valid PDF (invalid header)',
+          }
+        }
+
+        // Basic malware pattern detection
+        const suspiciousPatterns = [
+          /javascript:/gi,
+          /vbscript:/gi,
+          /onload\s*=/gi,
+          /onerror\s*=/gi,
+          /<script/gi,
+          /eval\s*\(/gi,
+          /document\.write/gi,
+          /window\.location/gi,
+        ]
+
+        // Convert first 10KB to string for pattern checking
+        const textSample = new TextDecoder('utf-8').decode(
+          uint8Array.slice(0, Math.min(10240, uint8Array.length))
+        )
+        for (const pattern of suspiciousPatterns) {
+          if (pattern.test(textSample)) {
+            return {
+              isValid: false,
+              error: 'File contains suspicious content that may be malicious',
+            }
+          }
+        }
+
+        // Validate PDF structure with pdf.js
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
         const numPages = pdf.numPages
 
         if (numPages === 0) {
-          return { isValid: false, error: 'PDF file appears to be empty' }
+          return {
+            isValid: false,
+            error: 'PDF file appears to be empty or corrupted',
+          }
+        }
+
+        if (numPages > 1000) {
+          return {
+            isValid: false,
+            error: 'PDF has too many pages (maximum 1000 allowed)',
+          }
         }
 
         // Try to get the first page to ensure it's readable
-        await pdf.getPage(1)
+        const firstPage = await pdf.getPage(1)
+        const viewport = firstPage.getViewport({ scale: 1.0 })
+
+        // Check for reasonable page dimensions
+        if (
+          viewport.width < 10 ||
+          viewport.height < 10 ||
+          viewport.width > 10000 ||
+          viewport.height > 10000
+        ) {
+          return { isValid: false, error: 'PDF page dimensions appear invalid' }
+        }
       } catch (error) {
         console.error('PDF validation error:', error)
-        return { isValid: false, error: 'Invalid PDF file structure' }
+        return { isValid: false, error: 'Invalid or corrupted PDF file' }
       }
 
       return { isValid: true }
