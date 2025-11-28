@@ -11,6 +11,7 @@ import io
 # Global agent instance (will be initialized when needed)
 agent = None
 
+
 async def get_agent():
     """Initialize agent asynchronously"""
     global agent
@@ -20,14 +21,17 @@ async def get_agent():
         response_tools = ResponseTools(agent)
         job_tools = JobTools(agent)
 
-        agent.add_tools([
-            monitoring_tools.create_monitoring_tool(),
-            monitoring_tools.create_learning_tool(),
-            response_tools.create_orchestration_tool(),
-            response_tools.create_admin_tool(),
-            job_tools.create_job_management_tool()
-        ])
+        agent.add_tools(
+            [
+                monitoring_tools.create_monitoring_tool(),
+                monitoring_tools.create_learning_tool(),
+                response_tools.create_orchestration_tool(),
+                response_tools.create_admin_tool(),
+                job_tools.create_job_management_tool(),
+            ]
+        )
     return agent
+
 
 def extract_pdf_text(uploaded_file):
     """Extract text from uploaded PDF"""
@@ -40,6 +44,7 @@ def extract_pdf_text(uploaded_file):
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
 
+
 async def process_agent_request(agent, user_input):
     """Process user input through the agent"""
     try:
@@ -47,6 +52,7 @@ async def process_agent_request(agent, user_input):
         return result
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 async def main():
     st.title("🛡️ MCP Security Agent - Test Interface")
@@ -68,11 +74,21 @@ async def main():
                     pdf_text = extract_pdf_text(uploaded_file)
 
                     if pdf_text and not pdf_text.startswith("Error"):
-                        st.text_area("Extracted Text Preview", pdf_text[:1000] + "..." if len(pdf_text) > 1000 else pdf_text, height=200)
+                        st.text_area(
+                            "Extracted Text Preview",
+                            (
+                                pdf_text[:1000] + "..."
+                                if len(pdf_text) > 1000
+                                else pdf_text
+                            ),
+                            height=200,
+                        )
 
                         # Analyze with AI
                         analysis_prompt = f"Analyze this PDF content for security risks and provide a summary: {pdf_text[:2000]}"
-                        analysis_result = await process_agent_request(agent, analysis_prompt)
+                        analysis_result = await process_agent_request(
+                            agent, analysis_prompt
+                        )
                         st.subheader("🤖 AI Analysis")
                         st.write(analysis_result)
                     else:
@@ -115,7 +131,9 @@ async def main():
         with col1:
             if st.button("🔍 Health Check"):
                 with st.spinner("Checking system health..."):
-                    result = await process_agent_request(agent, "Perform system health check")
+                    result = await process_agent_request(
+                        agent, "Perform system health check"
+                    )
                     st.success("Health Check Complete")
                     st.write(result)
 
@@ -129,7 +147,9 @@ async def main():
         with col3:
             if st.button("🧠 Learn from Data"):
                 with st.spinner("Analyzing recent incidents..."):
-                    result = await process_agent_request(agent, "Analyze recent security incidents")
+                    result = await process_agent_request(
+                        agent, "Analyze recent security incidents"
+                    )
                     st.info("Learning Complete")
                     st.write(result)
 
@@ -139,6 +159,7 @@ async def main():
     finally:
         # Ensure the agent session is closed
         await agent.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

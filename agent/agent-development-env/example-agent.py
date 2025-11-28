@@ -9,17 +9,18 @@ import requests
 from deepagent import Agent, Tool
 from typing import Dict, Any
 
+
 class ExampleSecurityAgent(Agent):
     """Example security agent using deepagent package"""
 
     def __init__(self):
         # Load backend configuration
-        self.backend_url = os.environ.get('BACKEND_URL', 'http://localhost:3001')
+        self.backend_url = os.environ.get("BACKEND_URL", "http://localhost:3001")
 
         super().__init__(
             name="Example MCP Security Agent",
             description="Demonstration agent for MCP-Security backend integration",
-            tools=self._initialize_tools()
+            tools=self._initialize_tools(),
         )
 
     def _initialize_tools(self) -> list[Tool]:
@@ -31,6 +32,7 @@ class ExampleSecurityAgent(Agent):
 
     def _create_health_check_tool(self) -> Tool:
         """Tool to check backend health"""
+
         def check_backend_health() -> Dict[str, Any]:
             """Check if the MCP-Security backend is healthy"""
             try:
@@ -39,37 +41,36 @@ class ExampleSecurityAgent(Agent):
                     return {
                         "status": "healthy",
                         "response_time": response.elapsed.total_seconds(),
-                        "backend_url": self.backend_url
+                        "backend_url": self.backend_url,
                     }
                 else:
                     return {
                         "status": "unhealthy",
                         "status_code": response.status_code,
-                        "backend_url": self.backend_url
+                        "backend_url": self.backend_url,
                     }
             except Exception as e:
                 return {
                     "status": "error",
                     "error": str(e),
-                    "backend_url": self.backend_url
+                    "backend_url": self.backend_url,
                 }
 
         return Tool(
             name="check_backend_health",
             description="Check the health status of the MCP-Security backend",
-            function=check_backend_health
+            function=check_backend_health,
         )
 
     def _create_sanitization_tool(self) -> Tool:
         """Tool for content sanitization"""
+
         def sanitize_content(content: str) -> Dict[str, Any]:
             """Sanitize content using the backend API"""
             try:
                 payload = {"data": content, "classification": "test"}
                 response = requests.post(
-                    f"{self.backend_url}/api/sanitize/json",
-                    json=payload,
-                    timeout=30
+                    f"{self.backend_url}/api/sanitize/json", json=payload, timeout=30
                 )
 
                 if response.status_code == 200:
@@ -77,19 +78,16 @@ class ExampleSecurityAgent(Agent):
                         "success": True,
                         "original_content": content,
                         "sanitized_content": response.json().get("sanitizedData"),
-                        "processing_time": response.elapsed.total_seconds()
+                        "processing_time": response.elapsed.total_seconds(),
                     }
                 else:
                     return {
                         "success": False,
                         "error": f"API returned {response.status_code}",
-                        "response": response.text
+                        "response": response.text,
                     }
             except Exception as e:
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         return Tool(
             name="sanitize_content",
@@ -100,9 +98,10 @@ class ExampleSecurityAgent(Agent):
                 "properties": {
                     "content": {"type": "string", "description": "Content to sanitize"}
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         )
+
 
 def main():
     """Main function to demonstrate agent usage"""
@@ -138,6 +137,7 @@ def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     exit(main())

@@ -8,12 +8,13 @@ import sys
 import os
 from pathlib import Path
 
+
 def run_command(cmd, description):
     """Run a command and return success status"""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
-    print('='*60)
+    print("=" * 60)
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.getcwd())
@@ -32,6 +33,7 @@ def run_command(cmd, description):
         print(f"✗ ERROR: {e}")
         return False
 
+
 def main():
     """Main test runner"""
     print("MCP Security - Comprehensive Test Suite")
@@ -45,63 +47,91 @@ def main():
     success = True
 
     # Run backend unit tests
-    if not run_command([
-        "python", "-m", "pytest",
-        "tests/test_api.py",
-        "-v",
-        "--cov=backend",
-        "--cov-report=term-missing"
-    ], "Backend Unit Tests"):
+    if not run_command(
+        [
+            "python",
+            "-m",
+            "pytest",
+            "tests/test_api.py",
+            "-v",
+            "--cov=backend",
+            "--cov-report=term-missing",
+        ],
+        "Backend Unit Tests",
+    ):
         success = False
 
     # Run integration tests
-    if not run_command([
-        "python", "-m", "pytest",
-        "tests/test_integration.py",
-        "-v",
-        "--cov-append",
-        "--cov=backend",
-        "--cov-report=term-missing"
-    ], "Integration Tests"):
+    if not run_command(
+        [
+            "python",
+            "-m",
+            "pytest",
+            "tests/test_integration.py",
+            "-v",
+            "--cov-append",
+            "--cov=backend",
+            "--cov-report=term-missing",
+        ],
+        "Integration Tests",
+    ):
         success = False
 
     # Run E2E tests
-    if not run_command([
-        "python", "-m", "pytest",
-        "tests/test_e2e.py",
-        "-v",
-        "--cov-append",
-        "--cov=backend",
-        "--cov-report=term-missing"
-    ], "End-to-End Tests"):
+    if not run_command(
+        [
+            "python",
+            "-m",
+            "pytest",
+            "tests/test_e2e.py",
+            "-v",
+            "--cov-append",
+            "--cov=backend",
+            "--cov-report=term-missing",
+        ],
+        "End-to-End Tests",
+    ):
         success = False
 
     # Run existing import tests
-    if not run_command([
-        "python", "-m", "pytest",
-        "tests/test_imports.py",
-        "-v"
-    ], "Import Tests"):
+    if not run_command(
+        ["python", "-m", "pytest", "tests/test_imports.py", "-v"], "Import Tests"
+    ):
         success = False
 
     # Run frontend tests (if available)
     frontend_test_dir = Path("frontend")
     if frontend_test_dir.exists() and (frontend_test_dir / "package.json").exists():
-        if not run_command([
-            "cd", "frontend", "&&", "npm", "test", "--", "--watchAll=false", "--verbose"
-        ], "Frontend Tests"):
+        if not run_command(
+            [
+                "cd",
+                "frontend",
+                "&&",
+                "npm",
+                "test",
+                "--",
+                "--watchAll=false",
+                "--verbose",
+            ],
+            "Frontend Tests",
+        ):
             success = False
 
     # Generate coverage report
-    if not run_command([
-        "python", "-m", "pytest",
-        "--cov=backend",
-        "--cov=agent",
-        "--cov-report=html:htmlcov",
-        "--cov-report=xml",
-        "--cov-report=term-missing",
-        "--cov-fail-under=80"
-    ], "Coverage Report Generation"):
+    if not run_command(
+        [
+            "python",
+            "-m",
+            "pytest",
+            "--cov=backend",
+            "--cov=agent",
+            "--cov-report=html:htmlcov",
+            "--cov-report=xml",
+            "--cov-report=term-missing",
+            "--cov-fail-under=80",
+        ],
+        "Coverage Report Generation",
+    ):
         success = False
 
     # Final status
@@ -114,6 +144,7 @@ def main():
         print("❌ SOME TESTS FAILED!")
         print("Check the output above for details.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

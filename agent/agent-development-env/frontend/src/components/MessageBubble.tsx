@@ -38,7 +38,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       const match = /language-(\w+)/.exec(className || '')
       return !inline && match ? (
         <SyntaxHighlighter
-          style={oneDark as any}
+          style={oneDark}
           language={match[1]}
           PreTag="div"
           {...props}

@@ -3,6 +3,7 @@ from deepagent import Tool
 from langsmith import traceable
 from typing import Dict, Any
 
+
 class JobTools:
     def __init__(self, agent):
         self.agent = agent
@@ -10,35 +11,41 @@ class JobTools:
     @traceable(name="job_management")
     def create_job_management_tool(self) -> Tool:
         """Tool for managing asynchronous jobs"""
+
         async def manage_job(action: str, job_id: str) -> Dict[str, Any]:
             """Check status, get results, or cancel async jobs"""
             try:
                 if action == "check_status":
-                    endpoint = self.agent.backend_config['endpoints']['job_status'].format(taskId=job_id)
+                    endpoint = self.agent.backend_config["endpoints"][
+                        "job_status"
+                    ].format(taskId=job_id)
                     method = self.agent.session.get
                 elif action == "get_result":
-                    endpoint = self.agent.backend_config['endpoints']['job_result'].format(taskId=job_id)
+                    endpoint = self.agent.backend_config["endpoints"][
+                        "job_result"
+                    ].format(taskId=job_id)
                     method = self.agent.session.get
                 elif action == "cancel":
-                    endpoint = self.agent.backend_config['endpoints']['job_cancel'].format(taskId=job_id)
+                    endpoint = self.agent.backend_config["endpoints"][
+                        "job_cancel"
+                    ].format(taskId=job_id)
                     method = self.agent.session.delete
                 else:
                     return {"success": False, "error": f"Unknown action: {action}"}
 
-                async with method(f"{self.agent.backend_config['base_url']}{endpoint}") as response:
+                async with method(
+                    f"{self.agent.backend_config['base_url']}{endpoint}"
+                ) as response:
                     if response.status == 200:
-                        return {
-                            "success": True,
-                            "data": await response.json()
-                        }
+                        return {"success": True, "data": await response.json()}
                     else:
                         return {
                             "success": False,
                             "error": await response.text(),
-                            "status_code": response.status
+                            "status_code": response.status,
                         }
 
-            except Exception as e:
+            except Exception:
                 # Return mock response for testing when backend is unavailable
                 mock_data = {}
                 if action == "check_status":
@@ -47,24 +54,24 @@ class JobTools:
                         "status": "completed",
                         "progress": 100,
                         "startedAt": "2024-11-26T10:00:00Z",
-                        "completedAt": "2024-11-26T10:05:00Z"
+                        "completedAt": "2024-11-26T10:05:00Z",
                     }
                 elif action == "get_result":
                     mock_data = {
                         "jobId": job_id,
                         "result": "Mock job result data",
-                        "output": {"processed": True, "items": 42}
+                        "output": {"processed": True, "items": 42},
                     }
                 elif action == "cancel":
                     mock_data = {
                         "jobId": job_id,
                         "cancelled": True,
-                        "cancelledAt": "2024-11-26T10:02:00Z"
+                        "cancelledAt": "2024-11-26T10:02:00Z",
                     }
                 return {
                     "success": True,
                     "data": mock_data,
-                    "note": "Using mock job management - backend unavailable"
+                    "note": "Using mock job management - backend unavailable",
                 }
 
         return Tool(
@@ -75,15 +82,15 @@ class JobTools:
                 "type": "object",
                 "properties": {
                     "action": {
-                        "type": "string", 
+                        "type": "string",
                         "enum": ["check_status", "get_result", "cancel"],
-                        "description": "Action to perform on the job"
+                        "description": "Action to perform on the job",
                     },
                     "job_id": {
                         "type": "string",
-                        "description": "ID of the job to manage"
-                    }
+                        "description": "ID of the job to manage",
+                    },
                 },
-                "required": ["action", "job_id"]
-            }
+                "required": ["action", "job_id"],
+            },
         )
