@@ -776,6 +776,11 @@ async def websocket_chat(websocket: WebSocket):
                 await websocket.send_json({"type": "error", "error": "Invalid JSON"})
                 continue
 
+            # Handle ping messages
+            if message_data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+                continue
+
             user_message = message_data.get("message", "")
             context = message_data.get("context", {})
 
@@ -819,46 +824,29 @@ async def stream_chat_response(
         # Send typing indicator
         await websocket.send_json({"type": "typing", "status": True})
 
-        # Prepare context for the agent
-        system_context = ""
-        if context.get("processed_data"):
-            system_context = f"You have access to processed PDF data: {json.dumps(context['processed_data'])}. Use this to answer questions about the content."
+        # Use the agent's chat tool
+        chat_tool = None
+        for tool in agent.tools:
+            if tool.name == "chat_response":
+                chat_tool = tool
+                break
 
-        # For now, use a simple LLM call. In a full implementation, you'd use the agent's LLM capabilities
-        # Since the agent uses Langchain, we can create a simple chat tool
+        if not chat_tool:
+            await websocket.send_json(
+                {"type": "error", "error": "Chat tool not available"}
+            )
+            return
 
-        from langchain.chains import LLMChain
-        from langchain.prompts import PromptTemplate
-        from langchain_google_genai import ChatGoogleGenerativeAI
+        # Call the chat tool
+        result = await chat_tool.function(message=message, context=context)
 
-        llm_config = {
-            "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
-            "temperature": 0.1,
-            "max_tokens": 2000,
-            "api_key": os.getenv("GEMINI_API_KEY"),
-            "base_url": os.getenv("AGENT_LLM_BASE_URL"),
-        }
+        if not result.get("success", False):
+            await websocket.send_json(
+                {"type": "error", "error": result.get("error", "Failed to generate response")}
+            )
+            return
 
-        llm = ChatGoogleGenerativeAI(
-            temperature=0.1,
-            model=llm_config["model"],
-            google_api_key=llm_config["api_key"],
-        )
-
-        prompt = PromptTemplate(
-            template="""{system_context}
-
-User: {message}
-
-Assistant: """,
-            input_variables=["system_context", "message"],
-        )
-
-        chain = LLMChain(llm=llm, prompt=prompt)
-
-        # For streaming, we'll simulate it by sending chunks
-        # In a real implementation, you'd use the LLM's streaming capabilities
-        response = chain.run(system_context=system_context, message=message)
+        response = result.get("response", "")
 
         # Split response into chunks for streaming effect
         words = response.split()
@@ -918,42 +906,28 @@ async def http_chat(
     try:
         agent = await get_agent()
 
-        # Simple response generation (same as WebSocket but non-streaming)
-        from langchain.chains import LLMChain
-        from langchain.prompts import PromptTemplate
-        from langchain_google_genai import ChatGoogleGenerativeAI
+        # Use the agent's chat tool
+        chat_tool = None
+        for tool in agent.tools:
+            if tool.name == "chat_response":
+                chat_tool = tool
+                break
 
-        llm_config = {
-            "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
-            "temperature": 0.1,
-            "max_tokens": 2000,
-            "api_key": os.getenv("GEMINI_API_KEY"),
-            "base_url": os.getenv("AGENT_LLM_BASE_URL"),
-        }
+        if not chat_tool:
+            raise HTTPException(status_code=500, detail="Chat tool not available")
 
-        llm = ChatGoogleGenerativeAI(
-            temperature=0.1,
-            model=llm_config["model"],
-            google_api_key=llm_config["api_key"],
+        # Call the chat tool
+        result = await chat_tool.function(
+            message=chat_request.message, context=chat_request.context
         )
 
-        system_context = ""
-        if chat_request.context and chat_request.context.get("processed_data"):
-            system_context = f"You have access to processed PDF data: {json.dumps(chat_request.context['processed_data'])}. Use this to answer questions about the content."
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Failed to generate response")
+            )
 
-        prompt = PromptTemplate(
-            template="""{system_context}
-
-User: {message}
-
-Assistant: """,
-            input_variables=["system_context", "message"],
-        )
-
-        chain = LLMChain(llm=llm, prompt=prompt)
-        response = chain.run(
-            system_context=system_context, message=chat_request.message
-        )
+        response = result.get("response", "")
 
         # Record success metrics
         duration = time.time() - start_time

@@ -27,6 +27,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     isTyping,
     sendingMessage,
     error,
+    isConnected,
+    isReconnecting,
     sendMessage,
     retryMessage,
     dismissError,
@@ -114,7 +116,36 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Chat with MCP Security Agent</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">
+            Chat with MCP Security Agent
+          </CardTitle>
+          <div className="flex items-center space-x-2">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected
+                  ? 'bg-green-500'
+                  : isReconnecting
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-red-500'
+              }`}
+              title={
+                isConnected
+                  ? 'Connected'
+                  : isReconnecting
+                    ? 'Reconnecting...'
+                    : 'Disconnected'
+              }
+            />
+            <span className="text-sm text-gray-600">
+              {isConnected
+                ? 'Connected'
+                : isReconnecting
+                  ? 'Reconnecting...'
+                  : 'Disconnected'}
+            </span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
         {/* Messages Area */}

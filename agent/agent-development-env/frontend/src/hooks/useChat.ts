@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
   addMessage,
@@ -22,6 +22,35 @@ export const useChat = (context?: Record<string, any>) => {
     string | null
   >(null)
   const [useWebSocketEnabled, setUseWebSocketEnabled] = useState(true)
+  const [messageQueue, setMessageQueue] = useState<any[]>([])
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  // Load queued messages from localStorage on mount
+  useEffect(() => {
+    const queued = localStorage.getItem('chatMessageQueue')
+    if (queued) {
+      try {
+        setMessageQueue(JSON.parse(queued))
+      } catch (error) {
+        console.error('Failed to parse message queue:', error)
+        localStorage.removeItem('chatMessageQueue')
+      }
+    }
+  }, [])
+
+  // Handle online/offline events
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
@@ -77,7 +106,11 @@ export const useChat = (context?: Record<string, any>) => {
   )
 
   // WebSocket connection
-  const { isConnected, sendMessage: wsSendMessage } = useWebSocket({
+  const {
+    isConnected,
+    isReconnecting,
+    sendMessage: wsSendMessage,
+  } = useWebSocket({
     url: `/ws/chat`,
     onMessage: useCallback(
       (message: WebSocketMessage) => {
@@ -89,8 +122,10 @@ export const useChat = (context?: Record<string, any>) => {
       // Fallback to HTTP polling on WebSocket error
       setUseWebSocketEnabled(false)
     }, []),
-    reconnectAttempts: 3,
-    reconnectInterval: 2000,
+    reconnectAttempts: 10,
+    reconnectInterval: 1000,
+    maxReconnectInterval: 30000,
+    heartbeatInterval: 30000,
   })
 
   const sendMessageViaWebSocket = useCallback(
@@ -184,6 +219,26 @@ export const useChat = (context?: Record<string, any>) => {
       dispatch(setSendingMessage(true))
       dispatch(setError(null))
 
+      // If offline, queue the message
+      if (!isOnline) {
+        const queuedMessage = {
+          id: userMessage.id,
+          content,
+          timestamp: userMessage.timestamp,
+        }
+        setMessageQueue((prev) => [...prev, queuedMessage])
+        localStorage.setItem(
+          'chatMessageQueue',
+          JSON.stringify([...messageQueue, queuedMessage])
+        )
+
+        dispatch(
+          updateMessage({ id: userMessage.id, updates: { status: 'queued' } })
+        )
+        dispatch(setSendingMessage(false))
+        return
+      }
+
       try {
         // Try WebSocket first, fallback to HTTP
         if (useWebSocketEnabled && isConnected) {
@@ -219,10 +274,44 @@ export const useChat = (context?: Record<string, any>) => {
       chatState.sendingMessage,
       useWebSocketEnabled,
       isConnected,
+      isOnline,
+      messageQueue,
       sendMessageViaWebSocket,
       sendMessageViaHTTP,
     ]
   )
+
+  const processMessageQueue = useCallback(async () => {
+    if (!isConnected || !isOnline || messageQueue.length === 0) return
+
+    const queueCopy = [...messageQueue]
+    setMessageQueue([])
+
+    for (const queuedMessage of queueCopy) {
+      try {
+        if (useWebSocketEnabled && isConnected) {
+          await sendMessageViaWebSocket(queuedMessage.content)
+        } else {
+          await sendMessageViaHTTP(queuedMessage.content)
+        }
+      } catch (error) {
+        console.error('Failed to send queued message:', error)
+        // Re-queue failed messages
+        setMessageQueue((prev) => [...prev, queuedMessage])
+        break // Stop processing on first failure
+      }
+    }
+
+    // Update localStorage
+    localStorage.setItem('chatMessageQueue', JSON.stringify(messageQueue))
+  }, [
+    isConnected,
+    isOnline,
+    messageQueue,
+    useWebSocketEnabled,
+    sendMessageViaWebSocket,
+    sendMessageViaHTTP,
+  ])
 
   const clearChat = useCallback(() => {
     dispatch(clearMessages())
@@ -253,8 +342,17 @@ export const useChat = (context?: Record<string, any>) => {
     [dispatch]
   )
 
+  // Process queued messages when reconnected
+  useEffect(() => {
+    if (isConnected && isOnline && messageQueue.length > 0) {
+      processMessageQueue()
+    }
+  }, [isConnected, isOnline, messageQueue.length, processMessageQueue])
+
   return {
     ...chatState,
+    isConnected,
+    isReconnecting,
     sendMessage,
     clearChat,
     retryMessage,
