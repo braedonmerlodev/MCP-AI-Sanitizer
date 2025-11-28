@@ -21,6 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.555.0",
+    "pdfjs-dist": "^5.4.394",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -28,7 +29,8 @@
     "react-syntax-highlighter": "^16.1.0",
     "redux-persist": "^6.0.0",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",

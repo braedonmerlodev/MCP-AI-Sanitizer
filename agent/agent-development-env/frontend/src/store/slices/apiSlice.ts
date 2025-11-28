@@ -17,8 +17,11 @@ export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: BASE_URL,
-    prepareHeaders: (headers) => {
-      headers.set('Content-Type', 'application/json')
+    prepareHeaders: (headers, { endpoint }) => {
+      // Don't set Content-Type for FormData endpoints
+      if (endpoint !== 'processPdf') {
+        headers.set('Content-Type', 'application/json')
+      }
       if (API_KEY) {
         headers.set('Authorization', `Bearer ${API_KEY}`)
       }
@@ -41,6 +44,7 @@ export const apiSlice = createApi({
         url: '/api/process-pdf',
         method: 'POST',
         body: formData,
+        formData: true, // This tells RTK Query to not set Content-Type header
       }),
     }),
 

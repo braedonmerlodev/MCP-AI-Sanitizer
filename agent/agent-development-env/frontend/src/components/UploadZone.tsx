@@ -2,6 +2,10 @@ import React, { useState, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Set worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
 export interface UploadZoneProps {
   onFileSelect?: (file: File) => void
@@ -26,7 +30,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const validateFile = useCallback(
-    (file: File): { isValid: boolean; error?: string } => {
+    async (file: File): Promise<{ isValid: boolean; error?: string }> => {
       // Check file type
       if (
         !acceptedFileTypes.includes(file.type) &&
@@ -43,6 +47,23 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         }
       }
 
+      // Validate PDF structure
+      try {
+        const arrayBuffer = await file.arrayBuffer()
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        const numPages = pdf.numPages
+
+        if (numPages === 0) {
+          return { isValid: false, error: 'PDF file appears to be empty' }
+        }
+
+        // Try to get the first page to ensure it's readable
+        await pdf.getPage(1)
+      } catch (error) {
+        console.error('PDF validation error:', error)
+        return { isValid: false, error: 'Invalid PDF file structure' }
+      }
+
       return { isValid: true }
     },
     [acceptedFileTypes, maxFileSize]
@@ -55,7 +76,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
       setUploadProgress(0)
 
       // Validate file
-      const validation = validateFile(file)
+      const validation = await validateFile(file)
 
       if (!validation.isValid) {
         setValidationError(validation.error!)

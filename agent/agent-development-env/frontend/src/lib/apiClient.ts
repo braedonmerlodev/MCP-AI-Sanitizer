@@ -6,7 +6,6 @@ const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 const API_KEY = import.meta.env.VITE_API_KEY || ''
 
 // Cache configuration
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 const cache = new Map<string, { data: any; timestamp: number }>()
 
 // Retry configuration

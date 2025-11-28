@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
 import { store, persistor } from '@/store'
@@ -11,42 +11,50 @@ import {
   ProgressIndicator,
   Toast,
 } from '@/components'
-
-interface ProcessingStatus {
-  status: 'idle' | 'processing' | 'success' | 'error'
-  message?: string
-  currentStage?: string
-  stages?: Array<{
-    stage: string
-    status: 'pending' | 'in_progress' | 'completed' | 'failed'
-    timestamp?: string
-    error?: string
-  }>
-}
-
-interface ProcessingResult {
-  success: boolean
-  sanitized_content?: string
-  enhanced_content?: string
-  structured_output?: Record<string, unknown>
-  processing_time?: string
-  error?: string
-  extracted_text_length?: number
-  processing_stages?: Array<{
-    stage: string
-    status: string
-    timestamp?: string
-    error?: string
-  }>
-}
+import {
+  useProcessPdfMutation,
+  useGetPdfStatusQuery,
+} from '@/store/slices/apiSlice'
+import { useDispatch, useSelector } from 'react-redux'
+import type { RootState } from '@/store'
+import {
+  startUpload,
+  updateUploadProgress,
+  setJobId,
+  updateProcessingStatus,
+  setError,
+  resetProcessing,
+  retryProcessing,
+} from '@/store/slices/pdfSlice'
 
 function App() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
-    status: 'idle',
+  const dispatch = useDispatch()
+  const pdfState = useSelector((state: RootState) => state.pdf)
+  const [processPdf] = useProcessPdfMutation()
+  const { data: statusData } = useGetPdfStatusQuery(pdfState.jobId || '', {
+    pollingInterval: pdfState.status === 'processing' ? 2000 : 0,
+    skip:
+      !pdfState.jobId ||
+      pdfState.status === 'completed' ||
+      pdfState.status === 'failed',
   })
-  const [processingResult, setProcessingResult] =
-    useState<ProcessingResult | null>(null)
+
+  // Update processing status when status data changes
+  useEffect(() => {
+    if (statusData && pdfState.jobId) {
+      dispatch(
+        updateProcessingStatus({
+          status: statusData.status,
+          progress_percentage: statusData.progress_percentage,
+          stages: statusData.stages,
+          estimated_time_remaining: statusData.estimated_time_remaining,
+          error: statusData.error,
+          result: statusData.result,
+        })
+      )
+    }
+  }, [statusData, pdfState.jobId, dispatch])
 
   const getUserFriendlyError = (error: string): string => {
     if (error.includes('Failed to extract PDF text')) {
@@ -70,44 +78,6 @@ function App() {
     return error // fallback to original
   }
 
-  const startPdfProcessing = (
-    file: File,
-    onProgress?: (progress: number) => void
-  ): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      const formData = new FormData()
-      formData.append('file', file)
-
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable && onProgress) {
-          const progress = (event.loaded / event.total) * 100
-          onProgress(progress)
-        }
-      })
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText)
-            resolve(data)
-          } catch (e) {
-            reject(new Error('Invalid response'))
-          }
-        } else {
-          reject(new Error(`HTTP error! status: ${xhr.status}`))
-        }
-      })
-
-      xhr.addEventListener('error', () => {
-        reject(new Error('Network error'))
-      })
-
-      xhr.open('POST', '/api/process-pdf')
-      xhr.send(formData)
-    })
-  }
-
   const handleFileSelect = (file: File) => {
     setUploadedFile(file)
     console.log(
@@ -126,74 +96,42 @@ function App() {
   ) => {
     if (isValid) {
       console.log('File validated successfully:', file.name)
-      setProcessingStatus({
-        status: 'processing',
-        message: 'Uploading PDF file...',
-      })
+      dispatch(startUpload({ filename: file.name, fileSize: file.size }))
 
       try {
-        await startPdfProcessing(file, (progress) => {
-          setProcessingStatus({
-            status: 'processing',
-            message: `Uploading PDF file... ${Math.round(progress)}%`,
-          })
-        })
-        setProcessingStatus({
-          status: 'processing',
-          message: 'PDF processing job started',
-        })
-      } catch (err) {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const result = await processPdf(formData).unwrap()
+        dispatch(updateUploadProgress(100))
+        dispatch(setJobId(result.job_id))
+      } catch (err: any) {
         console.error('Processing start error:', err)
-        setProcessingStatus({
-          status: 'error',
-          message: getUserFriendlyError(
-            err instanceof Error ? err.message : 'Failed to start processing'
-          ),
-        })
+        dispatch(
+          setError(
+            getUserFriendlyError(
+              err?.data?.detail || err.message || 'Failed to start processing'
+            )
+          )
+        )
       }
     } else {
       console.error('File validation failed:', error)
-      setProcessingStatus({ status: 'idle' })
+      dispatch(setError(error || 'File validation failed'))
     }
   }
 
-  const handleRetry = async () => {
+  const handleRetry = () => {
     if (!uploadedFile) return
-
-    setProcessingResult(null)
-    setProcessingStatus({
-      status: 'processing',
-      message: 'Retrying PDF processing...',
-    })
-
-    try {
-      await startPdfProcessing(uploadedFile, () => {})
-      setProcessingStatus({
-        status: 'processing',
-        message: 'PDF processing job restarted',
-      })
-    } catch (err) {
-      console.error('Retry error:', err)
-      setProcessingStatus({
-        status: 'error',
-        message: getUserFriendlyError(
-          err instanceof Error ? err.message : 'Failed to restart processing'
-        ),
-      })
-    }
+    dispatch(retryProcessing())
   }
 
   const handleCancel = () => {
-    setProcessingStatus({ status: 'idle' })
-    setProcessingResult(null)
+    dispatch(resetProcessing())
   }
 
-  const handleComplete = (result: ProcessingResult) => {
-    setProcessingResult(result)
-    setProcessingStatus({
-      status: 'success',
-      message: 'Content processed and enhanced successfully',
-    })
+  const handleComplete = () => {
+    // Result is already in Redux state
   }
 
   return (
@@ -221,20 +159,22 @@ function App() {
                 />
               </div>
 
-              {uploadedFile && processingStatus.status !== 'success' && (
-                <ProgressIndicator
-                  file={uploadedFile}
-                  startProcessing={startPdfProcessing}
-                  onCancel={handleCancel}
-                  onRetry={handleRetry}
-                  onComplete={handleComplete}
-                  className="max-w-md mx-auto"
-                />
-              )}
+              {uploadedFile &&
+                pdfState.status !== 'completed' &&
+                pdfState.status !== 'failed' &&
+                pdfState.status !== 'cancelled' && (
+                  <ProgressIndicator
+                    file={uploadedFile}
+                    onCancel={handleCancel}
+                    onRetry={handleRetry}
+                    onComplete={handleComplete}
+                    className="max-w-md mx-auto"
+                  />
+                )}
 
-              {processingStatus.status === 'success' && processingResult && (
+              {pdfState.status === 'completed' && pdfState.result && (
                 <div className="max-w-4xl mx-auto">
-                  <ChatInterface processingResult={processingResult} />
+                  <ChatInterface processingResult={pdfState.result} />
                 </div>
               )}
             </div>
