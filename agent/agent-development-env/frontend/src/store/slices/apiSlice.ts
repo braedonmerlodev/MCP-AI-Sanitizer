@@ -10,7 +10,7 @@ import type {
 } from '../../types/api'
 
 // Environment configuration
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
 const baseQueryWithAuth = fetchBaseQuery({
   baseUrl: BASE_URL,
