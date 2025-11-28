@@ -3,6 +3,7 @@ import { persistStore, persistReducer, createTransform } from 'redux-persist'
 import storage from 'redux-persist/lib/storage'
 import chatReducer from './slices/chatSlice'
 import notificationReducer from './slices/notificationSlice'
+import { apiSlice } from './slices/apiSlice'
 
 // Transform to handle Date objects in messages and lastActivity
 const dateTransform = createTransform(
@@ -45,13 +46,14 @@ export const store = configureStore({
   reducer: {
     chat: persistedChatReducer,
     notification: notificationReducer,
+    [apiSlice.reducerPath]: apiSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
-    }),
+    }).concat(apiSlice.middleware),
 })
 
 export const persistor = persistStore(store)
