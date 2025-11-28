@@ -89,8 +89,7 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ data }) => {
           Structured Output (JSON)
         </span>
         <span className="text-xs text-gray-500">
-          {isExpanded ? '▼' : '▶'} Click to{' '}
-          {isExpanded ? 'collapse' : 'expand'}
+          {isExpanded ? '▼' : '▶'} Click to {isExpanded ? 'collapse' : 'expand'}
         </span>
       </button>
       {isExpanded && (

@@ -48,26 +48,26 @@ Learning Approach:
 AGENT_TOOLS_CONFIG = {
     "sanitize_content": {
         "description": "Sanitize content using MCP-Security backend (basic or JSON with trust tokens)",
-        "when_to_use": "When processing potentially malicious or untrusted content"
+        "when_to_use": "When processing potentially malicious or untrusted content",
     },
     "monitor_system": {
         "description": "Monitor system health, performance metrics, and detect anomalies",
-        "when_to_use": "Regular health checks or when investigating performance issues"
+        "when_to_use": "Regular health checks or when investigating performance issues",
     },
     "learn_from_incidents": {
         "description": "Export and analyze recent security incidents for continuous learning",
-        "when_to_use": "After incidents or during scheduled learning sessions"
+        "when_to_use": "After incidents or during scheduled learning sessions",
     },
     "orchestrate_response": {
         "description": "Execute automated security response actions (admin override, N8N workflows)",
-        "when_to_use": "When threats are detected and automated response is appropriate"
+        "when_to_use": "When threats are detected and automated response is appropriate",
     },
     "admin_override_tool": {
         "description": "Execute administrative override actions",
-        "when_to_use": "When emergency administrative access is required"
+        "when_to_use": "When emergency administrative access is required",
     },
     "job_management": {
         "description": "Check status and retrieve results of asynchronous jobs",
-        "when_to_use": "When monitoring async sanitization operations"
-    }
+        "when_to_use": "When monitoring async sanitization operations",
+    },
 }

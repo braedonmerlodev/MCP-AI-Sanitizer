@@ -13,6 +13,7 @@ from pathlib import Path
 BASE_URL = "http://localhost:3000"  # Adjust if different
 API_KEY = os.getenv("API_KEY", "test-key")
 
+
 def test_file_size_limit():
     """Test file size limit enforcement"""
     print("Testing file size limit...")
@@ -20,17 +21,20 @@ def test_file_size_limit():
     # Create a large file (>10MB)
     large_content = b"A" * (11 * 1024 * 1024)  # 11MB
 
-    files = {'file': ('large.pdf', large_content, 'application/pdf')}
-    headers = {'Authorization': f'Bearer {API_KEY}'}
+    files = {"file": ("large.pdf", large_content, "application/pdf")}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
 
     try:
-        response = requests.post(f"{BASE_URL}/api/process-pdf", files=files, headers=headers)
+        response = requests.post(
+            f"{BASE_URL}/api/process-pdf", files=files, headers=headers
+        )
         if response.status_code == 413:
             print("✓ File size limit enforced correctly")
         else:
             print(f"✗ Expected 413, got {response.status_code}")
     except Exception as e:
         print(f"✗ Error testing file size: {e}")
+
 
 def test_invalid_file_type():
     """Test invalid file type rejection"""
@@ -39,11 +43,13 @@ def test_invalid_file_type():
     # Create a fake PDF (doesn't start with %PDF-)
     fake_pdf = b"This is not a PDF file"
 
-    files = {'file': ('fake.pdf', fake_pdf, 'application/pdf')}
-    headers = {'Authorization': f'Bearer {API_KEY}'}
+    files = {"file": ("fake.pdf", fake_pdf, "application/pdf")}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
 
     try:
-        response = requests.post(f"{BASE_URL}/api/process-pdf", files=files, headers=headers)
+        response = requests.post(
+            f"{BASE_URL}/api/process-pdf", files=files, headers=headers
+        )
         if response.status_code == 400:
             print("✓ Invalid file type rejected")
         else:
@@ -51,18 +57,21 @@ def test_invalid_file_type():
     except Exception as e:
         print(f"✗ Error testing file type: {e}")
 
+
 def test_rate_limiting():
     """Test rate limiting"""
     print("Testing rate limiting...")
 
-    headers = {'Authorization': f'Bearer {API_KEY}'}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
 
     # Make many requests quickly
     for i in range(110):  # More than the 100 limit
         try:
-            response = requests.post(f"{BASE_URL}/api/sanitize/json",
-                                   json={"content": f"test {i}", "classification": "general"},
-                                   headers=headers)
+            response = requests.post(
+                f"{BASE_URL}/api/sanitize/json",
+                json={"content": f"test {i}", "classification": "general"},
+                headers=headers,
+            )
             if response.status_code == 429:
                 print("✓ Rate limiting working")
                 break
@@ -72,14 +81,17 @@ def test_rate_limiting():
     else:
         print("✗ Rate limiting not triggered")
 
+
 def test_authentication():
     """Test authentication requirement"""
     print("Testing authentication...")
 
     # Test without API key
     try:
-        response = requests.post(f"{BASE_URL}/api/sanitize/json",
-                               json={"content": "test", "classification": "general"})
+        response = requests.post(
+            f"{BASE_URL}/api/sanitize/json",
+            json={"content": "test", "classification": "general"},
+        )
         if response.status_code == 401:
             print("✓ Authentication required")
         else:
@@ -87,24 +99,28 @@ def test_authentication():
     except Exception as e:
         print(f"✗ Error testing auth: {e}")
 
+
 def test_input_validation():
     """Test input validation and sanitization"""
     print("Testing input validation...")
 
-    headers = {'Authorization': f'Bearer {API_KEY}'}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
 
     # Test oversized input
     large_input = "A" * (1000001)  # MAX_TEXT_LENGTH + 1
     try:
-        response = requests.post(f"{BASE_URL}/api/sanitize/json",
-                               json={"content": large_input, "classification": "general"},
-                               headers=headers)
+        response = requests.post(
+            f"{BASE_URL}/api/sanitize/json",
+            json={"content": large_input, "classification": "general"},
+            headers=headers,
+        )
         if response.status_code == 413:
             print("✓ Input size validation working")
         else:
             print(f"✗ Expected 413, got {response.status_code}")
     except Exception as e:
         print(f"✗ Error testing input validation: {e}")
+
 
 def test_security_headers():
     """Test security headers"""
@@ -115,11 +131,11 @@ def test_security_headers():
         headers = response.headers
 
         security_headers = [
-            'X-Content-Type-Options',
-            'X-Frame-Options',
-            'X-XSS-Protection',
-            'Strict-Transport-Security',
-            'Content-Security-Policy'
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+            "X-XSS-Protection",
+            "Strict-Transport-Security",
+            "Content-Security-Policy",
         ]
 
         missing = []
@@ -134,6 +150,7 @@ def test_security_headers():
 
     except Exception as e:
         print(f"✗ Error testing security headers: {e}")
+
 
 if __name__ == "__main__":
     print("Running security audit tests...\n")

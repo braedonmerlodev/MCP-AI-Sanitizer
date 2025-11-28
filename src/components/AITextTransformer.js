@@ -1,4 +1,4 @@
-const { ChatOpenAI } = require('@langchain/openai');
+const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
 const { PromptTemplate } = require('@langchain/core/prompts');
 const winston = require('winston');
 const SanitizationPipeline = require('./sanitization-pipeline');
@@ -12,16 +12,16 @@ const logger = winston.createLogger({
 });
 
 /**
- * AITextTransformer handles AI-powered text transformations using GPT models with double sanitization.
+ * AITextTransformer handles AI-powered text transformations using Gemini models with double sanitization.
  * Supports multiple transformation types: structure, summarize, extract_entities, json_schema.
  */
 class AITextTransformer {
   constructor(options = {}) {
-    this.openai = new ChatOpenAI({
-      openAIApiKey: aiConfig.openai.apiKey,
-      modelName: options.model || 'gpt-3.5-turbo',
+    this.gemini = new ChatGoogleGenerativeAI({
+      apiKey: aiConfig.gemini.apiKey,
+      model: 'models/gemini-pro',
       temperature: options.temperature ?? 0.1,
-      maxTokens: options.maxTokens ?? 2000,
+      maxOutputTokens: options.maxTokens ?? 2000,
     });
 
     this.sanitizer = new SanitizationPipeline(options.sanitizerOptions || {});
@@ -65,7 +65,7 @@ class AITextTransformer {
       const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
 
       // Create and execute the Langchain pipeline
-      const chain = prompt.pipe(this.openai);
+      const chain = prompt.pipe(this.gemini);
       const result = await chain.invoke({ text: sanitizedInput });
       const aiOutput = result.content;
 
@@ -82,10 +82,10 @@ class AITextTransformer {
       const completionTokens = usage.completion_tokens || 0;
       const totalTokens = usage.total_tokens || promptTokens + completionTokens;
 
-      // Cost calculation: GPT-3.5-turbo pricing (as of 2024)
-      // Input: $0.0015 per 1K tokens, Output: $0.002 per 1K tokens
-      const inputCost = (promptTokens / 1000) * 0.0015;
-      const outputCost = (completionTokens / 1000) * 0.002;
+      // Cost calculation: Gemini pricing (as of 2024)
+      // Input: $0.00025 per 1K characters, Output: $0.0005 per 1K characters (approximate)
+      const inputCost = (sanitizedInput.length / 1000) * 0.000_25;
+      const outputCost = (sanitizedOutput.length / 1000) * 0.0005;
       const totalCost = inputCost + outputCost;
 
       this.logger.info('AI transformation completed successfully', {

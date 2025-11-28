@@ -12,7 +12,7 @@ Done
 
 ## Acceptance Criteria
 
-1. Fix "OPENAI_API_KEY environment variable must be set" validation error in tests
+1. Fix "GEMINI_API_KEY environment variable must be set" validation error in tests
 2. Implement proper API key validation in AI config initialization
 3. Add comprehensive API key testing with various validation scenarios
 4. Verify API key validation works across different deployment environments
@@ -21,13 +21,13 @@ Done
 ## Tasks / Subtasks
 
 - [x] Enhance aiConfig.js validation logic
-  - [x] Add format validation (check for valid OpenAI API key patterns: sk- prefix)
-  - [x] Implement length checks (51 characters for OpenAI secret keys)
+  - [x] Add format validation (check for valid Gemini API key patterns: AIzaSy prefix)
+  - [x] Implement length checks (39 characters for Gemini API keys)
   - [x] Add environment-specific validation rules
 - [x] Refactor AI service integrations
   - [x] Modify AITextTransformer to import and use aiConfig instead of direct env access
   - [x] Ensure all AI components use validated config consistently
-  - [x] Update any other components accessing OPENAI_API_KEY directly
+  - [x] Update any other components accessing GEMINI_API_KEY directly
 - [x] Expand test suite comprehensively
   - [x] Add tests for invalid formats, edge cases, and special characters
   - [x] Implement environment-specific test scenarios
@@ -80,7 +80,7 @@ This is a sub-story of Epic 1.7 "AI Config API Key Validation". The parent story
 ### Implementation Notes
 
 - Current aiConfig.js has basic presence check; needs enhancement for format and length validation
-- AITextTransformer directly accesses process.env.OPENAI_API_KEY; needs refactoring to use validated config
+- AITextTransformer directly accesses process.env.GEMINI_API_KEY; needs refactoring to use validated config
 - OpenAI API keys follow specific format: sk- followed by 48 alphanumeric characters (total 51 chars)
 - Environment differentiation needed: strict validation in production, lenient in development
 - Backward compatibility critical: existing AI workflows must continue functioning
@@ -140,7 +140,7 @@ Comprehensive review completed for Story 1.7.3: API Key Validation Fixes. High-r
 
 ### Requirements Traceability Analysis
 
-✅ **Acceptance Criteria 1:** Fix "OPENAI_API_KEY environment variable must be set" validation error in tests
+✅ **Acceptance Criteria 1:** Fix "GEMINI_API_KEY environment variable must be set" validation error in tests
 
 - **Status:** SATISFIED
 - **Evidence:** Unit tests pass with proper error handling for missing keys in production

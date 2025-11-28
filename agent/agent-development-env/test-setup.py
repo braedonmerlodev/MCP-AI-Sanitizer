@@ -8,26 +8,30 @@ import sys
 import os
 from pathlib import Path
 
+
 def test_imports():
     """Test that all required packages can be imported"""
     try:
         from deepagent import Agent, Tool
+
         print("✓ deepagent package imported successfully")
         return True
     except ImportError as e:
         print(f"✗ Failed to import deepagent: {e}")
         return False
 
+
 def test_langsmith():
     """Test LangSmith configuration"""
     try:
         import langsmith
+
         print("✓ langsmith package imported successfully")
 
         # Check environment variables
-        tracing = os.environ.get('LANGCHAIN_TRACING_V2')
-        endpoint = os.environ.get('LANGCHAIN_ENDPOINT')
-        api_key = os.environ.get('LANGCHAIN_API_KEY')
+        tracing = os.environ.get("LANGCHAIN_TRACING_V2")
+        endpoint = os.environ.get("LANGCHAIN_ENDPOINT")
+        api_key = os.environ.get("LANGCHAIN_API_KEY")
 
         if tracing and endpoint and api_key:
             print("✓ LangSmith environment variables configured")
@@ -39,13 +43,15 @@ def test_langsmith():
         print(f"✗ Failed to import langsmith: {e}")
         return False
 
+
 def test_openai():
     """Test OpenAI configuration"""
     try:
         import openai
+
         print("✓ openai package imported successfully")
 
-        api_key = os.environ.get('OPENAI_API_KEY')
+        api_key = os.environ.get("OPENAI_API_KEY")
         if api_key:
             print("✓ OpenAI API key configured")
             return True
@@ -56,15 +62,17 @@ def test_openai():
         print(f"✗ Failed to import openai: {e}")
         return False
 
+
 def test_backend_config():
     """Test backend configuration"""
     try:
         # Try to import from the mounted project
-        sys.path.append('/app')
+        sys.path.append("/app")
         from config.backend_config import BACKEND_CONFIG
+
         print("✓ Backend configuration loaded successfully")
 
-        backend_url = os.environ.get('BACKEND_URL')
+        backend_url = os.environ.get("BACKEND_URL")
         if backend_url:
             print("✓ Backend URL configured")
             return True
@@ -74,6 +82,7 @@ def test_backend_config():
     except ImportError as e:
         print(f"⚠ Backend config not found (expected if not mounted): {e}")
         return False
+
 
 def main():
     """Run all tests"""
@@ -103,6 +112,7 @@ def main():
     else:
         print("⚠️  Some tests failed. Check configuration and try again.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

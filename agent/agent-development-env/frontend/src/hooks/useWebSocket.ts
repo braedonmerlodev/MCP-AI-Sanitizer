@@ -32,6 +32,7 @@ export const useWebSocket = ({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectCountRef = useRef(0)
 
+  // Connect function moved here to fix "accessed before declared" error
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 

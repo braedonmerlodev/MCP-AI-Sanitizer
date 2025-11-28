@@ -6,7 +6,7 @@ import type { Message } from '@/store/slices/chatSlice'
 // Mock react-markdown to render basic HTML
 jest.mock('react-markdown', () => ({
   __esModule: true,
-  default: ({ children }: any) => {
+  default: ({ children }: { children: string }) => {
     // Simple mock that converts basic markdown to HTML
     const html = children
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -23,18 +23,7 @@ jest.mock('react-markdown', () => ({
 
 // Mock react-syntax-highlighter
 jest.mock('react-syntax-highlighter', () => ({
-  Prism: ({ children }: any) => (
-    <code data-testid="syntax-highlighted">{children}</code>
-  ),
-}))
-
-jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
-  oneDark: {},
-}))
-
-// Mock react-syntax-highlighter
-jest.mock('react-syntax-highlighter', () => ({
-  Prism: ({ children }: any) => (
+  Prism: ({ children }: { children: React.ReactNode }) => (
     <code data-testid="syntax-highlighted">{children}</code>
   ),
 }))

@@ -18,13 +18,13 @@ BACKEND_CONFIG = {
         "admin_override_status": "/api/admin/override/status",
         "job_status": "/api/jobs/{taskId}/status",
         "job_result": "/api/jobs/{taskId}/result",
-        "job_cancel": "/api/jobs/{taskId}"
+        "job_cancel": "/api/jobs/{taskId}",
     },
     "rate_limits": {
         "sanitize": 100,  # requests per minute (bi-directional AI processing)
         "upload_document": 25,  # lower for AI processing (resource intensive)
         "monitoring": 60,
         "export": 10,
-        "job_status": 120  # higher for status checks
-    }
+        "job_status": 120,  # higher for status checks
+    },
 }

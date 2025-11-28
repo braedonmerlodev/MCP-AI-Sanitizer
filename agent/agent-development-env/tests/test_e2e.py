@@ -19,19 +19,26 @@ class TestEndToEndUserJourney:
         self.client = TestClient(app)
         # Clear rate limit store
         from backend.api import rate_limit_store
+
         rate_limit_store.clear()
 
-    @patch.dict(os.environ, {
-        "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
-    })
-    @patch('backend.api.check_rate_limit')
-    @patch('backend.api.authenticate_request')
-    @patch('backend.api.validate_file_type')
-    @patch('backend.api.extract_pdf_text')
-    @patch('backend.api.get_agent')
-    def test_complete_pdf_upload_and_chat_journey(self, mock_get_agent, mock_extract, mock_validate, mock_auth, mock_rate_limit):
+    @patch.dict(
+        os.environ,
+        {
+            "API_KEY": "test_key",
+            "AGENT_LLM_MODEL": "gemini-2.0-flash",
+            "GEMINI_API_KEY": "test_gemini_key",
+            "ENV": "development",
+        },
+    )
+    @patch("backend.api.check_rate_limit")
+    @patch("backend.api.authenticate_request")
+    @patch("backend.api.validate_file_type")
+    @patch("backend.api.extract_pdf_text")
+    @patch("backend.api.get_agent")
+    def test_complete_pdf_upload_and_chat_journey(
+        self, mock_get_agent, mock_extract, mock_validate, mock_auth, mock_rate_limit
+    ):
         """Test complete user journey: upload PDF, process it, then chat about it"""
         # Setup mocks for consistent behavior
         mock_rate_limit.return_value = True
@@ -62,41 +69,45 @@ class TestEndToEndUserJourney:
         # Sanitize tool
         mock_sanitize_tool = MagicMock()
         mock_sanitize_tool.name = "sanitize_content"
-        mock_sanitize_tool.function = AsyncMock(return_value={
-            "success": True,
-            "sanitized_content": "Security Assessment Report - Executive Summary: This report details the security assessment of our MCP Security system. Key findings include strong encryption implementation and secure API endpoints. [Content sanitized for security]",
-            "processing_time": "0.23s"
-        })
+        mock_sanitize_tool.function = AsyncMock(
+            return_value={
+                "success": True,
+                "sanitized_content": "Security Assessment Report - Executive Summary: This report details the security assessment of our MCP Security system. Key findings include strong encryption implementation and secure API endpoints. [Content sanitized for security]",
+                "processing_time": "0.23s",
+            }
+        )
 
         # Enhance tool
         mock_enhance_tool = MagicMock()
         mock_enhance_tool.name = "ai_pdf_enhancement"
-        mock_enhance_tool.function = AsyncMock(return_value={
-            "success": True,
-            "enhanced_content": "Comprehensive security assessment reveals robust implementation with strong encryption (AES-256), secure authentication mechanisms, and comprehensive input validation. The system demonstrates good security practices including rate limiting and secure file processing.",
-            "structured_output": {
-                "document_type": "security_assessment",
-                "security_score": 8.5,
-                "key_findings": [
-                    "Strong encryption implementation",
-                    "Secure API endpoints",
-                    "Comprehensive input validation",
-                    "Proper rate limiting"
-                ],
-                "recommendations": [
-                    "Regular security audits",
-                    "Monitor rate limiting",
-                    "Update dependencies"
-                ],
-                "risk_level": "low",
-                "compliance_status": "good"
-            },
-            "processing_metadata": {
-                "processing_time": "3.45s",
-                "model_used": "gemini-1.5-flash",
-                "tokens_used": 450
+        mock_enhance_tool.function = AsyncMock(
+            return_value={
+                "success": True,
+                "enhanced_content": "Comprehensive security assessment reveals robust implementation with strong encryption (AES-256), secure authentication mechanisms, and comprehensive input validation. The system demonstrates good security practices including rate limiting and secure file processing.",
+                "structured_output": {
+                    "document_type": "security_assessment",
+                    "security_score": 8.5,
+                    "key_findings": [
+                        "Strong encryption implementation",
+                        "Secure API endpoints",
+                        "Comprehensive input validation",
+                        "Proper rate limiting",
+                    ],
+                    "recommendations": [
+                        "Regular security audits",
+                        "Monitor rate limiting",
+                        "Update dependencies",
+                    ],
+                    "risk_level": "low",
+                    "compliance_status": "good",
+                },
+                "processing_metadata": {
+                    "processing_time": "3.45s",
+                    "model_used": "gemini-2.0-flash",
+                    "tokens_used": 450,
+                },
             }
-        })
+        )
 
         mock_agent.tools = [mock_sanitize_tool, mock_enhance_tool]
         mock_get_agent.return_value = mock_agent
@@ -104,10 +115,14 @@ class TestEndToEndUserJourney:
         headers = {"Authorization": "Bearer test_key"}
 
         # Step 1: Upload and process PDF
-        pdf_content = b'%PDF-1.4\n%Mock security report PDF'
-        files = {"file": ("security_report.pdf", io.BytesIO(pdf_content), "application/pdf")}
+        pdf_content = b"%PDF-1.4\n%Mock security report PDF"
+        files = {
+            "file": ("security_report.pdf", io.BytesIO(pdf_content), "application/pdf")
+        }
 
-        pdf_response = self.client.post("/api/process-pdf", files=files, headers=headers)
+        pdf_response = self.client.post(
+            "/api/process-pdf", files=files, headers=headers
+        )
         assert pdf_response.status_code == 200
 
         pdf_data = pdf_response.json()
@@ -116,19 +131,19 @@ class TestEndToEndUserJourney:
         assert pdf_data["structured_output"]["document_type"] == "security_assessment"
 
         # Step 2: Chat about the processed document
-        with patch('backend.api.LLMChain') as mock_chain_class:
+        with patch("backend.api.LLMChain") as mock_chain_class:
             mock_chain = MagicMock()
             mock_chain.run.return_value = "Based on the security assessment, the system has strong encryption with AES-256, secure API endpoints, and comprehensive input validation. The overall security score is 8.5 out of 10, indicating good security practices."
             mock_chain_class.return_value = mock_chain
 
             chat_data = {
                 "message": "What is the security score and what are the main recommendations?",
-                "context": {
-                    "processed_data": pdf_data["structured_output"]
-                }
+                "context": {"processed_data": pdf_data["structured_output"]},
             }
 
-            chat_response = self.client.post("/api/chat", json=chat_data, headers=headers)
+            chat_response = self.client.post(
+                "/api/chat", json=chat_data, headers=headers
+            )
             assert chat_response.status_code == 200
 
             chat_result = chat_response.json()
@@ -136,17 +151,23 @@ class TestEndToEndUserJourney:
             assert "security score" in chat_result["response"].lower()
             assert "recommendations" in chat_result["response"].lower()
 
-    @patch.dict(os.environ, {
-        "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
-    })
-    @patch('backend.api.check_rate_limit')
-    @patch('backend.api.authenticate_request')
-    @patch('backend.api.validate_file_type')
-    @patch('backend.api.extract_pdf_text')
-    @patch('backend.api.get_agent')
-    def test_error_recovery_journey(self, mock_get_agent, mock_extract, mock_validate, mock_auth, mock_rate_limit):
+    @patch.dict(
+        os.environ,
+        {
+            "API_KEY": "test_key",
+            "AGENT_LLM_MODEL": "gemini-2.0-flash",
+            "GEMINI_API_KEY": "test_gemini_key",
+            "ENV": "development",
+        },
+    )
+    @patch("backend.api.check_rate_limit")
+    @patch("backend.api.authenticate_request")
+    @patch("backend.api.validate_file_type")
+    @patch("backend.api.extract_pdf_text")
+    @patch("backend.api.get_agent")
+    def test_error_recovery_journey(
+        self, mock_get_agent, mock_extract, mock_validate, mock_auth, mock_rate_limit
+    ):
         """Test user journey with error recovery"""
         mock_rate_limit.return_value = True
         mock_auth.return_value = True
@@ -158,18 +179,22 @@ class TestEndToEndUserJourney:
 
         mock_sanitize_tool = MagicMock()
         mock_sanitize_tool.name = "sanitize_content"
-        mock_sanitize_tool.function = AsyncMock(return_value={
-            "success": True,
-            "sanitized_content": "Sanitized content",
-            "processing_time": "0.1s"
-        })
+        mock_sanitize_tool.function = AsyncMock(
+            return_value={
+                "success": True,
+                "sanitized_content": "Sanitized content",
+                "processing_time": "0.1s",
+            }
+        )
 
         mock_enhance_tool = MagicMock()
         mock_enhance_tool.name = "ai_pdf_enhancement"
-        mock_enhance_tool.function = AsyncMock(return_value={
-            "success": False,
-            "error": "AI service temporarily unavailable"
-        })
+        mock_enhance_tool.function = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "AI service temporarily unavailable",
+            }
+        )
 
         mock_agent.tools = [mock_sanitize_tool, mock_enhance_tool]
         mock_get_agent.return_value = mock_agent
@@ -177,7 +202,7 @@ class TestEndToEndUserJourney:
         headers = {"Authorization": "Bearer test_key"}
 
         # Upload PDF - should partially succeed
-        pdf_content = b'%PDF-1.4\n%test'
+        pdf_content = b"%PDF-1.4\n%test"
         files = {"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")}
 
         response = self.client.post("/api/process-pdf", files=files, headers=headers)
@@ -189,7 +214,7 @@ class TestEndToEndUserJourney:
         assert "AI service temporarily unavailable" in data["error"]
 
         # User should still be able to chat with partial data
-        with patch('backend.api.LLMChain') as mock_chain_class:
+        with patch("backend.api.LLMChain") as mock_chain_class:
             mock_chain = MagicMock()
             mock_chain.run.return_value = "I can see you have processed some content, though the AI enhancement failed. The sanitized content is available for basic analysis."
             mock_chain_class.return_value = mock_chain
@@ -199,22 +224,22 @@ class TestEndToEndUserJourney:
                 "context": {
                     "processed_data": {
                         "sanitized_content": data["sanitized_content"],
-                        "error": data["error"]
+                        "error": data["error"],
                     }
-                }
+                },
             }
 
-            chat_response = self.client.post("/api/chat", json=chat_data, headers=headers)
+            chat_response = self.client.post(
+                "/api/chat", json=chat_data, headers=headers
+            )
             assert chat_response.status_code == 200
 
             chat_result = chat_response.json()
             assert chat_result["success"] == True
 
-    @patch.dict(os.environ, {
-        "API_KEY": "test_key"
-    })
-    @patch('backend.api.check_rate_limit')
-    @patch('backend.api.authenticate_request')
+    @patch.dict(os.environ, {"API_KEY": "test_key"})
+    @patch("backend.api.check_rate_limit")
+    @patch("backend.api.authenticate_request")
     def test_security_boundary_testing(self, mock_auth, mock_rate_limit):
         """Test security boundaries and error handling"""
         mock_rate_limit.return_value = True
@@ -236,10 +261,14 @@ class TestEndToEndUserJourney:
 
         for payload in attack_payloads:
             if len(payload["content"]) > 1000000:  # Over limit
-                response = self.client.post("/api/sanitize/json", json=payload, headers=headers)
+                response = self.client.post(
+                    "/api/sanitize/json", json=payload, headers=headers
+                )
                 assert response.status_code == 413
             else:
-                response = self.client.post("/api/sanitize/json", json=payload, headers=headers)
+                response = self.client.post(
+                    "/api/sanitize/json", json=payload, headers=headers
+                )
                 assert response.status_code in [200, 422]  # Should handle gracefully
 
                 if response.status_code == 200:
@@ -248,15 +277,21 @@ class TestEndToEndUserJourney:
                     assert "<" not in data.get("sanitized_content", "")
                     assert ";" not in data.get("sanitized_content", "")
 
-    @patch.dict(os.environ, {
-        "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
-    })
-    @patch('backend.api.check_rate_limit')
-    @patch('backend.api.authenticate_request')
-    @patch('backend.api.get_agent')
-    def test_concurrent_processing_simulation(self, mock_get_agent, mock_auth, mock_rate_limit):
+    @patch.dict(
+        os.environ,
+        {
+            "API_KEY": "test_key",
+            "AGENT_LLM_MODEL": "gemini-2.0-flash",
+            "GEMINI_API_KEY": "test_gemini_key",
+            "ENV": "development",
+        },
+    )
+    @patch("backend.api.check_rate_limit")
+    @patch("backend.api.authenticate_request")
+    @patch("backend.api.get_agent")
+    def test_concurrent_processing_simulation(
+        self, mock_get_agent, mock_auth, mock_rate_limit
+    ):
         """Test handling multiple concurrent requests"""
         mock_rate_limit.return_value = True
         mock_auth.return_value = True
@@ -267,7 +302,7 @@ class TestEndToEndUserJourney:
             return {
                 "success": True,
                 "sanitized_content": f"Sanitized: {kwargs.get('content', '')[:50]}...",
-                "processing_time": "0.15s"
+                "processing_time": "0.15s",
             }
 
         mock_agent = MagicMock()
@@ -287,7 +322,9 @@ class TestEndToEndUserJourney:
 
         responses = []
         for payload in payloads:
-            response = self.client.post("/api/sanitize/json", json=payload, headers=headers)
+            response = self.client.post(
+                "/api/sanitize/json", json=payload, headers=headers
+            )
             responses.append(response)
 
         # All should succeed
@@ -317,12 +354,15 @@ class TestEndToEndUserJourney:
 class TestWebSocketE2E:
     """E2E tests for WebSocket functionality"""
 
-    @patch.dict(os.environ, {
-        "API_KEY": "",  # No auth for WebSocket in test
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
-    })
-    @patch('backend.api.get_agent')
+    @patch.dict(
+        os.environ,
+        {
+            "API_KEY": "",  # No auth for WebSocket in test
+            "AGENT_LLM_MODEL": "gemini-2.0-flash",
+            "GEMINI_API_KEY": "test_gemini_key",
+        },
+    )
+    @patch("backend.api.get_agent")
     def test_websocket_chat_journey(self, mock_get_agent):
         """Test complete WebSocket chat journey"""
         from fastapi.testclient import TestClient
@@ -334,9 +374,11 @@ class TestWebSocketE2E:
         client = TestClient(app)
 
         # Mock the LLM chain for streaming
-        with patch('backend.api.LLMChain') as mock_chain_class:
+        with patch("backend.api.LLMChain") as mock_chain_class:
             mock_chain = MagicMock()
-            mock_chain.run.return_value = "This is a streaming response about your processed document."
+            mock_chain.run.return_value = (
+                "This is a streaming response about your processed document."
+            )
             mock_chain_class.return_value = mock_chain
 
             # Note: WebSocket testing with TestClient is limited
@@ -346,9 +388,7 @@ class TestWebSocketE2E:
                 # Send a message
                 message = {
                     "message": "Tell me about my document",
-                    "context": {
-                        "processed_data": {"document_type": "test"}
-                    }
+                    "context": {"processed_data": {"document_type": "test"}},
                 }
 
                 websocket.send_json(message)

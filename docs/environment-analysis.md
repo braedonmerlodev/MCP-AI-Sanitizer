@@ -44,7 +44,7 @@
 ```bash
 # Required security environment variables
 TRUST_TOKEN_SECRET=your-secure-random-secret-key
-OPENAI_API_KEY=your-openai-api-key  # For AI features
+GEMINI_API_KEY=your-gemini-api-key  # For AI features
 ```
 
 #### Security Dependencies

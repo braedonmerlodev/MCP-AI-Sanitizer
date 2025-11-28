@@ -23,20 +23,6 @@ export const useChat = (context?: Record<string, any>) => {
   >(null)
   const [useWebSocketEnabled, setUseWebSocketEnabled] = useState(true)
 
-  // WebSocket connection
-  const { isConnected, sendMessage: wsSendMessage } = useWebSocket({
-    url: `/ws/chat`,
-    onMessage: useCallback((message: WebSocketMessage) => {
-      handleWebSocketMessage(message)
-    }, []),
-    onError: useCallback(() => {
-      // Fallback to HTTP polling on WebSocket error
-      setUseWebSocketEnabled(false)
-    }, []),
-    reconnectAttempts: 3,
-    reconnectInterval: 2000,
-  })
-
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
       switch (message.type) {
@@ -89,6 +75,23 @@ export const useChat = (context?: Record<string, any>) => {
     },
     [dispatch, streamingMessageId, chatState.messages, currentUserMessageId]
   )
+
+  // WebSocket connection
+  const { isConnected, sendMessage: wsSendMessage } = useWebSocket({
+    url: `/ws/chat`,
+    onMessage: useCallback(
+      (message: WebSocketMessage) => {
+        handleWebSocketMessage(message)
+      },
+      [handleWebSocketMessage]
+    ),
+    onError: useCallback(() => {
+      // Fallback to HTTP polling on WebSocket error
+      setUseWebSocketEnabled(false)
+    }, []),
+    reconnectAttempts: 3,
+    reconnectInterval: 2000,
+  })
 
   const sendMessageViaWebSocket = useCallback(
     async (content: string) => {

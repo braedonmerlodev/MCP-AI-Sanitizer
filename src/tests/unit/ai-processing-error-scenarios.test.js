@@ -1,3 +1,35 @@
+// Mock winston FIRST to prevent real logging
+jest.mock('winston', () => ({
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    add: jest.fn(),
+  })),
+  transports: {
+    Console: jest.fn(),
+    File: jest.fn(),
+  },
+  format: {
+    json: jest.fn(),
+    combine: jest.fn(),
+    timestamp: jest.fn(),
+    printf: jest.fn(),
+    colorize: jest.fn(),
+    simple: jest.fn(),
+  },
+}));
+
+const mockTransform = jest.fn();
+// Mock AITextTransformer FIRST before any other requires
+
+jest.mock('../../components/AITextTransformer', () => {
+  return jest.fn().mockImplementation(() => ({
+    transform: mockTransform,
+  }));
+});
+
 // Mock environment variables
 process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-ai-errors';
 process.env.ADMIN_AUTH_SECRET = 'test-admin-secret';
@@ -48,13 +80,37 @@ jest.mock('../../utils/queueManager', () => ({
   addJob: jest.fn().mockResolvedValue('mock-task-id'),
 }));
 
-// Mock AITextTransformer with controllable errors
-const mockTransform = jest.fn();
-jest.mock('../../components/AITextTransformer', () => {
-  return jest.fn().mockImplementation(() => ({
-    transform: mockTransform,
-  }));
-});
+// Mock winston logger to prevent real logging operations
+jest.mock('winston', () => ({
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  })),
+  transports: {
+    Console: jest.fn(),
+    File: jest.fn(),
+  },
+  format: {
+    colorize: jest.fn(),
+    simple: jest.fn(),
+
+    json: jest.fn(),
+    combine: jest.fn(),
+    timestamp: jest.fn(),
+    printf: jest.fn(),
+  },
+}));
+
+// Mock database operations
+jest.mock('better-queue', () =>
+  jest.fn(() => ({
+    push: jest.fn(),
+    on: jest.fn(),
+    destroy: jest.fn(),
+  })),
+);
 
 const request = require('supertest');
 const express = require('express');
@@ -73,6 +129,8 @@ describe('AI Processing Error Scenarios and Fallback Behavior', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Ensure any pending async operations are resolved
+    return new Promise((resolve) => setImmediate(resolve));
   });
 
   describe('POST /api/sanitize/json - AI Transformation Failures', () => {

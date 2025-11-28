@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import json
 
+
 # Mock the deepagent import since it may not be available in test environment
 class MockTool:
     def __init__(self, name, description, function, parameters=None):
@@ -12,18 +13,86 @@ class MockTool:
         self.function = function
         self.parameters = parameters or {}
 
+
 class MockAgent:
     def __init__(self, name=None, description=None, tools=None):
         self.name = name
         self.description = description
         self.tools = tools or []
 
-# Mock the imports
-with patch.dict('sys.modules', {
-    'deepagent': MagicMock(),
-    'deepagent.Agent': MockAgent,
-    'deepagent.Tool': MockTool,
-}):
+
+# Mock classes for langchain
+class MockPromptTemplate:
+    def __init__(self, template, input_variables):
+        self.template = template
+        self.input_variables = input_variables
+
+
+class MockLLMChain:
+    def __init__(self, llm, prompt):
+        self.llm = llm
+        self.prompt = prompt
+
+    def run(self, **kwargs):
+        return '{"document_type": "report", "summary": "Test summary"}'
+
+
+class MockChatGoogleGenerativeAI:
+    def __init__(self, **kwargs):
+        pass
+
+
+# Mock classes for testing
+class MockClientSession:
+    def __init__(self, **kwargs):
+        pass
+
+    async def close(self):
+        pass
+
+    def post(self, url, **kwargs):
+        return MockResponse()
+
+
+class MockResponse:
+    def __init__(self):
+        self.status = 200
+
+    async def json(self):
+        return {"sanitizedData": "mocked sanitized content"}
+
+    async def text(self):
+        return "error message"
+
+
+# Mock the deepagent module
+deepagent_mock = MagicMock()
+deepagent_mock.Agent = MockAgent
+deepagent_mock.Tool = MockTool
+
+# Mock langchain modules for testing
+langchain_prompts_mock = MagicMock()
+langchain_prompts_mock.PromptTemplate = MockPromptTemplate
+
+langchain_chains_mock = MagicMock()
+langchain_chains_mock.LLMChain = MockLLMChain
+
+langchain_google_genai_mock = MagicMock()
+langchain_google_genai_mock.ChatGoogleGenerativeAI = MockChatGoogleGenerativeAI
+
+aiohttp_mock = MagicMock()
+aiohttp_mock.ClientSession = MockClientSession
+
+with patch.dict(
+    "sys.modules",
+    {
+        "deepagent": deepagent_mock,
+        "langchain.prompts": langchain_prompts_mock,
+        "langchain.chains": langchain_chains_mock,
+        "langchain_google_genai": langchain_google_genai_mock,
+        "aiohttp": aiohttp_mock,
+    },
+):
     from agent.security_agent import SecurityAgent
 
 
@@ -33,25 +102,15 @@ class TestSecurityAgent:
     def setup_method(self):
         """Setup for each test"""
         self.llm_config = {
-            "model": "gemini-1.5-flash",
+            "model": "gemini-2.0-flash",
             "temperature": 0.1,
             "max_tokens": 2000,
             "api_key": "test_key",
-            "base_url": None
+            "base_url": None,
         }
 
-    @patch('agent.security_agent.Tool')
-    def test_agent_initialization(self, mock_tool_class):
+    def test_agent_initialization(self):
         """Test agent initialization with tools"""
-        # Mock the tools that get created
-        mock_sanitize_tool = MagicMock()
-        mock_sanitize_tool.name = "sanitize_content"
-
-        mock_enhance_tool = MagicMock()
-        mock_enhance_tool.name = "ai_pdf_enhancement"
-
-        mock_tool_class.side_effect = [mock_sanitize_tool, mock_enhance_tool]
-
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Verify agent was created and has tools
@@ -81,51 +140,51 @@ class TestSecurityAgent:
             assert "type" in tool.parameters
             assert "properties" in tool.parameters
 
-    @patch('agent.security_agent.ChatGoogleGenerativeAI')
-    @patch('agent.security_agent.LLMChain')
-    def test_ai_pdf_enhancement_functionality(self, mock_chain_class, mock_llm_class):
+    def test_ai_pdf_enhancement_functionality(self):
         """Test the AI PDF enhancement functionality"""
-        # Mock LLM components
-        mock_llm_instance = MagicMock()
-        mock_llm_class.return_value = mock_llm_instance
-
-        mock_chain_instance = MagicMock()
-        mock_chain_instance.run.return_value = '{"document_type": "report", "summary": "Test summary"}'
-        mock_chain_class.return_value = mock_chain_instance
-
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Find the enhance tool
-        enhance_tool = next((tool for tool in agent.tools if tool.name == "ai_pdf_enhancement"), None)
+        enhance_tool = next(
+            (tool for tool in agent.tools if tool.name == "ai_pdf_enhancement"), None
+        )
         assert enhance_tool is not None
 
         # Test the async function
         import asyncio
-        result = asyncio.run(enhance_tool.function(
-            content="Test PDF content",
-            transformation_type="json_schema"
-        ))
+
+        result = asyncio.run(
+            enhance_tool.function(
+                content="Test PDF content", transformation_type="json_schema"
+            )
+        )
 
         assert result["success"] == True
         assert "enhanced_content" in result
         assert "structured_output" in result
         assert isinstance(result["structured_output"], dict)
-        assert result["structured_output"]["document_type"] == "report"
+        # Check for mock results
+        if "note" in result and "mock" in result["note"]:
+            assert result["structured_output"]["document_type"] == "report"
+        else:
+            assert result["structured_output"]["document_type"] == "report"
 
     def test_sanitize_content_fallback(self):
         """Test sanitize content fallback when backend is unavailable"""
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Find the sanitize tool
-        sanitize_tool = next((tool for tool in agent.tools if tool.name == "sanitize_content"), None)
+        sanitize_tool = next(
+            (tool for tool in agent.tools if tool.name == "sanitize_content"), None
+        )
         assert sanitize_tool is not None
 
         # Test the async function (should use fallback)
         import asyncio
-        result = asyncio.run(sanitize_tool.function(
-            content="Test content",
-            classification="general"
-        ))
+
+        result = asyncio.run(
+            sanitize_tool.function(content="Test content", classification="general")
+        )
 
         # Should return mock sanitized content
         assert result["success"] == True
@@ -137,7 +196,12 @@ class TestSecurityAgent:
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Test different transformation types
-        transformation_types = ["structure", "summarize", "extract_entities", "json_schema"]
+        transformation_types = [
+            "structure",
+            "summarize",
+            "extract_entities",
+            "json_schema",
+        ]
 
         for ttype in transformation_types:
             prompt = agent._get_pdf_enhancement_prompt(ttype)
@@ -155,7 +219,7 @@ class TestSecurityAgent:
         assert result["number"] == 42
 
         # Test invalid JSON fallback
-        invalid_json = 'not json at all'
+        invalid_json = "not json at all"
         result = agent._validate_ai_output(invalid_json, "json_schema")
         assert "validation_error" in result
         assert result["enhanced_text"] == invalid_json
@@ -196,5 +260,6 @@ class TestSecurityAgent:
 
         # Close should clean up
         import asyncio
+
         asyncio.run(agent.close())
         assert agent._session is None

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides troubleshooting procedures for AI configuration and OpenAI API key validation issues in the MCP-Security system. It covers common problems, diagnostic steps, and resolution procedures for both development and production environments.
+This guide provides troubleshooting procedures for AI configuration and Gemini API key validation issues in the MCP-Security system. It covers common problems, diagnostic steps, and resolution procedures for both development and production environments.
 
 ## Quick Reference
 
@@ -15,11 +15,11 @@ This guide provides troubleshooting procedures for AI configuration and OpenAI A
 
 ### Common Error Messages
 
-- `"OPENAI_API_KEY environment variable must be set in production"`
-- `"OPENAI_API_KEY must start with "sk-""`
-- `"OPENAI_API_KEY must be exactly 51 characters"`
-- `"OPENAI_API_KEY must contain only alphanumeric characters after "sk-""`
-- `"OPENAI_API_KEY not set - AI features may not work in development"`
+- `"GEMINI_API_KEY environment variable must be set in production"`
+- `"GEMINI_API_KEY must start with "AIzaSy""`
+- `"GEMINI_API_KEY must be exactly 39 characters"`
+- `"GEMINI_API_KEY must contain only alphanumeric characters after "AIzaSy""`
+- `"GEMINI_API_KEY not set - AI features may not work in development"`
 
 ## Diagnostic Procedures
 
@@ -40,20 +40,18 @@ This guide provides troubleshooting procedures for AI configuration and OpenAI A
 2. Check API key configuration:
 
    ```bash
-   echo $OPENAI_API_KEY | head -c 10  # First 10 chars only for security
+   echo $GEMINI_API_KEY | head -c 10  # First 10 chars only for security
    ```
 
 3. Validate key format:
 
    ```bash
-   # Should start with "sk-"
-   [[ "$OPENAI_API_KEY" =~ ^sk- ]] && echo "Valid prefix" || echo "Invalid prefix"
+    # Should start with "AIzaSy"
+    [[ "$GEMINI_API_KEY" =~ ^AIzaSy ]] && echo "Valid prefix" || echo "Invalid prefix"
 
-   # Should be exactly 51 characters
-   [ ${#OPENAI_API_KEY} -eq 51 ] && echo "Valid length" || echo "Invalid length: ${#OPENAI_API_KEY}"
+    [ ${#GEMINI_API_KEY} -eq 39 ] && echo "Valid length" || echo "Invalid length: ${#GEMINI_API_KEY}"
 
-   # Should contain only alphanumeric after "sk-"
-   KEY_SUFFIX="${OPENAI_API_KEY#sk-}"
+    KEY_SUFFIX="${GEMINI_API_KEY#AIzaSy}"
    [[ "$KEY_SUFFIX" =~ ^[a-zA-Z0-9]+$ ]] && echo "Valid characters" || echo "Invalid characters"
    ```
 
@@ -66,9 +64,7 @@ This guide provides troubleshooting procedures for AI configuration and OpenAI A
 1. Verify API key validity with OpenAI:
 
    ```bash
-   curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-        -H "Content-Type: application/json" \
-        https://api.openai.com/v1/models
+    curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
    ```
 
    - Expected: 200 OK with model list
@@ -92,8 +88,8 @@ This guide provides troubleshooting procedures for AI configuration and OpenAI A
 **Common Log Patterns:**
 
 ```
-Warning: OPENAI_API_KEY not set - AI features may not work in development
-Warning: OPENAI_API_KEY must start with "sk-"
+Warning: GEMINI_API_KEY not set - AI features may not work in development
+Warning: GEMINI_API_KEY must start with "sk-"
 Error: AI service unavailable - invalid API key
 ```
 
@@ -108,7 +104,7 @@ Error: AI service unavailable - invalid API key
 1. Set the environment variable:
 
    ```bash
-   export OPENAI_API_KEY="sk-your-actual-api-key-here"
+   export GEMINI_API_KEY="sk-your-actual-api-key-here"
    ```
 
 2. For persistent configuration, add to your deployment environment or `.env` file
@@ -158,7 +154,7 @@ sk-abcdefghijklmnopqrstuvwxyz12345678901234567890
 2. AI features will be disabled but application continues
 3. Set a valid API key to enable AI features:
    ```bash
-   export OPENAI_API_KEY="sk-your-development-key"
+   export GEMINI_API_KEY="sk-your-development-key"
    ```
 
 ## Maintenance Procedures
@@ -186,15 +182,15 @@ echo "=== AI Configuration Check ==="
 echo "Environment: $NODE_ENV"
 
 # Check API key (masked)
-if [ -n "$OPENAI_API_KEY" ]; then
-    echo "API Key: Set (length: ${#OPENAI_API_KEY})"
-    echo "Prefix: ${OPENAI_API_KEY:0:5}..."
+if [ -n "$GEMINI_API_KEY" ]; then
+    echo "API Key: Set (length: ${#GEMINI_API_KEY})"
+    echo "Prefix: ${GEMINI_API_KEY:0:5}..."
 else
     echo "API Key: NOT SET"
 fi
 
 # Validate format
-if [[ "$OPENAI_API_KEY" =~ ^sk-[a-zA-Z0-9]{48}$ ]]; then
+if [[ "$GEMINI_API_KEY" =~ ^AIzaSy[a-zA-Z0-9]{33}$ ]]; then
     echo "Format: VALID"
 else
     echo "Format: INVALID"
@@ -242,7 +238,7 @@ echo "=== Check Complete ==="
 | Variable         | Required                           | Default       | Description                    |
 | ---------------- | ---------------------------------- | ------------- | ------------------------------ |
 | `NODE_ENV`       | No                                 | `development` | Environment mode               |
-| `OPENAI_API_KEY` | Production: Yes<br>Development: No | -             | OpenAI API key for AI features |
+| `GEMINI_API_KEY` | Production: Yes<br>Development: No | -             | Gemini API key for AI features |
 
 ### Configuration Files
 

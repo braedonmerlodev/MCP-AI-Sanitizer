@@ -93,7 +93,7 @@ open htmlcov/index.html
 # API Configuration
 API_KEY=test_key
 GEMINI_API_KEY=test_gemini_key
-AGENT_LLM_MODEL=gemini-1.5-flash
+AGENT_LLM_MODEL=gemini-2.0-flash
 
 # Development mode
 ENV=development

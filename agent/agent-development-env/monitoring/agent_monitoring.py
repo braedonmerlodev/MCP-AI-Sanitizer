@@ -3,10 +3,17 @@ from prometheus_client import Counter, Histogram, Gauge, start_http_server
 import time
 
 # Metrics
-AGENT_REQUESTS = Counter('agent_requests_total', 'Total agent requests', ['tool', 'status'])
-AGENT_LATENCY = Histogram('agent_request_duration_seconds', 'Agent request duration', ['tool'])
-BACKEND_REQUESTS = Counter('backend_requests_total', 'Backend API requests', ['endpoint', 'status'])
-AGENT_HEALTH = Gauge('agent_health_status', 'Agent health status')
+AGENT_REQUESTS = Counter(
+    "agent_requests_total", "Total agent requests", ["tool", "status"]
+)
+AGENT_LATENCY = Histogram(
+    "agent_request_duration_seconds", "Agent request duration", ["tool"]
+)
+BACKEND_REQUESTS = Counter(
+    "backend_requests_total", "Backend API requests", ["endpoint", "status"]
+)
+AGENT_HEALTH = Gauge("agent_health_status", "Agent health status")
+
 
 class AgentMonitor:
     def __init__(self, port=8000):
