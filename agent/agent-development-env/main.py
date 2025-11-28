@@ -14,7 +14,7 @@ load_dotenv()
 async def main():
     # Initialize agent with configurable LLM
     llm_config = {
-        "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),  # Default to Gemini
+        "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),  # Default to Gemini
         "temperature": 0.1,  # Low temperature for security decisions
         "max_tokens": 2000,
         "api_key": os.getenv("GEMINI_API_KEY"),

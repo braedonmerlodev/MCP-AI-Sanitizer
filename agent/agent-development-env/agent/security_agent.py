@@ -62,7 +62,7 @@ class SecurityAgent(Agent):
                 api_key = self.llm_config.get("api_key") if self.llm_config else None
                 llm = ChatGoogleGenerativeAI(
                     temperature=0.1,
-                    model="gemini-1.5-flash",
+                    model="gemini-2.0-flash",
                     google_api_key=api_key
                 )
                 prompt = self._get_pdf_enhancement_prompt(transformation_type)
@@ -83,7 +83,7 @@ class SecurityAgent(Agent):
                     "structured_output": structured_output,
                     "transformation_type": transformation_type,
                     "processing_metadata": {
-                        "model_used": "gemini-1.5-flash",
+                        "model_used": "gemini-2.0-flash",
                         "processing_time": "calculated",
                         "confidence_score": self._calculate_confidence(structured_output)
                     }

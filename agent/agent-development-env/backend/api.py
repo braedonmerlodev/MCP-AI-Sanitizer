@@ -196,7 +196,7 @@ async def get_agent():
     if agent is None:
         # Initialize agent with LLM config
         llm_config = {
-            "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),
+            "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
             "temperature": 0.1,
             "max_tokens": 2000,
             "api_key": os.getenv("GEMINI_API_KEY"),
@@ -610,7 +610,7 @@ async def stream_chat_response(websocket: WebSocket, agent: SecurityAgent, messa
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         llm_config = {
-            "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),
+            "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
             "temperature": 0.1,
             "max_tokens": 2000,
             "api_key": os.getenv("GEMINI_API_KEY"),
@@ -699,7 +699,7 @@ async def http_chat(request: Request, chat_request: ChatMessage, credentials: HT
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         llm_config = {
-            "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),
+            "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
             "temperature": 0.1,
             "max_tokens": 2000,
             "api_key": os.getenv("GEMINI_API_KEY"),

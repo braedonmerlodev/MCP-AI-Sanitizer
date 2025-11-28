@@ -91,7 +91,7 @@ class TestSecurityAgent:
     def setup_method(self):
         """Setup for each test"""
         self.llm_config = {
-            "model": "gemini-1.5-flash",
+            "model": "gemini-2.0-flash",
             "temperature": 0.1,
             "max_tokens": 2000,
             "api_key": "test_key",

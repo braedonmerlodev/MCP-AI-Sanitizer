@@ -22,7 +22,7 @@ class TestPDFProcessingIntegration:
 
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key",
         "ENV": "development"
     })
@@ -65,7 +65,7 @@ class TestPDFProcessingIntegration:
             },
             "processing_metadata": {
                 "processing_time": "2.34s",
-                "model_used": "gemini-1.5-flash",
+                "model_used": "gemini-2.0-flash",
                 "tokens_used": 150
             }
         })
@@ -119,7 +119,7 @@ class TestPDFProcessingIntegration:
 
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key",
         "ENV": "development"
     })

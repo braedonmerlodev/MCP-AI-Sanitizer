@@ -23,7 +23,7 @@ class TestEndToEndUserJourney:
 
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key",
         "ENV": "development"
     })
@@ -94,7 +94,7 @@ class TestEndToEndUserJourney:
             },
             "processing_metadata": {
                 "processing_time": "3.45s",
-                "model_used": "gemini-1.5-flash",
+                "model_used": "gemini-2.0-flash",
                 "tokens_used": 450
             }
         })
@@ -139,7 +139,7 @@ class TestEndToEndUserJourney:
 
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key",
         "ENV": "development"
     })
@@ -252,7 +252,7 @@ class TestEndToEndUserJourney:
 
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key",
         "ENV": "development"
     })
@@ -322,7 +322,7 @@ class TestWebSocketE2E:
 
     @patch.dict(os.environ, {
         "API_KEY": "",  # No auth for WebSocket in test
-        "AGENT_LLM_MODEL": "gemini-1.5-flash",
+        "AGENT_LLM_MODEL": "gemini-2.0-flash",
         "GEMINI_API_KEY": "test_gemini_key"
     })
     @patch('backend.api.get_agent')
