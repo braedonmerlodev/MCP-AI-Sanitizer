@@ -23,7 +23,8 @@ class TestPDFProcessingIntegration:
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
         "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
+        "GEMINI_API_KEY": "test_gemini_key",
+        "ENV": "development"
     })
     @patch('backend.api.check_rate_limit')
     @patch('backend.api.authenticate_request')
@@ -119,7 +120,8 @@ class TestPDFProcessingIntegration:
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
         "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
+        "GEMINI_API_KEY": "test_gemini_key",
+        "ENV": "development"
     })
     @patch('backend.api.check_rate_limit')
     @patch('backend.api.authenticate_request')
@@ -249,7 +251,7 @@ class TestSecurityIntegration:
         from backend.api import rate_limit_store
         rate_limit_store.clear()
 
-    @patch.dict(os.environ, {"API_KEY": "valid_key"})
+    @patch.dict(os.environ, {"API_KEY": "valid_key", "ENV": "development"})
     def test_rate_limiting_integration(self):
         """Test rate limiting works across multiple requests"""
         from backend.api import RATE_LIMIT_REQUESTS
@@ -265,7 +267,7 @@ class TestSecurityIntegration:
         response = self.client.get("/health", headers=headers)
         assert response.status_code == 429
 
-    @patch.dict(os.environ, {"API_KEY": "valid_key"})
+    @patch.dict(os.environ, {"API_KEY": "valid_key", "ENV": "development"})
     def test_cors_headers_integration(self):
         """Test CORS headers are properly set"""
         headers = {"Authorization": "Bearer valid_key", "Origin": "http://localhost:3000"}

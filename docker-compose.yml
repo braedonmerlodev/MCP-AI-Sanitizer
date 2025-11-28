@@ -11,7 +11,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       # AI Configuration
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # Security Secrets (CHANGE THESE IN PRODUCTION!)
       - TRUST_TOKEN_SECRET=${TRUST_TOKEN_SECRET:-change-this-secret-in-production}
       - ADMIN_AUTH_SECRET=${ADMIN_AUTH_SECRET:-change-this-admin-secret-in-production}

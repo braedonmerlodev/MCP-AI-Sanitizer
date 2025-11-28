@@ -90,7 +90,7 @@ docker-compose up -d
 # Build and run with Docker
 docker build -t mcp-security:latest .
 docker run -p 3000:3000 \
-  -e OPENAI_API_KEY=your-key \
+  -e GEMINI_API_KEY=your-key \
   -e TRUST_TOKEN_SECRET=your-secret \
   -v ./data:/app/data \
   mcp-security:latest

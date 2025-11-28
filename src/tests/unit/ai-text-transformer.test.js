@@ -1,7 +1,7 @@
 const mockInvoke = jest.fn().mockResolvedValue({ content: 'AI output', response_metadata: {} });
 
-jest.mock('@langchain/openai', () => ({
-  ChatOpenAI: jest.fn(),
+jest.mock('@langchain/google-genai', () => ({
+  ChatGoogleGenerativeAI: jest.fn(),
 }));
 jest.mock('@langchain/core/prompts', () => ({
   PromptTemplate: {
@@ -14,7 +14,7 @@ jest.mock('@langchain/core/prompts', () => ({
 }));
 jest.mock('../../components/sanitization-pipeline');
 jest.mock('../../config/aiConfig', () => ({
-  openai: {
+  gemini: {
     apiKey: 'mock-api-key',
     isValid: true,
   },
@@ -25,7 +25,7 @@ const AITextTransformer = require('../../components/AITextTransformer');
 describe('AITextTransformer', () => {
   let transformer;
   let mockSanitizer;
-  let mockOpenAI;
+  let mockGemini;
 
   beforeEach(() => {
     // Mock SanitizationPipeline
@@ -45,22 +45,22 @@ describe('AITextTransformer', () => {
     };
     require('@langchain/core/prompts').PromptTemplate = MockPromptTemplate;
 
-    // Mock ChatOpenAI
-    mockOpenAI = {};
-    const MockChatOpenAI = require('@langchain/openai').ChatOpenAI;
-    MockChatOpenAI.mockImplementation(() => mockOpenAI);
+    // Mock ChatGoogleGenerativeAI
+    mockGemini = {};
+    const MockChatGoogleGenerativeAI = require('@langchain/google-genai').ChatGoogleGenerativeAI;
+    MockChatGoogleGenerativeAI.mockImplementation(() => mockGemini);
 
     transformer = new AITextTransformer();
   });
 
   test('should create AITextTransformer instance', () => {
     expect(transformer).toBeDefined();
-    expect(transformer.openai).toBeDefined();
+    expect(transformer.gemini).toBeDefined();
     expect(transformer.sanitizer).toBeDefined();
     expect(transformer.prompts).toBeDefined();
-    expect(require('@langchain/openai').ChatOpenAI).toHaveBeenCalledWith(
+    expect(require('@langchain/google-genai').ChatGoogleGenerativeAI).toHaveBeenCalledWith(
       expect.objectContaining({
-        openAIApiKey: 'mock-api-key',
+        apiKey: 'mock-api-key',
       }),
     );
   });
@@ -188,7 +188,7 @@ describe('AITextTransformer', () => {
 
     const result = await transformer.transform('test input', 'structure');
 
-    expect(result.metadata.cost).toBeCloseTo(0.000_25, 6); // (100/1000)*0.0015 + (50/1000)*0.002
+    expect(result.metadata.cost).toBeCloseTo(0.000_0105, 6); // (14/1000)*0.00025 + (14/1000)*0.0005 for sanitized text lengths
     expect(result.metadata.tokens.prompt).toBe(100);
     expect(result.metadata.tokens.completion).toBe(50);
     expect(result.metadata.tokens.total).toBe(150);
@@ -224,21 +224,21 @@ describe('AITextTransformer', () => {
 
   test('should initialize with custom model options', () => {
     // Clear previous calls to focus on this test
-    const MockChatOpenAI = require('@langchain/openai').ChatOpenAI;
-    MockChatOpenAI.mockClear();
+    const MockChatGoogleGenerativeAI = require('@langchain/google-genai').ChatGoogleGenerativeAI;
+    MockChatGoogleGenerativeAI.mockClear();
 
     new AITextTransformer({
-      model: 'gpt-4',
+      model: 'gemini-pro-vision',
       temperature: 0.5,
       maxTokens: 1000,
     });
 
-    expect(MockChatOpenAI).toHaveBeenCalledWith(
+    expect(MockChatGoogleGenerativeAI).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelName: 'gpt-4',
+        modelName: 'gemini-pro-vision',
         temperature: 0.5,
-        maxTokens: 1000,
-        openAIApiKey: 'mock-api-key',
+        maxOutputTokens: 1000,
+        apiKey: 'mock-api-key',
       }),
     );
   });

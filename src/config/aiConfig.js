@@ -1,18 +1,18 @@
 require('dotenv').config();
 
-const validateOpenAIApiKey = (apiKey, environment) => {
+const validateGeminiApiKey = (apiKey, environment) => {
   if (!apiKey || apiKey === '') {
     if (environment === 'production') {
-      throw new Error('OPENAI_API_KEY environment variable must be set in production');
+      throw new Error('GEMINI_API_KEY environment variable must be set in production');
     }
     // In development, allow missing key but log warning
-    console.warn('OPENAI_API_KEY not set - AI features may not work in development');
+    console.warn('GEMINI_API_KEY not set - AI features may not work in development');
     return false;
   }
 
-  // Format validation: must start with 'sk-'
-  if (!apiKey.startsWith('sk-')) {
-    const errorMsg = 'OPENAI_API_KEY must start with "sk-"';
+  // Format validation: must start with 'AIzaSy'
+  if (!apiKey.startsWith('AIzaSy')) {
+    const errorMsg = 'GEMINI_API_KEY must start with "AIzaSy"';
     if (environment === 'production') {
       throw new Error(errorMsg);
     }
@@ -20,9 +20,9 @@ const validateOpenAIApiKey = (apiKey, environment) => {
     return false;
   }
 
-  // Length check: exactly 51 characters
-  if (apiKey.length !== 51) {
-    const errorMsg = `OPENAI_API_KEY must be exactly 51 characters, got ${apiKey.length}`;
+  // Length check: exactly 39 characters
+  if (apiKey.length !== 39) {
+    const errorMsg = `GEMINI_API_KEY must be exactly 39 characters, got ${apiKey.length}`;
     if (environment === 'production') {
       throw new Error(errorMsg);
     }
@@ -31,9 +31,9 @@ const validateOpenAIApiKey = (apiKey, environment) => {
   }
 
   // Check remaining characters are alphanumeric
-  const remaining = apiKey.slice(3);
+  const remaining = apiKey.slice(6);
   if (!/^[a-zA-Z0-9]+$/.test(remaining)) {
-    const errorMsg = 'OPENAI_API_KEY must contain only alphanumeric characters after "sk-"';
+    const errorMsg = 'GEMINI_API_KEY must contain only alphanumeric characters after "AIzaSy"';
     if (environment === 'production') {
       throw new Error(errorMsg);
     }
@@ -46,13 +46,13 @@ const validateOpenAIApiKey = (apiKey, environment) => {
 
 const getConfig = () => {
   const environment = process.env.NODE_ENV || 'development';
-  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY;
 
-  const isValid = validateOpenAIApiKey(openaiApiKey, environment);
+  const isValid = validateGeminiApiKey(geminiApiKey, environment);
 
   return {
-    openai: {
-      apiKey: openaiApiKey,
+    gemini: {
+      apiKey: geminiApiKey,
       isValid: isValid,
     },
   };

@@ -1,14 +1,21 @@
 # backend/api.py
+import os
+import sys
+import asyncio
+import io
+import json
+from typing import Optional, Dict, Any
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, field_validator
-import sys
+from dotenv import load_dotenv
+import PyPDF2
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.security_agent import SecurityAgent
-import asyncio
-import os
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import PyPDF2

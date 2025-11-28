@@ -24,7 +24,8 @@ class TestEndToEndUserJourney:
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
         "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
+        "GEMINI_API_KEY": "test_gemini_key",
+        "ENV": "development"
     })
     @patch('backend.api.check_rate_limit')
     @patch('backend.api.authenticate_request')
@@ -139,7 +140,8 @@ class TestEndToEndUserJourney:
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
         "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
+        "GEMINI_API_KEY": "test_gemini_key",
+        "ENV": "development"
     })
     @patch('backend.api.check_rate_limit')
     @patch('backend.api.authenticate_request')
@@ -251,7 +253,8 @@ class TestEndToEndUserJourney:
     @patch.dict(os.environ, {
         "API_KEY": "test_key",
         "AGENT_LLM_MODEL": "gemini-1.5-flash",
-        "GEMINI_API_KEY": "test_gemini_key"
+        "GEMINI_API_KEY": "test_gemini_key",
+        "ENV": "development"
     })
     @patch('backend.api.check_rate_limit')
     @patch('backend.api.authenticate_request')

@@ -27,8 +27,8 @@ This guide provides troubleshooting procedures for PDF AI workflow integration i
 
    ```bash
    # Verify environment variables
-   echo $OPENAI_API_KEY  # Should start with "sk-"
-   echo $AI_PROVIDER     # Should be "openai", "anthropic", etc.
+    echo $GEMINI_API_KEY  # Should start with "AIzaSy"
+    echo $AI_PROVIDER     # Should be "gemini", "openai", etc.
    ```
 
 2. **Test AI Service Connectivity:**
@@ -237,8 +237,8 @@ This guide provides troubleshooting procedures for PDF AI workflow integration i
 
 ```bash
 # AI Service Configuration
-OPENAI_API_KEY=sk-...          # Required for OpenAI integration
-AI_PROVIDER=openai             # Default AI provider
+GEMINI_API_KEY=AIzaSy...      # Required for Gemini integration
+AI_PROVIDER=gemini             # Default AI provider
 AI_TIMEOUT=30000               # AI service timeout (ms)
 AI_MAX_RETRIES=3               # Maximum retry attempts
 

@@ -75,7 +75,7 @@ app.get('/api/monitoring/metrics', (req, res) => {
 });
 
 // Error handling
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   logger.error(err.stack);
   recordError();
   res.status(500).json({ error: 'Internal Server Error' });
