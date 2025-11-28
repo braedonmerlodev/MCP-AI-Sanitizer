@@ -1,5 +1,5 @@
 // Mock winston FIRST to prevent real logging
-jest.mock("winston", () => ({
+jest.mock('winston', () => ({
   createLogger: jest.fn(() => ({
     info: jest.fn(),
     warn: jest.fn(),
@@ -92,9 +92,10 @@ jest.mock('winston', () => ({
     Console: jest.fn(),
     File: jest.fn(),
   },
-  format: {colorize: jest.fn(),
+  format: {
+    colorize: jest.fn(),
     simple: jest.fn(),
-    
+
     json: jest.fn(),
     combine: jest.fn(),
     timestamp: jest.fn(),

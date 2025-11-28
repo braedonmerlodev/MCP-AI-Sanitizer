@@ -1,5 +1,5 @@
 // Mock langchain to avoid ES module issues in Jest
-jest.mock("langchain", () => ({
+jest.mock('langchain', () => ({
   ChatOpenAI: jest.fn(),
   // Add other exports as needed
 }));
