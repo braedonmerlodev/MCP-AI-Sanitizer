@@ -18,11 +18,69 @@ class MockAgent:
         self.description = description
         self.tools = tools or []
 
-# Mock the imports
+# Mock classes for langchain
+class MockPromptTemplate:
+    def __init__(self, template, input_variables):
+        self.template = template
+        self.input_variables = input_variables
+
+class MockLLMChain:
+    def __init__(self, llm, prompt):
+        self.llm = llm
+        self.prompt = prompt
+
+    def run(self, **kwargs):
+        return '{"document_type": "report", "summary": "Test summary"}'
+
+class MockChatGoogleGenerativeAI:
+    def __init__(self, **kwargs):
+        pass
+
+# Mock classes for testing
+class MockClientSession:
+    def __init__(self, **kwargs):
+        pass
+
+    async def close(self):
+        pass
+
+    def post(self, url, **kwargs):
+        return MockResponse()
+
+class MockResponse:
+    def __init__(self):
+        self.status = 200
+
+    async def json(self):
+        return {"sanitizedData": "mocked sanitized content"}
+
+    async def text(self):
+        return "error message"
+
+# Mock the deepagent module
+deepagent_mock = MagicMock()
+deepagent_mock.Agent = MockAgent
+deepagent_mock.Tool = MockTool
+
+# Mock langchain modules for testing
+langchain_prompts_mock = MagicMock()
+langchain_prompts_mock.PromptTemplate = MockPromptTemplate
+
+langchain_chains_mock = MagicMock()
+langchain_chains_mock.LLMChain = MockLLMChain
+
+langchain_google_genai_mock = MagicMock()
+langchain_google_genai_mock.ChatGoogleGenerativeAI = MockChatGoogleGenerativeAI
+
+aiohttp_mock = MagicMock()
+aiohttp_mock.ClientSession = MockClientSession
+
 with patch.dict('sys.modules', {
-    'deepagent': MagicMock(),
-    'deepagent.Agent': MockAgent,
-    'deepagent.Tool': MockTool,
+    'deepagent': deepagent_mock,
+    'langchain.prompts': langchain_prompts_mock,
+    'langchain.chains': langchain_chains_mock,
+    'langchain_google_genai': langchain_google_genai_mock,
+    'aiohttp': aiohttp_mock,
 }):
     from agent.security_agent import SecurityAgent
 
@@ -40,18 +98,8 @@ class TestSecurityAgent:
             "base_url": None
         }
 
-    @patch('agent.security_agent.Tool')
-    def test_agent_initialization(self, mock_tool_class):
+    def test_agent_initialization(self):
         """Test agent initialization with tools"""
-        # Mock the tools that get created
-        mock_sanitize_tool = MagicMock()
-        mock_sanitize_tool.name = "sanitize_content"
-
-        mock_enhance_tool = MagicMock()
-        mock_enhance_tool.name = "ai_pdf_enhancement"
-
-        mock_tool_class.side_effect = [mock_sanitize_tool, mock_enhance_tool]
-
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Verify agent was created and has tools
@@ -81,18 +129,8 @@ class TestSecurityAgent:
             assert "type" in tool.parameters
             assert "properties" in tool.parameters
 
-    @patch('agent.security_agent.ChatGoogleGenerativeAI')
-    @patch('agent.security_agent.LLMChain')
-    def test_ai_pdf_enhancement_functionality(self, mock_chain_class, mock_llm_class):
+    def test_ai_pdf_enhancement_functionality(self):
         """Test the AI PDF enhancement functionality"""
-        # Mock LLM components
-        mock_llm_instance = MagicMock()
-        mock_llm_class.return_value = mock_llm_instance
-
-        mock_chain_instance = MagicMock()
-        mock_chain_instance.run.return_value = '{"document_type": "report", "summary": "Test summary"}'
-        mock_chain_class.return_value = mock_chain_instance
-
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Find the enhance tool
@@ -110,7 +148,11 @@ class TestSecurityAgent:
         assert "enhanced_content" in result
         assert "structured_output" in result
         assert isinstance(result["structured_output"], dict)
-        assert result["structured_output"]["document_type"] == "report"
+        # Check for mock results
+        if "note" in result and "mock" in result["note"]:
+            assert result["structured_output"]["document_type"] == "report"
+        else:
+            assert result["structured_output"]["document_type"] == "report"
 
     def test_sanitize_content_fallback(self):
         """Test sanitize content fallback when backend is unavailable"""
