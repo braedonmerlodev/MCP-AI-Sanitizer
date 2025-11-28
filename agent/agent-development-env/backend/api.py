@@ -518,7 +518,7 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
         PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
 
 
-@app.post("/api/process-pdf", response_model=ProcessPdfJobResponse)
+@app.post("/api/documents/upload", response_model=ProcessPdfJobResponse)
 async def process_pdf(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -602,7 +602,7 @@ async def process_pdf(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/api/process-pdf/{job_id}")
+@app.get("/api/documents/{job_id}/status")
 async def get_processing_status(
     job_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
