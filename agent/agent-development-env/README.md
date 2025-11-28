@@ -5,14 +5,14 @@ This directory contains the isolated testing environment for deepagent package d
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Agent Dev     │    │   Proxy Service │    │   Production    │
-│   Container     │◄──►│   (Node.js)     │◄──►│   Backend API   │
-│                 │    │                 │    │                 │
-│ - deepagent pkg │    │ - Request proxy │    │ - Sanitization  │
-│ - Agent code    │    │ - Response cache│    │ - GPT processing│
-│ - Test scripts  │    │ - Error handling │    │ - JSON output   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Agent Dev     │    │   Proxy Service │    │   Production    │    │   Monitoring    │
+│   Container     │◄──►│   (Node.js)     │◄──►│   Backend API   │◄──►│   Dashboard     │
+│                 │    │                 │    │                 │    │                 │
+│ - deepagent pkg │    │ - Request proxy │    │ - Sanitization  │    │ - Performance   │
+│ - Agent code    │    │ - Response cache│    │ - GPT processing│    │ - Metrics       │
+│ - Test scripts  │    │ - Error handling │    │ - JSON output   │    │ - Alerts        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## Setup Instructions
@@ -206,6 +206,68 @@ docker-compose logs -f proxy
 # Enter proxy container for debugging
 docker exec -it proxy bash
 ```
+
+## Performance Monitoring
+
+The system includes comprehensive performance monitoring for PDF processing and system metrics.
+
+### Features
+
+- **Real-time Metrics**: Prometheus metrics for request counts, durations, and success rates
+- **System Monitoring**: CPU, memory, and connection tracking
+- **Performance Alerts**: Automatic alerting for performance degradation
+- **Visual Dashboard**: Streamlit-based monitoring dashboard
+
+### Running the Monitoring Dashboard
+
+```bash
+# Start the monitoring dashboard (requires backend running)
+python run_monitoring.py
+
+# Dashboard will be available at http://localhost:8501
+```
+
+### Metrics Collected
+
+- **PDF Processing**:
+  - Request counts by status (success, failed, rate limited, etc.)
+  - Processing duration by stage (validation, extraction, sanitization, enhancement)
+  - File size distribution
+  - Success rates and error tracking
+
+- **Chat System**:
+  - Request counts and response times
+  - Error rates and performance metrics
+
+- **System Resources**:
+  - CPU and memory usage
+  - Active WebSocket connections
+  - Background task performance
+
+### Alerting
+
+Configure email alerts by setting these environment variables:
+
+```bash
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+ALERT_EMAIL=alerts@yourcompany.com
+```
+
+Alerts are triggered for:
+
+- PDF processing duration > 30 seconds
+- PDF failure rate > 10%
+- Chat response time > 10 seconds
+- CPU usage > 90%
+- Memory usage > 90%
+- Too many active connections
+
+### Prometheus Metrics
+
+Metrics are exposed on port 8000 at `/metrics` endpoint for integration with monitoring systems like Grafana.
 
 ## Cleanup
 

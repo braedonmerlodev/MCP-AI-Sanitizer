@@ -10,33 +10,35 @@ import os
 from deepagent import Agent, Tool
 from langsmith import traceable
 from config.backend_config import BACKEND_CONFIG
-import requests
+import aiohttp
 import json
 from typing import Dict, Any
 
 class SecurityAgent(Agent):
-    def __init__(self):
+    def __init__(self, llm_config: Dict[str, Any] = None):
         super().__init__(
             name="MCP Security Agent",
             description="Autonomous security agent for MCP-Security backend",
             tools=self._initialize_tools()
         )
         self.backend_config = BACKEND_CONFIG
-        self.session = requests.Session()
-        self.session.headers.update({
+        self.llm_config = llm_config
+        self.session = aiohttp.ClientSession(headers={
             "Authorization": f"Bearer {self.backend_config['api_key']}",
             "Content-Type": "application/json"
         })
 
     def _initialize_tools(self) -> list[Tool]:
-        """Initialize all backend-integrated tools"""
+        """Initialize core intrinsic tools"""
         return [
             self._create_sanitization_tool(),
-            self._create_monitoring_tool(),
-            self._create_document_tool(),
-            self._create_admin_tool(),
-            self._create_learning_tool()
+            self._create_ai_pdf_tool()
         ]
+
+    async def close(self):
+        """Close the aiohttp session"""
+        if self.session:
+            await self.session.close()
 
     @traceable(name="ai_pdf_enhancement")
     def _create_ai_pdf_tool(self) -> Tool:
@@ -97,8 +99,9 @@ class SecurityAgent(Agent):
             }
         )
 
-    def _get_pdf_enhancement_prompt(self, transformation_type: str) -> PromptTemplate:
+    def _get_pdf_enhancement_prompt(self, transformation_type: str) -> Any:
         """Get appropriate prompt template for transformation type"""
+        from langchain.prompts import PromptTemplate
         prompts = {
             "structure": """
             Transform the following raw PDF text into well-structured, readable content.
@@ -157,30 +160,34 @@ class SecurityAgent(Agent):
     @traceable(name="sanitize_content")
     def _create_sanitization_tool(self) -> Tool:
         """Tool for content sanitization"""
-        def sanitize_content(content: str, classification: str = "general") -> Dict[str, Any]:
+        async def sanitize_content(content: str, classification: str = "general") -> Dict[str, Any]:
             """Sanitize content using backend API"""
             payload = {
                 "data": content,
                 "classification": classification
             }
 
-            response = self.session.post(
-                f"{self.backend_config['base_url']}{self.backend_config['endpoints']['sanitize']}",
-                json=payload
-            )
-
-            if response.status_code == 200:
-                return {
-                    "success": True,
-                    "sanitized_content": response.json().get("sanitizedData"),
-                    "processing_time": response.elapsed.total_seconds()
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": response.text,
-                    "status_code": response.status_code
-                }
+            try:
+                async with self.session.post(
+                    f"{self.backend_config['base_url']}{self.backend_config['endpoints']['sanitize']}",
+                    json=payload
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            "success": True,
+                            "sanitized_content": data.get("sanitizedData"),
+                            "processing_time": "calculated"
+                        }
+                    else:
+                        text = await response.text()
+                        return {
+                            "success": False,
+                            "error": text,
+                            "status_code": response.status
+                        }
+            except Exception as e:
+                return {"success": False, "error": str(e)}
 
         return Tool(
             name="sanitize_content",
@@ -202,9 +209,11 @@ class SecurityAgent(Agent):
 ```python
 # agent/monitoring_tools.py
 from deepagent import Tool
+from datetime import datetime
 from langsmith import traceable
 import pandas as pd
 from datetime import datetime, timedelta
+from typing import Dict, Any
 
 class MonitoringTools:
     def __init__(self, agent):
@@ -213,29 +222,29 @@ class MonitoringTools:
     @traceable(name="monitor_system_health")
     def create_monitoring_tool(self) -> Tool:
         """Tool for monitoring system health and performance"""
-        def monitor_system() -> Dict[str, Any]:
+        async def monitor_system() -> Dict[str, Any]:
             """Get comprehensive system monitoring data"""
             try:
                 # Get reuse statistics
-                response = self.agent.session.get(
+                async with self.agent.session.get(
                     f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['monitoring']}"
-                )
+                ) as response:
 
-                if response.status_code == 200:
-                    stats = response.json()
+                    if response.status == 200:
+                        stats = await response.json()
 
-                    # Analyze for anomalies
-                    anomalies = self._detect_anomalies(stats)
+                        # Analyze for anomalies
+                        anomalies = self._detect_anomalies(stats)
 
-                    return {
-                        "success": True,
-                        "statistics": stats,
-                        "anomalies_detected": len(anomalies) > 0,
-                        "anomaly_details": anomalies,
-                        "recommendations": self._generate_recommendations(anomalies)
-                    }
-                else:
-                    return {"success": False, "error": "Failed to fetch monitoring data"}
+                        return {
+                            "success": True,
+                            "statistics": stats,
+                            "anomalies_detected": len(anomalies) > 0,
+                            "anomaly_details": anomalies,
+                            "recommendations": self._generate_recommendations(anomalies)
+                        }
+                    else:
+                        return {"success": False, "error": "Failed to fetch monitoring data"}
 
             except Exception as e:
                 return {"success": False, "error": str(e)}
@@ -287,7 +296,7 @@ class MonitoringTools:
     @traceable(name="learn_from_incidents")
     def create_learning_tool(self) -> Tool:
         """Tool for learning from security incidents"""
-        def learn_from_data(days_back: int = 7) -> Dict[str, Any]:
+        async def learn_from_data(days_back: int = 7) -> Dict[str, Any]:
             """Export and analyze recent security data for learning"""
             try:
                 # Export training data
@@ -304,27 +313,27 @@ class MonitoringTools:
                     }
                 }
 
-                response = self.agent.session.post(
+                async with self.agent.session.post(
                     f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['export_data']}",
                     json=payload
-                )
+                ) as response:
 
-                if response.status_code == 200:
-                    # Process the exported data for learning
-                    training_data = response.json()
+                    if response.status == 200:
+                        # Process the exported data for learning
+                        training_data = await response.json()
 
-                    # Analyze patterns
-                    patterns = self._analyze_patterns(training_data)
+                        # Analyze patterns
+                        patterns = self._analyze_patterns(training_data)
 
-                    return {
-                        "success": True,
-                        "data_points": len(training_data),
-                        "patterns_identified": len(patterns),
-                        "learning_insights": patterns,
-                        "next_actions": self._generate_learning_actions(patterns)
-                    }
-                else:
-                    return {"success": False, "error": "Failed to export training data"}
+                        return {
+                            "success": True,
+                            "data_points": len(training_data),
+                            "patterns_identified": len(patterns),
+                            "learning_insights": patterns,
+                            "next_actions": self._generate_learning_actions(patterns)
+                        }
+                    else:
+                        return {"success": False, "error": "Failed to export training data"}
 
             except Exception as e:
                 return {"success": False, "error": str(e)}
@@ -382,8 +391,10 @@ class MonitoringTools:
 ```python
 # agent/response_tools.py
 from deepagent import Tool
+from datetime import datetime
 from langsmith import traceable
 import json
+from typing import Dict, Any
 
 class ResponseTools:
     def __init__(self, agent):
@@ -392,7 +403,7 @@ class ResponseTools:
     @traceable(name="orchestrate_response")
     def create_orchestration_tool(self) -> Tool:
         """Tool for orchestrating automated security responses"""
-        def orchestrate_response(threat_level: str, threat_details: str, actions: list) -> Dict[str, Any]:
+        async def orchestrate_response(threat_level: str, threat_details: str, actions: list) -> Dict[str, Any]:
             """Orchestrate automated response to detected threats"""
             results = {
                 "threat_level": threat_level,
@@ -405,11 +416,11 @@ class ResponseTools:
             for action in actions:
                 try:
                     if action["type"] == "admin_override":
-                        result = self._activate_admin_override(action)
+                        result = await self._activate_admin_override(action)
                     elif action["type"] == "n8n_workflow":
-                        result = self._trigger_n8n_workflow(action)
+                        result = await self._trigger_n8n_workflow(action)
                     elif action["type"] == "sanitize_content":
-                        result = self._emergency_sanitize(action)
+                        result = await self._emergency_sanitize(action)
                     else:
                         result = {"success": False, "error": f"Unknown action type: {action['type']}"}
 
@@ -461,24 +472,56 @@ class ResponseTools:
             }
         )
 
-    def _activate_admin_override(self, action: Dict) -> Dict[str, Any]:
+    @traceable(name="admin_override")
+    def create_admin_tool(self) -> Tool:
+        """Tool for administrative override actions"""
+        async def admin_action(action_type: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            """Execute administrative actions"""
+            if action_type == "activate_override":
+                return await self._activate_admin_override({"parameters": parameters})
+            elif action_type == "check_status":
+                # Implementation for status check
+                return {"success": True, "status": "active"} # Placeholder
+            else:
+                return {"success": False, "error": "Unknown action type"}
+
+        return Tool(
+            name="admin_override_tool",
+            description="Execute administrative override actions",
+            function=admin_action,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action_type": {"type": "string", "enum": ["activate_override", "check_status"]},
+                    "parameters": {"type": "object"}
+                },
+                "required": ["action_type", "parameters"]
+            }
+        )
+
+    async def _activate_admin_override(self, action: Dict) -> Dict[str, Any]:
         """Activate admin override for emergency response"""
         payload = {
             "duration": action.get("parameters", {}).get("duration", 1800000),  # 30 minutes default
             "justification": f"Automated response to {action.get('threat_level', 'unknown')} threat"
         }
 
-        response = self.agent.session.post(
-            f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['admin_override']}",
+        async with self.agent.session.post(
+            f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['admin_override_activate']}",
             json=payload
-        )
+        ) as response:
+            if response.status == 200:
+                return {
+                    "success": True,
+                    "response": await response.json()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": await response.text()
+                }
 
-        return {
-            "success": response.status_code == 200,
-            "response": response.json() if response.status_code == 200 else response.text
-        }
-
-    def _trigger_n8n_workflow(self, action: Dict) -> Dict[str, Any]:
+    async def _trigger_n8n_workflow(self, action: Dict) -> Dict[str, Any]:
         """Trigger N8N workflow for automated response"""
         payload = {
             "data": json.dumps({
@@ -489,35 +532,114 @@ class ResponseTools:
             })
         }
 
-        response = self.agent.session.post(
+        async with self.agent.session.post(
             f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['n8n_webhook']}",
             json=payload
-        )
+        ) as response:
+            if response.status == 200:
+                return {
+                    "success": True,
+                    "response": await response.json()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": await response.text()
+                }
 
-        return {
-            "success": response.status_code == 200,
-            "response": response.json() if response.status_code == 200 else response.text
-        }
-
-    def _emergency_sanitize(self, action: Dict) -> Dict[str, Any]:
+    async def _emergency_sanitize(self, action: Dict) -> Dict[str, Any]:
         """Perform emergency sanitization of suspicious content"""
         payload = {
             "data": action.get("parameters", {}).get("content", ""),
             "classification": "emergency"
         }
 
-        response = self.agent.session.post(
+        async with self.agent.session.post(
             f"{self.agent.backend_config['base_url']}{self.agent.backend_config['endpoints']['sanitize']}",
             json=payload
-        )
-
-        return {
-            "success": response.status_code == 200,
-            "sanitized_content": response.json().get("sanitizedData") if response.status_code == 200 else None
-        }
+        ) as response:
+            if response.status == 200:
+                data = await response.json()
+                return {
+                    "success": True,
+                    "sanitized_content": data.get("sanitizedData")
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": await response.text()
+                }
 
     def _log_orchestration_results(self, results: Dict) -> None:
         """Log orchestration results for learning"""
         # This would integrate with LangSmith for memory persistence
         pass
+```
+
+### 2.4 Job Management Tools
+
+```python
+# agent/job_tools.py
+from deepagent import Tool
+from langsmith import traceable
+from typing import Dict, Any
+
+class JobTools:
+    def __init__(self, agent):
+        self.agent = agent
+
+    @traceable(name="job_management")
+    def create_job_management_tool(self) -> Tool:
+        """Tool for managing asynchronous jobs"""
+        async def manage_job(action: str, job_id: str) -> Dict[str, Any]:
+            """Check status, get results, or cancel async jobs"""
+            try:
+                if action == "check_status":
+                    endpoint = self.agent.backend_config['endpoints']['job_status'].format(taskId=job_id)
+                    method = self.agent.session.get
+                elif action == "get_result":
+                    endpoint = self.agent.backend_config['endpoints']['job_result'].format(taskId=job_id)
+                    method = self.agent.session.get
+                elif action == "cancel":
+                    endpoint = self.agent.backend_config['endpoints']['job_cancel'].format(taskId=job_id)
+                    method = self.agent.session.delete
+                else:
+                    return {"success": False, "error": f"Unknown action: {action}"}
+
+                async with method(f"{self.agent.backend_config['base_url']}{endpoint}") as response:
+                    if response.status == 200:
+                        return {
+                            "success": True,
+                            "data": await response.json()
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "error": await response.text(),
+                            "status_code": response.status
+                        }
+
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+        return Tool(
+            name="job_management",
+            description="Manage asynchronous background jobs (status, result, cancel)",
+            function=manage_job,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string", 
+                        "enum": ["check_status", "get_result", "cancel"],
+                        "description": "Action to perform on the job"
+                    },
+                    "job_id": {
+                        "type": "string",
+                        "description": "ID of the job to manage"
+                    }
+                },
+                "required": ["action", "job_id"]
+            }
+        )
 ```
