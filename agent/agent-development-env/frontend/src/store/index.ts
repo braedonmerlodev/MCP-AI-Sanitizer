@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { persistStore, persistReducer, createTransform } from 'redux-persist'
 import storage from 'redux-persist/lib/storage'
 import chatReducer from './slices/chatSlice'
+import notificationReducer from './slices/notificationSlice'
 
 // Transform to handle Date objects in messages and lastActivity
 const dateTransform = createTransform(
@@ -43,6 +44,7 @@ const persistedChatReducer = persistReducer(persistConfig, chatReducer)
 export const store = configureStore({
   reducer: {
     chat: persistedChatReducer,
+    notification: notificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

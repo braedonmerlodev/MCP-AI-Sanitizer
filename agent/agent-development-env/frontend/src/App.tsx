@@ -9,6 +9,7 @@ import {
   UploadZone,
   ChatInterface,
   ProgressIndicator,
+  Toast,
 } from '@/components'
 
 interface ProcessingStatus {
@@ -239,6 +240,7 @@ function App() {
             </div>
           </Main>
           <Footer />
+          <Toast />
         </div>
       </PersistGate>
     </Provider>
