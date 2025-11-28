@@ -5,7 +5,7 @@ import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
 
 // Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
 
 export interface UploadZoneProps {
   onFileSelect?: (file: File) => void
