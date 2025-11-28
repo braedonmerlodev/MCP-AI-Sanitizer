@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
 import { store, persistor } from '@/store'
-import { Header, Main, Footer, UploadZone, ChatInterface } from '@/components'
+import {
+  Header,
+  Main,
+  Footer,
+  UploadZone,
+  ChatInterface,
+  ProgressIndicator,
+} from '@/components'
 
 interface ProcessingStatus {
   status: 'idle' | 'processing' | 'success' | 'error'
@@ -62,26 +69,42 @@ function App() {
     return error // fallback to original
   }
 
-  const processPdfFile = async (file: File) => {
-    try {
+  const startPdfProcessing = (
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/process-pdf', {
-        method: 'POST',
-        body: formData,
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progress = (event.loaded / event.total) * 100
+          onProgress(progress)
+        }
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText)
+            resolve(data)
+          } catch (e) {
+            reject(new Error('Invalid response'))
+          }
+        } else {
+          reject(new Error(`HTTP error! status: ${xhr.status}`))
+        }
+      })
 
-      const data = await response.json()
-      return data
-    } catch (error) {
-      console.error('Error processing PDF:', error)
-      throw error
-    }
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error'))
+      })
+
+      xhr.open('POST', '/api/process-pdf')
+      xhr.send(formData)
+    })
   }
 
   const handleFileSelect = (file: File) => {
@@ -104,40 +127,26 @@ function App() {
       console.log('File validated successfully:', file.name)
       setProcessingStatus({
         status: 'processing',
-        message: 'Processing PDF file...',
-        currentStage: 'Initializing',
-        stages: [
-          { stage: 'file_validation', status: 'completed' },
-          { stage: 'text_extraction', status: 'pending' },
-          { stage: 'sanitization', status: 'pending' },
-          { stage: 'ai_enhancement', status: 'pending' },
-        ],
+        message: 'Uploading PDF file...',
       })
 
       try {
-        // Process PDF file (extract text, sanitize, and enhance)
-        const result = await processPdfFile(file)
-
-        if (result.success) {
-          setProcessingResult(result)
+        await startPdfProcessing(file, (progress) => {
           setProcessingStatus({
-            status: 'success',
-            message: 'Content processed and enhanced successfully',
-            stages: result.processing_stages || [],
+            status: 'processing',
+            message: `Uploading PDF file... ${Math.round(progress)}%`,
           })
-        } else {
-          setProcessingStatus({
-            status: 'error',
-            message: getUserFriendlyError(result.error || 'Processing failed'),
-            stages: result.processing_stages || [],
-          })
-        }
+        })
+        setProcessingStatus({
+          status: 'processing',
+          message: 'PDF processing job started',
+        })
       } catch (err) {
-        console.error('Processing error:', err)
+        console.error('Processing start error:', err)
         setProcessingStatus({
           status: 'error',
           message: getUserFriendlyError(
-            err instanceof Error ? err.message : 'Unknown error occurred'
+            err instanceof Error ? err.message : 'Failed to start processing'
           ),
         })
       }
@@ -150,44 +159,40 @@ function App() {
   const handleRetry = async () => {
     if (!uploadedFile) return
 
+    setProcessingResult(null)
     setProcessingStatus({
       status: 'processing',
       message: 'Retrying PDF processing...',
-      currentStage: 'Initializing',
-      stages: [
-        { stage: 'file_validation', status: 'completed' },
-        { stage: 'text_extraction', status: 'pending' },
-        { stage: 'sanitization', status: 'pending' },
-        { stage: 'ai_enhancement', status: 'pending' },
-      ],
     })
 
     try {
-      const result = await processPdfFile(uploadedFile)
-
-      if (result.success) {
-        setProcessingResult(result)
-        setProcessingStatus({
-          status: 'success',
-          message: 'Content processed and enhanced successfully',
-          stages: result.processing_stages || [],
-        })
-      } else {
-        setProcessingStatus({
-          status: 'error',
-          message: getUserFriendlyError(result.error || 'Processing failed'),
-          stages: result.processing_stages || [],
-        })
-      }
+      await startPdfProcessing(uploadedFile, () => {})
+      setProcessingStatus({
+        status: 'processing',
+        message: 'PDF processing job restarted',
+      })
     } catch (err) {
       console.error('Retry error:', err)
       setProcessingStatus({
         status: 'error',
         message: getUserFriendlyError(
-          err instanceof Error ? err.message : 'Unknown error occurred'
+          err instanceof Error ? err.message : 'Failed to restart processing'
         ),
       })
     }
+  }
+
+  const handleCancel = () => {
+    setProcessingStatus({ status: 'idle' })
+    setProcessingResult(null)
+  }
+
+  const handleComplete = (result: ProcessingResult) => {
+    setProcessingResult(result)
+    setProcessingStatus({
+      status: 'success',
+      message: 'Content processed and enhanced successfully',
+    })
   }
 
   return (
@@ -216,109 +221,14 @@ function App() {
               </div>
 
               {uploadedFile && processingStatus.status !== 'success' && (
-                <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {processingStatus.status === 'processing'
-                      ? 'Processing File'
-                      : processingStatus.status === 'error'
-                        ? 'Processing Failed'
-                        : 'File Ready for Processing'}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">{uploadedFile.name}</span>
-                    <span>•</span>
-                    <span>
-                      {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                    </span>
-                  </div>
-                  <p
-                    className={`text-sm mt-2 ${
-                      processingStatus.status === 'error'
-                        ? 'text-red-600'
-                        : processingStatus.status === 'processing'
-                          ? 'text-blue-600'
-                          : 'text-gray-500'
-                    }`}
-                  >
-                    {processingStatus.message}
-                  </p>
-
-                  {processingStatus.stages &&
-                    processingStatus.stages.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        {processingStatus.stages.map((stage) => (
-                          <div
-                            key={stage.stage}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <div
-                              className={`w-4 h-4 rounded-full flex items-center justify-center text-xs ${
-                                stage.status === 'completed'
-                                  ? 'bg-green-500 text-white'
-                                  : stage.status === 'in_progress'
-                                    ? 'bg-blue-500 text-white animate-pulse'
-                                    : stage.status === 'failed'
-                                      ? 'bg-red-500 text-white'
-                                      : 'bg-gray-300 text-gray-600'
-                              }`}
-                            >
-                              {stage.status === 'completed'
-                                ? '✓'
-                                : stage.status === 'in_progress'
-                                  ? '⟳'
-                                  : stage.status === 'failed'
-                                    ? '✗'
-                                    : '○'}
-                            </div>
-                            <span
-                              className={`capitalize ${
-                                stage.status === 'completed'
-                                  ? 'text-green-600'
-                                  : stage.status === 'in_progress'
-                                    ? 'text-blue-600'
-                                    : stage.status === 'failed'
-                                      ? 'text-red-600'
-                                      : 'text-gray-500'
-                              }`}
-                            >
-                              {stage.stage.replace('_', ' ')}
-                            </span>
-                            {stage.error && (
-                              <span className="text-red-500 text-xs">
-                                ({stage.error})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                  {processingStatus.status === 'processing' && (
-                    <div className="mt-4">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full animate-pulse"
-                          style={{
-                            width: processingStatus.stages
-                              ? `${(processingStatus.stages.filter((s) => s.status === 'completed').length / processingStatus.stages.length) * 100}%`
-                              : '60%',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {processingStatus.status === 'error' && (
-                    <div className="mt-4">
-                      <button
-                        onClick={handleRetry}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
-                      >
-                        Retry Processing
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <ProgressIndicator
+                  file={uploadedFile}
+                  startProcessing={startPdfProcessing}
+                  onCancel={handleCancel}
+                  onRetry={handleRetry}
+                  onComplete={handleComplete}
+                  className="max-w-md mx-auto"
+                />
               )}
 
               {processingStatus.status === 'success' && processingResult && (

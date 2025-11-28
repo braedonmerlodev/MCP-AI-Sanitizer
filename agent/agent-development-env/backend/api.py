@@ -15,6 +15,7 @@ from fastapi import (
     WebSocketDisconnect,
     Request,
     Depends,
+    BackgroundTasks,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -228,6 +229,9 @@ def log_performance_event(
 # Global agent instance
 agent = None
 
+# In-memory storage for processing jobs
+processing_jobs: Dict[str, Dict[str, Any]] = {}
+
 
 # Background task for system monitoring
 async def system_monitoring_task():
@@ -308,67 +312,29 @@ class ProcessPdfResponse(BaseModel):
     processing_stages: Optional[list] = None
 
 
-@app.post("/api/process-pdf", response_model=ProcessPdfResponse)
-async def process_pdf(
-    request: Request,
-    file: UploadFile = File(...),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    """Process uploaded PDF: extract text, sanitize content, and enhance with AI"""
-    client_ip = request.client.host if request.client else "unknown"
+class ProcessPdfJobResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str
+
+
+async def process_pdf_background(job_id: str, file_content: bytes, filename: str, client_ip: str):
+    """Background task to process PDF"""
+    processing_stages = []
+    file_size = len(file_content)
     start_time = time.time()
 
-    # Update system metrics at start
-    update_system_metrics()
-
-    # Rate limiting
-    if not check_rate_limit(client_ip):
-        PDF_PROCESSING_REQUESTS.labels(status="rate_limited", stage="rate_limit").inc()
-        log_security_event(
-            "RATE_LIMIT_EXCEEDED", {"endpoint": "/api/process-pdf"}, client_ip
-        )
-        raise HTTPException(status_code=429, detail="Rate limit exceeded")
-
-    # Authentication
-    if not authenticate_request(credentials):
-        PDF_PROCESSING_REQUESTS.labels(status="unauthorized", stage="auth").inc()
-        log_security_event("AUTH_FAILED", {"endpoint": "/api/process-pdf"}, client_ip)
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-    processing_stages = []
-    file_size = 0
-
     try:
-        # Validate file size
-        file_content = b""
-
-        # Read file in chunks to check size
-        while chunk := await file.read(8192):
-            file_size += len(chunk)
-            if file_size > MAX_FILE_SIZE:
-                log_security_event(
-                    "FILE_TOO_LARGE",
-                    {"size": file_size, "max": MAX_FILE_SIZE},
-                    client_ip,
-                )
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"File too large. Maximum size: {MAX_FILE_SIZE} bytes",
-                )
-            file_content += chunk
+        # Update job status
+        processing_jobs[job_id]["status"] = "processing"
+        processing_jobs[job_id]["stages"] = processing_stages
 
         # Validate file type
         validation_start = time.time()
-        if not validate_file_type(file_content, file.filename):
-            PDF_PROCESSING_REQUESTS.labels(
-                status="invalid_file", stage="validation"
-            ).inc()
-            log_security_event(
-                "INVALID_FILE_TYPE", {"filename": file.filename}, client_ip
-            )
-            raise HTTPException(
-                status_code=400, detail="Invalid file type. Only PDF files are allowed"
-            )
+        if not validate_file_type(file_content, filename):
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["error"] = "Invalid file type. Only PDF files are allowed"
+            return
 
         validation_duration = time.time() - validation_start
         PDF_PROCESSING_DURATION.labels(stage="validation").observe(validation_duration)
@@ -381,10 +347,7 @@ async def process_pdf(
                 "duration": validation_duration,
             }
         )
-
-        log_security_event(
-            "PDF_UPLOAD", {"filename": file.filename, "size": file_size}, client_ip
-        )
+        processing_jobs[job_id]["stages"] = processing_stages
 
         # Extract text from PDF
         processing_stages.append(
@@ -394,20 +357,24 @@ async def process_pdf(
                 "timestamp": datetime.now().isoformat(),
             }
         )
+        processing_jobs[job_id]["stages"] = processing_stages
+
         extraction_start = time.time()
         extracted_text = extract_pdf_text(file_content)
         extraction_duration = time.time() - extraction_start
 
         if not extracted_text:
-            PDF_PROCESSING_REQUESTS.labels(status="no_text", stage="extraction").inc()
-            raise HTTPException(
-                status_code=400, detail="No text could be extracted from the PDF"
-            )
+            processing_stages[-1]["status"] = "failed"
+            processing_stages[-1]["error"] = "No text could be extracted from the PDF"
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["stages"] = processing_stages
+            return
 
         # Sanitize extracted text
         extracted_text = sanitize_input(extracted_text)
 
         processing_stages[-1]["status"] = "completed"
+        processing_stages[-1]["duration"] = extraction_duration
         processing_stages.append(
             {
                 "stage": "sanitization",
@@ -415,6 +382,7 @@ async def process_pdf(
                 "timestamp": datetime.now().isoformat(),
             }
         )
+        processing_jobs[job_id]["stages"] = processing_stages
 
         # Get agent and sanitize content
         sanitization_start = time.time()
@@ -428,10 +396,11 @@ async def process_pdf(
                 break
 
         if not sanitize_tool:
-            PDF_PROCESSING_REQUESTS.labels(
-                status="tool_not_found", stage="sanitization"
-            ).inc()
-            raise HTTPException(status_code=500, detail="Sanitize tool not found")
+            processing_stages[-1]["status"] = "failed"
+            processing_stages[-1]["error"] = "Sanitize tool not found"
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["stages"] = processing_stages
+            return
 
         # Call the sanitize tool
         sanitize_result = await sanitize_tool.function(
@@ -447,15 +416,9 @@ async def process_pdf(
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = sanitize_result.get("error")
             processing_stages[-1]["duration"] = sanitization_duration
-            PDF_PROCESSING_REQUESTS.labels(
-                status="sanitization_failed", stage="sanitization"
-            ).inc()
-            return ProcessPdfResponse(
-                success=False,
-                error=sanitize_result.get("error"),
-                processing_stages=processing_stages,
-                extracted_text_length=len(extracted_text),
-            )
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["stages"] = processing_stages
+            return
 
         processing_stages[-1]["status"] = "completed"
         processing_stages[-1]["duration"] = sanitization_duration
@@ -466,6 +429,7 @@ async def process_pdf(
                 "timestamp": datetime.now().isoformat(),
             }
         )
+        processing_jobs[job_id]["stages"] = processing_stages
 
         # Find the ai_pdf_enhancement tool
         enhancement_start = time.time()
@@ -478,17 +442,9 @@ async def process_pdf(
         if not enhance_tool:
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = "Enhancement tool not found"
-            processing_stages[-1]["duration"] = time.time() - enhancement_start
-            PDF_PROCESSING_REQUESTS.labels(
-                status="tool_not_found", stage="enhancement"
-            ).inc()
-            return ProcessPdfResponse(
-                success=False,
-                sanitized_content=sanitize_result.get("sanitized_content"),
-                error="Enhancement tool not found",
-                processing_stages=processing_stages,
-                extracted_text_length=len(extracted_text),
-            )
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["stages"] = processing_stages
+            return
 
         # Call the enhance tool with json_schema transformation
         enhance_result = await enhance_tool.function(
@@ -507,9 +463,6 @@ async def process_pdf(
         processing_stages[-1]["duration"] = enhancement_duration
         if not enhance_result.get("success", False):
             processing_stages[-1]["error"] = enhance_result.get("error")
-            PDF_PROCESSING_REQUESTS.labels(
-                status="enhancement_failed", stage="enhancement"
-            ).inc()
 
         # Record final metrics
         total_duration = time.time() - start_time
@@ -532,63 +485,178 @@ async def process_pdf(
             client_ip,
         )
 
-        # Update system metrics at end
-        update_system_metrics()
-
-        return ProcessPdfResponse(
-            success=enhance_result.get("success", False),
-            sanitized_content=sanitize_result.get("sanitized_content"),
-            enhanced_content=enhance_result.get("enhanced_content"),
-            structured_output=enhance_result.get("structured_output"),
-            processing_time=enhance_result.get("processing_metadata", {}).get(
+        # Update job with results
+        processing_jobs[job_id]["status"] = "completed" if success else "failed"
+        processing_jobs[job_id]["result"] = {
+            "success": success,
+            "sanitized_content": sanitize_result.get("sanitized_content"),
+            "enhanced_content": enhance_result.get("enhanced_content"),
+            "structured_output": enhance_result.get("structured_output"),
+            "processing_time": enhance_result.get("processing_metadata", {}).get(
                 "processing_time"
             ),
-            error=enhance_result.get("error"),
-            extracted_text_length=len(extracted_text),
-            processing_stages=processing_stages,
-        )
+            "error": enhance_result.get("error"),
+            "extracted_text_length": len(extracted_text),
+        }
+        processing_jobs[job_id]["stages"] = processing_stages
 
-    except HTTPException:
-        # Record metrics for HTTP exceptions
-        total_duration = time.time() - start_time
-        PDF_PROCESSING_REQUESTS.labels(status="http_error", stage="total").inc()
-        PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
-        log_performance_event(
-            "PDF_PROCESSING_HTTP_ERROR",
-            total_duration,
-            {
-                "error_type": "HTTPException",
-                "file_size": file_size if "file_size" in locals() else 0,
-            },
-            client_ip,
-        )
-        update_system_metrics()
-        raise
     except Exception as e:
-        # Log error securely without exposing details
+        # Log error securely
         log_security_event(
             "PROCESSING_ERROR", {"error_type": type(e).__name__}, client_ip
         )
-        # Update the current stage to failed
+        processing_jobs[job_id]["status"] = "failed"
+        processing_jobs[job_id]["error"] = "Internal processing error"
         if processing_stages:
             processing_stages[-1]["status"] = "failed"
             processing_stages[-1]["error"] = "Internal processing error"
+        processing_jobs[job_id]["stages"] = processing_stages
 
-        # Record metrics for general exceptions
+        # Record metrics
         total_duration = time.time() - start_time
         PDF_PROCESSING_REQUESTS.labels(status="internal_error", stage="total").inc()
         PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
-        log_performance_event(
-            "PDF_PROCESSING_INTERNAL_ERROR",
-            total_duration,
-            {
-                "error_type": type(e).__name__,
-                "file_size": file_size if "file_size" in locals() else 0,
-            },
-            client_ip,
+
+
+@app.post("/api/process-pdf", response_model=ProcessPdfJobResponse)
+async def process_pdf(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Start PDF processing job and return job ID"""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Update system metrics at start
+    update_system_metrics()
+
+    # Rate limiting
+    if not check_rate_limit(client_ip):
+        PDF_PROCESSING_REQUESTS.labels(status="rate_limited", stage="rate_limit").inc()
+        log_security_event(
+            "RATE_LIMIT_EXCEEDED", {"endpoint": "/api/process-pdf"}, client_ip
         )
-        update_system_metrics()
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    # Authentication
+    if not authenticate_request(credentials):
+        PDF_PROCESSING_REQUESTS.labels(status="unauthorized", stage="auth").inc()
+        log_security_event("AUTH_FAILED", {"endpoint": "/api/process-pdf"}, client_ip)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    file_size = 0
+    file_content = b""
+
+    try:
+        # Read file in chunks to check size
+        while chunk := await file.read(8192):
+            file_size += len(chunk)
+            if file_size > MAX_FILE_SIZE:
+                log_security_event(
+                    "FILE_TOO_LARGE",
+                    {"size": file_size, "max": MAX_FILE_SIZE},
+                    client_ip,
+                )
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum size: {MAX_FILE_SIZE} bytes",
+                )
+            file_content += chunk
+
+        # Generate job ID
+        job_id = f"pdf_{secrets.token_hex(8)}"
+        filename = file.filename or "unknown.pdf"
+
+        # Initialize job
+        processing_jobs[job_id] = {
+            "status": "queued",
+            "filename": filename,
+            "file_size": file_size,
+            "client_ip": client_ip,
+            "created_at": datetime.now().isoformat(),
+            "stages": [],
+        }
+
+        # Start background processing
+        background_tasks.add_task(
+            process_pdf_background, job_id, file_content, filename, client_ip
+        )
+
+        log_security_event(
+            "PDF_JOB_STARTED", {"job_id": job_id, "filename": file.filename, "size": file_size}, client_ip
+        )
+
+        return ProcessPdfJobResponse(
+            job_id=job_id,
+            status="queued",
+            message="PDF processing job started"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_security_event(
+            "JOB_START_ERROR", {"error_type": type(e).__name__}, client_ip
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/api/process-pdf/{job_id}")
+async def get_processing_status(
+    job_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Get processing status for a job"""
+    # Authentication
+    if not authenticate_request(credentials):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    if job_id not in processing_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = processing_jobs[job_id]
+
+    # Calculate progress percentage with weighted stages
+    stages = job.get("stages", [])
+    stage_weights = {
+        "file_validation": 0.1,    # 10%
+        "text_extraction": 0.3,    # 30%
+        "sanitization": 0.3,       # 30%
+        "ai_enhancement": 0.3      # 30%
+    }
+    progress_percentage = 0
+    completed_stages = 0
+    for stage in stages:
+        if stage["status"] == "completed":
+            progress_percentage += stage_weights.get(stage["stage"], 0) * 100
+            completed_stages += 1
+        elif stage["status"] == "in_progress":
+            # Add half the weight for in-progress stages
+            progress_percentage += stage_weights.get(stage["stage"], 0) * 50
+
+    # Estimate time remaining (simple heuristic: assume 10s per stage)
+    total_stages = 4
+    remaining_stages = total_stages - completed_stages
+    estimated_time_remaining = max(0, remaining_stages * 10)  # seconds
+
+    response = {
+        "job_id": job_id,
+        "status": job["status"],
+        "progress_percentage": progress_percentage,
+        "estimated_time_remaining": estimated_time_remaining,
+        "stages": stages,
+        "filename": job.get("filename"),
+        "file_size": job.get("file_size"),
+        "created_at": job.get("created_at"),
+    }
+
+    if job["status"] == "completed":
+        response["result"] = job.get("result")
+    elif job["status"] == "failed":
+        response["error"] = job.get("error")
+
+    return response
 
 
 @app.post("/api/sanitize/json", response_model=SanitizeResponse)
@@ -635,7 +703,7 @@ async def sanitize_content(
 
         # Call the sanitize tool
         result = await sanitize_tool.function(
-            content=request.content, classification=request.classification
+            content=req.content, classification=req.classification
         )
 
         return SanitizeResponse(
