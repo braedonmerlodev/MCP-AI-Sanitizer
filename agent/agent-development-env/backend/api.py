@@ -1,18 +1,127 @@
 # backend/api.py
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, field_validator
 from agent.security_agent import SecurityAgent
 import asyncio
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import PyPDF2
 import io
+import json
+import logging
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+import re
 
 # Load environment variables
 load_dotenv()
 
+# Security constants
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_TEXT_LENGTH = 1000000  # 1M characters
+RATE_LIMIT_REQUESTS = 100  # requests per minute
+RATE_LIMIT_WINDOW = 60  # seconds
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+API_KEY = os.getenv("API_KEY")
+
+# In-memory rate limiting (for demo; use Redis in production)
+rate_limit_store: Dict[str, list] = {}
+
+# Security middleware
+security = HTTPBearer(auto_error=False)
+
 app = FastAPI(title="MCP Security Backend API")
+
+# Add security middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"] if os.getenv("ENV") == "development" else ["your-domain.com"]
+)
+
+# Custom security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    return response
+
+# Security functions
+def validate_file_type(file_content: bytes, filename: str) -> bool:
+    """Validate file type by checking magic bytes and extension"""
+    # Check PDF magic bytes
+    if not file_content.startswith(b'%PDF-'):
+        return False
+
+    # Check filename extension
+    if not filename.lower().endswith('.pdf'):
+        return False
+
+    # Additional validation: try to read as PDF
+    try:
+        PyPDF2.PdfReader(io.BytesIO(file_content))
+        return True
+    except:
+        return False
+
+def sanitize_input(text: str) -> str:
+    """Sanitize input text to prevent injection attacks"""
+    # Remove potentially dangerous characters
+    text = re.sub(r'[<>]', '', text)
+    # Limit length
+    return text[:MAX_TEXT_LENGTH]
+
+def check_rate_limit(client_ip: str) -> bool:
+    """Check if client is within rate limits"""
+    now = datetime.now()
+    window_start = now - timedelta(seconds=RATE_LIMIT_WINDOW)
+
+    if client_ip not in rate_limit_store:
+        rate_limit_store[client_ip] = []
+
+    # Clean old requests
+    rate_limit_store[client_ip] = [
+        req_time for req_time in rate_limit_store[client_ip]
+        if req_time > window_start
+    ]
+
+    # Check limit
+    if len(rate_limit_store[client_ip]) >= RATE_LIMIT_REQUESTS:
+        return False
+
+    # Add current request
+    rate_limit_store[client_ip].append(now)
+    return True
+
+def authenticate_request(credentials: HTTPAuthorizationCredentials) -> bool:
+    """Authenticate API request"""
+    if not API_KEY:
+        return True  # No auth required in development
+    return credentials and secrets.compare_digest(credentials.credentials, API_KEY)
+
+def log_security_event(event_type: str, details: Dict[str, Any], client_ip: Optional[str] = None):
+    """Log security events for audit"""
+    logging.info(f"SECURITY_EVENT: {event_type} - {json.dumps(details)} - IP: {client_ip}")
 
 # Global agent instance
 agent = None
@@ -46,6 +155,21 @@ class SanitizeRequest(BaseModel):
     content: str
     classification: str = "general"
 
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v):
+        if len(v) > MAX_TEXT_LENGTH:
+            raise ValueError('Content too long')
+        return sanitize_input(v)
+
+    @field_validator('classification')
+    @classmethod
+    def validate_classification(cls, v):
+        allowed = ['general', 'llm', 'api']
+        if v not in allowed:
+            raise ValueError(f'Classification must be one of: {allowed}')
+        return v
+
 class SanitizeResponse(BaseModel):
     success: bool
     sanitized_content: Optional[str] = None
@@ -63,26 +187,53 @@ class ProcessPdfResponse(BaseModel):
     processing_stages: Optional[list] = None
 
 @app.post("/api/process-pdf", response_model=ProcessPdfResponse)
-async def process_pdf(file: UploadFile = File(...)):
+async def process_pdf(request: Request, file: UploadFile = File(...), credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Process uploaded PDF: extract text, sanitize content, and enhance with AI"""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Rate limiting
+    if not check_rate_limit(client_ip):
+        log_security_event("RATE_LIMIT_EXCEEDED", {"endpoint": "/api/process-pdf"}, client_ip)
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    # Authentication
+    if not authenticate_request(credentials):
+        log_security_event("AUTH_FAILED", {"endpoint": "/api/process-pdf"}, client_ip)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
     processing_stages = []
 
     try:
+        # Validate file size
+        file_size = 0
+        file_content = b""
+
+        # Read file in chunks to check size
+        while chunk := await file.read(8192):
+            file_size += len(chunk)
+            if file_size > MAX_FILE_SIZE:
+                log_security_event("FILE_TOO_LARGE", {"size": file_size, "max": MAX_FILE_SIZE}, client_ip)
+                raise HTTPException(status_code=413, detail=f"File too large. Maximum size: {MAX_FILE_SIZE} bytes")
+            file_content += chunk
+
         # Validate file type
-        if not file.filename.lower().endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        if not validate_file_type(file_content, file.filename):
+            log_security_event("INVALID_FILE_TYPE", {"filename": file.filename}, client_ip)
+            raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed")
 
-        processing_stages.append({"stage": "file_validation", "status": "completed", "timestamp": "now"})
+        processing_stages.append({"stage": "file_validation", "status": "completed", "timestamp": datetime.now().isoformat()})
 
-        # Read file content
-        file_content = await file.read()
+        log_security_event("PDF_UPLOAD", {"filename": file.filename, "size": file_size}, client_ip)
 
         # Extract text from PDF
-        processing_stages.append({"stage": "text_extraction", "status": "in_progress", "timestamp": "now"})
+        processing_stages.append({"stage": "text_extraction", "status": "in_progress", "timestamp": datetime.now().isoformat()})
         extracted_text = extract_pdf_text(file_content)
 
         if not extracted_text:
             raise HTTPException(status_code=400, detail="No text could be extracted from the PDF")
+
+        # Sanitize extracted text
+        extracted_text = sanitize_input(extracted_text)
 
         processing_stages[-1]["status"] = "completed"
         processing_stages.append({"stage": "sanitization", "status": "in_progress", "timestamp": "now"})
@@ -161,15 +312,37 @@ async def process_pdf(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
+        # Log error securely without exposing details
+        log_security_event("PROCESSING_ERROR", {"error_type": type(e).__name__}, client_ip)
         # Update the current stage to failed
         if processing_stages:
             processing_stages[-1]["status"] = "failed"
-            processing_stages[-1]["error"] = str(e)
-        raise HTTPException(status_code=500, detail=str(e))
+            processing_stages[-1]["error"] = "Internal processing error"
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/sanitize/json", response_model=SanitizeResponse)
-async def sanitize_content(request: SanitizeRequest):
+async def sanitize_content(request: Request, req: SanitizeRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Sanitize content using the security agent"""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Rate limiting
+    if not check_rate_limit(client_ip):
+        log_security_event("RATE_LIMIT_EXCEEDED", {"endpoint": "/api/sanitize/json"}, client_ip)
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    # Authentication
+    if not authenticate_request(credentials):
+        log_security_event("AUTH_FAILED", {"endpoint": "/api/sanitize/json"}, client_ip)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    # Validate input
+    if len(req.content) > MAX_TEXT_LENGTH:
+        log_security_event("INPUT_TOO_LARGE", {"length": len(req.content)}, client_ip)
+        raise HTTPException(status_code=413, detail="Input too large")
+
+    # Sanitize input
+    req.content = sanitize_input(req.content)
+
     try:
         agent = await get_agent()
 
@@ -197,12 +370,247 @@ async def sanitize_content(request: SanitizeRequest):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log_security_event("SANITIZE_ERROR", {"error_type": type(e).__name__}, client_ip)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Store active WebSocket connections and their associated data
+active_connections: Dict[str, Dict[str, Any]] = {}
+
+class ChatMessage(BaseModel):
+    message: str
+    context: Optional[Dict[str, Any]] = None
+
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v):
+        if len(v) > MAX_TEXT_LENGTH:
+            raise ValueError('Message too long')
+        return sanitize_input(v)
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    """WebSocket endpoint for real-time chat with streaming responses"""
+    # Check origin for security
+    origin = websocket.headers.get("origin", "")
+    if origin not in ALLOWED_ORIGINS and ALLOWED_ORIGINS != ["*"]:
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
+
+    await websocket.accept()
+
+    # Generate connection ID
+    connection_id = f"conn_{id(websocket)}"
+    client_ip = websocket.client.host if websocket.client else "unknown"
+
+    active_connections[connection_id] = {
+        "websocket": websocket,
+        "agent": None,
+        "context": {},
+        "connected_at": datetime.now(),
+        "client_ip": client_ip
+    }
+
+    log_security_event("WEBSOCKET_CONNECT", {"connection_id": connection_id}, client_ip)
+
+    try:
+        # Initialize agent for this connection
+        agent = await get_agent()
+        active_connections[connection_id]["agent"] = agent
+
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+
+            try:
+                message_data = json.loads(data)
+            except json.JSONDecodeError:
+                await websocket.send_json({"type": "error", "error": "Invalid JSON"})
+                continue
+
+            user_message = message_data.get("message", "")
+            context = message_data.get("context", {})
+
+            # Validate input
+            if len(user_message) > MAX_TEXT_LENGTH:
+                await websocket.send_json({"type": "error", "error": "Message too long"})
+                continue
+
+            # Sanitize input
+            user_message = sanitize_input(user_message)
+
+            # Update connection context
+            active_connections[connection_id]["context"] = context
+
+            # Generate streaming response
+            await stream_chat_response(websocket, agent, user_message, context)
+
+    except WebSocketDisconnect:
+        logging.info(f"WebSocket disconnected: {connection_id}")
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "error": "Internal server error"
+            })
+        except:
+            pass
+    finally:
+        # Clean up connection
+        if connection_id in active_connections:
+            del active_connections[connection_id]
+
+async def stream_chat_response(websocket: WebSocket, agent: SecurityAgent, message: str, context: Dict[str, Any]):
+    """Stream chat response using the security agent"""
+    try:
+        # Send typing indicator
+        await websocket.send_json({"type": "typing", "status": True})
+
+        # Prepare context for the agent
+        system_context = ""
+        if context.get("processed_data"):
+            system_context = f"You have access to processed PDF data: {json.dumps(context['processed_data'])}. Use this to answer questions about the content."
+
+        # For now, use a simple LLM call. In a full implementation, you'd use the agent's LLM capabilities
+        # Since the agent uses Langchain, we can create a simple chat tool
+
+        from langchain.chains import LLMChain
+        from langchain.prompts import PromptTemplate
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        llm_config = {
+            "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),
+            "temperature": 0.1,
+            "max_tokens": 2000,
+            "api_key": os.getenv("GEMINI_API_KEY"),
+            "base_url": os.getenv("AGENT_LLM_BASE_URL")
+        }
+
+        llm = ChatGoogleGenerativeAI(
+            temperature=0.1,
+            model=llm_config["model"],
+            google_api_key=llm_config["api_key"]
+        )
+
+        prompt = PromptTemplate(
+            template="""{system_context}
+
+User: {message}
+
+Assistant: """,
+            input_variables=["system_context", "message"]
+        )
+
+        chain = LLMChain(llm=llm, prompt=prompt)
+
+        # For streaming, we'll simulate it by sending chunks
+        # In a real implementation, you'd use the LLM's streaming capabilities
+        response = chain.run(system_context=system_context, message=message)
+
+        # Split response into chunks for streaming effect
+        words = response.split()
+        chunk_size = 10
+
+        for i in range(0, len(words), chunk_size):
+            chunk = " ".join(words[i:i+chunk_size])
+            await websocket.send_json({
+                "type": "chunk",
+                "content": chunk + " "
+            })
+            await asyncio.sleep(0.1)  # Small delay for streaming effect
+
+        # Send completion
+        await websocket.send_json({"type": "complete"})
+
+    except Exception as e:
+        logging.error(f"Error in stream_chat_response: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "error": "Failed to generate response"
+        })
+    finally:
+        # Stop typing indicator
+        await websocket.send_json({"type": "typing", "status": False})
+
+@app.post("/api/chat")
+async def http_chat(request: Request, chat_request: ChatMessage, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """HTTP fallback endpoint for chat (non-streaming)"""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Rate limiting
+    if not check_rate_limit(client_ip):
+        log_security_event("RATE_LIMIT_EXCEEDED", {"endpoint": "/api/chat"}, client_ip)
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    # Authentication
+    if not authenticate_request(credentials):
+        log_security_event("AUTH_FAILED", {"endpoint": "/api/chat"}, client_ip)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    # Validate input
+    if len(chat_request.message) > MAX_TEXT_LENGTH:
+        log_security_event("INPUT_TOO_LARGE", {"length": len(chat_request.message)}, client_ip)
+        raise HTTPException(status_code=413, detail="Message too long")
+
+    # Sanitize input
+    chat_request.message = sanitize_input(chat_request.message)
+
+    try:
+        agent = await get_agent()
+
+        # Simple response generation (same as WebSocket but non-streaming)
+        from langchain.chains import LLMChain
+        from langchain.prompts import PromptTemplate
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        llm_config = {
+            "model": os.getenv("AGENT_LLM_MODEL", "gemini-1.5-flash"),
+            "temperature": 0.1,
+            "max_tokens": 2000,
+            "api_key": os.getenv("GEMINI_API_KEY"),
+            "base_url": os.getenv("AGENT_LLM_BASE_URL")
+        }
+
+        llm = ChatGoogleGenerativeAI(
+            temperature=0.1,
+            model=llm_config["model"],
+            google_api_key=llm_config["api_key"]
+        )
+
+        system_context = ""
+        if chat_request.context and chat_request.context.get("processed_data"):
+            system_context = f"You have access to processed PDF data: {json.dumps(chat_request.context['processed_data'])}. Use this to answer questions about the content."
+
+        prompt = PromptTemplate(
+            template="""{system_context}
+
+User: {message}
+
+Assistant: """,
+            input_variables=["system_context", "message"]
+        )
+
+        chain = LLMChain(llm=llm, prompt=prompt)
+        response = chain.run(system_context=system_context, message=chat_request.message)
+
+        return {
+            "success": True,
+            "response": response,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        log_security_event("CHAT_ERROR", {"error_type": type(e).__name__}, client_ip)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
+    }
 
 if __name__ == "__main__":
     import uvicorn
