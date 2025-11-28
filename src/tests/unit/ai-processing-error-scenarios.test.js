@@ -30,14 +30,6 @@ jest.mock('../../components/AITextTransformer', () => {
   }));
 });
 
-// Mock AITextTransformer FIRST before any other requires
-
-jest.mock('../../components/AITextTransformer', () => {
-  return jest.fn().mockImplementation(() => ({
-    transform: mockTransform,
-  }));
-});
-
 // Mock environment variables
 process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-ai-errors';
 process.env.ADMIN_AUTH_SECRET = 'test-admin-secret';
