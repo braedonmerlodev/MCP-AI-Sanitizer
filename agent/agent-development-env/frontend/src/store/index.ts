@@ -4,6 +4,7 @@ import storage from 'redux-persist/lib/storage'
 import chatReducer from './slices/chatSlice'
 import notificationReducer from './slices/notificationSlice'
 import pdfReducer from './slices/pdfSlice'
+import authReducer from './slices/authSlice'
 import { apiSlice } from './slices/apiSlice'
 
 // Transform to handle Date objects in messages and lastActivity
@@ -65,6 +66,7 @@ export const store = configureStore({
     chat: persistedChatReducer,
     pdf: persistedPdfReducer,
     notification: notificationReducer,
+    auth: authReducer,
     [apiSlice.reducerPath]: apiSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>

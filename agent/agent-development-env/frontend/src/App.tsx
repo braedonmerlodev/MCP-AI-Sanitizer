@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
 import { store, persistor } from '@/store'
+import { AuthProvider } from '@/contexts/AuthContext'
 import {
   Header,
   Main,
@@ -137,51 +138,53 @@ function App() {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <Main>
-            <div className="max-w-2xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Welcome to MCP Security Agent
-                </h2>
-                <p className="text-gray-600">
-                  Upload PDF documents and interact with our AI-powered security
-                  analysis tool.
-                </p>
-              </div>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            <Header />
+            <Main>
+              <div className="max-w-2xl mx-auto">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    Welcome to MCP Security Agent
+                  </h2>
+                  <p className="text-gray-600">
+                    Upload PDF documents and interact with our AI-powered
+                    security analysis tool.
+                  </p>
+                </div>
 
-              <div className="mb-8">
-                <UploadZone
-                  onFileSelect={handleFileSelect}
-                  onFileValidated={handleFileValidated}
-                  className="max-w-md mx-auto"
-                />
-              </div>
-
-              {uploadedFile &&
-                pdfState.status !== 'completed' &&
-                pdfState.status !== 'failed' &&
-                pdfState.status !== 'cancelled' && (
-                  <ProgressIndicator
-                    file={uploadedFile}
-                    onCancel={handleCancel}
-                    onRetry={handleRetry}
-                    onComplete={handleComplete}
+                <div className="mb-8">
+                  <UploadZone
+                    onFileSelect={handleFileSelect}
+                    onFileValidated={handleFileValidated}
                     className="max-w-md mx-auto"
                   />
-                )}
-
-              {pdfState.status === 'completed' && pdfState.result && (
-                <div className="max-w-4xl mx-auto">
-                  <ChatInterface processingResult={pdfState.result} />
                 </div>
-              )}
-            </div>
-          </Main>
-          <Footer />
-          <Toast />
-        </div>
+
+                {uploadedFile &&
+                  pdfState.status !== 'completed' &&
+                  pdfState.status !== 'failed' &&
+                  pdfState.status !== 'cancelled' && (
+                    <ProgressIndicator
+                      file={uploadedFile}
+                      onCancel={handleCancel}
+                      onRetry={handleRetry}
+                      onComplete={handleComplete}
+                      className="max-w-md mx-auto"
+                    />
+                  )}
+
+                {pdfState.status === 'completed' && pdfState.result && (
+                  <div className="max-w-4xl mx-auto">
+                    <ChatInterface processingResult={pdfState.result} />
+                  </div>
+                )}
+              </div>
+            </Main>
+            <Footer />
+            <Toast />
+          </div>
+        </AuthProvider>
       </PersistGate>
     </Provider>
   )

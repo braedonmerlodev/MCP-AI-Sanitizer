@@ -967,6 +967,15 @@ async def http_chat(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/api/validate-key")
+async def validate_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Validate API key"""
+    if authenticate_request(credentials):
+        return {"valid": True}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
