@@ -37,7 +37,7 @@ describe('MessageBubble', () => {
     id: 'test-id',
     role: 'assistant',
     content: '# Hello World\n\nThis is **bold** text.',
-    timestamp: new Date('2023-01-01T00:00:00Z'),
+    timestamp: new Date('2023-01-01T00:00:00Z').toISOString(),
     status: 'sent',
   }
 

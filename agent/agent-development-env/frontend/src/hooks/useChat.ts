@@ -111,7 +111,7 @@ export const useChat = (context?: Record<string, any>) => {
     isReconnecting,
     sendMessage: wsSendMessage,
   } = useWebSocket({
-    url: `/ws/chat`,
+    url: `ws://localhost:5173/ws/chat`,
     onMessage: useCallback(
       (message: WebSocketMessage) => {
         handleWebSocketMessage(message)
@@ -138,7 +138,7 @@ export const useChat = (context?: Record<string, any>) => {
         id: assistantMessageId,
         role: 'assistant',
         content: '',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         status: 'sending',
       }
       dispatch(addMessage(assistantMessage))
@@ -180,7 +180,7 @@ export const useChat = (context?: Record<string, any>) => {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
           content: data.response,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           status: 'sent',
         }
         dispatch(addMessage(assistantMessage))
@@ -210,7 +210,7 @@ export const useChat = (context?: Record<string, any>) => {
         id: `user-${Date.now()}`,
         role: 'user',
         content,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         status: 'sending',
       }
 

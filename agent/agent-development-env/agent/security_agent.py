@@ -272,14 +272,20 @@ class SecurityAgent(Agent):
             message: str, context: Optional[Dict[str, Any]] = None
         ) -> Dict[str, Any]:
             """Generate a chat response using LLM with security context"""
+            print(f"Generating chat response for: {message}")
+            if not self.llm_config.get("api_key"):
+                return {
+                    "success": False,
+                    "error": "API key not set",
+                    "response": "Please set GEMINI_API_KEY to use the AI agent.",
+                }
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
                 from langchain_core.prompts import PromptTemplate
-                from langchain.chains import LLMChain
 
                 llm = ChatGoogleGenerativeAI(
                     temperature=0.1,
-                    model=self.llm_config.get("model", "gemini-2.0-flash"),
+                    model="gemini-2.0-flash",
                     google_api_key=self.llm_config.get("api_key"),
                 )
 
@@ -296,8 +302,9 @@ Assistant: """,
                     input_variables=["system_context", "message"],
                 )
 
-                chain = LLMChain(llm=llm, prompt=prompt)
-                response = chain.run(system_context=system_context, message=message)
+                chain = prompt | llm
+                result = chain.invoke({"system_context": system_context, "message": message})
+                response = result.content if hasattr(result, 'content') else str(result)
 
                 return {
                     "success": True,
@@ -307,6 +314,7 @@ Assistant: """,
 
             except Exception as e:
                 # Fallback response
+                print(f"LLM error: {e}")
                 return {
                     "success": False,
                     "error": str(e),

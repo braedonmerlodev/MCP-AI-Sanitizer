@@ -12,7 +12,7 @@ import {
 } from './apiValidationUtils'
 
 // Environment configuration
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 const API_KEY = import.meta.env.VITE_API_KEY || ''
 
 // Cache configuration

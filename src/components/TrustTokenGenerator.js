@@ -53,8 +53,8 @@ class TrustTokenGenerator {
       originalHash,
       sanitizationVersion: version,
       rulesApplied,
-      timestamp,
-      expiresAt,
+      timestamp: timestamp.toISOString(),
+      expiresAt: expiresAt.toISOString(),
       signature,
       nonce,
     };

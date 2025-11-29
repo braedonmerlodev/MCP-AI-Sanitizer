@@ -4,7 +4,7 @@ export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  timestamp: Date
+  timestamp: string
   type?: 'text' | 'json'
   data?: Record<string, unknown>
   status?: 'sending' | 'sent' | 'delivered' | 'error' | 'queued'
@@ -15,7 +15,7 @@ export interface ChatState {
   isTyping: boolean
   sendingMessage: boolean
   error: string | null
-  lastActivity: Date | null
+  lastActivity: string | null
 }
 
 const initialState: ChatState = {
@@ -32,11 +32,11 @@ const chatSlice = createSlice({
   reducers: {
     addMessage: (state, action: PayloadAction<Message>) => {
       state.messages.push(action.payload)
-      state.lastActivity = new Date()
+      state.lastActivity = new Date().toISOString()
     },
     setMessages: (state, action: PayloadAction<Message[]>) => {
       state.messages = action.payload
-      state.lastActivity = new Date()
+      state.lastActivity = new Date().toISOString()
     },
     updateMessage: (
       state,
@@ -45,12 +45,12 @@ const chatSlice = createSlice({
       const message = state.messages.find((msg) => msg.id === action.payload.id)
       if (message) {
         Object.assign(message, action.payload.updates)
-        state.lastActivity = new Date()
+        state.lastActivity = new Date().toISOString()
       }
     },
     removeMessage: (state, action: PayloadAction<string>) => {
       state.messages = state.messages.filter((msg) => msg.id !== action.payload)
-      state.lastActivity = new Date()
+      state.lastActivity = new Date().toISOString()
     },
     setTyping: (state, action: PayloadAction<boolean>) => {
       state.isTyping = action.payload
@@ -63,7 +63,7 @@ const chatSlice = createSlice({
     },
     clearMessages: (state) => {
       state.messages = []
-      state.lastActivity = new Date()
+      state.lastActivity = new Date().toISOString()
     },
     addIncomingMessage: (
       state,
@@ -72,11 +72,11 @@ const chatSlice = createSlice({
       const message: Message = {
         ...action.payload,
         id: `incoming-${Date.now()}`,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         status: 'sent',
       }
       state.messages.push(message)
-      state.lastActivity = new Date()
+      state.lastActivity = new Date().toISOString()
       state.isTyping = false // Stop typing indicator when message arrives
     },
     addInitialProcessingResult: (
@@ -94,13 +94,13 @@ const chatSlice = createSlice({
           role: 'assistant',
           content:
             "I've successfully processed your PDF and extracted the structured data. Here's the result:",
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           type: 'json',
           data: action.payload.structured_output,
           status: 'sent',
         }
         state.messages = [initialMessage]
-        state.lastActivity = new Date()
+        state.lastActivity = new Date().toISOString()
       }
     },
   },
