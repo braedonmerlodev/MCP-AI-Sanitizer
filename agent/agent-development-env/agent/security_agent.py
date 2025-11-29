@@ -173,11 +173,13 @@ class SecurityAgent(Agent):
             """,
             "json_schema": """
             Convert the following text into a structured JSON format with appropriate keys and values.
-            Identify logical sections and create a hierarchical JSON structure:
+            Identify logical sections and create a hierarchical JSON structure.
+            Output ONLY a valid JSON object that can be parsed by JSON.parse(). Do not include any markdown, code blocks, explanations, or extra text.
+            Start directly with {{ and end with }}.
 
             Text: {text}
 
-            JSON output:
+            JSON:
             """,
         }
         return PromptTemplate(
@@ -190,6 +192,10 @@ class SecurityAgent(Agent):
         """Validate and structure AI output"""
         try:
             if transformation_type == "json_schema":
+                # Strip markdown code blocks if present
+                import re
+                # Remove ```json ... ``` or ``` ... ```
+                output = re.sub(r'```\w*\n?', '', output).strip()
                 # Parse JSON output
                 return json.loads(output)
             else:
@@ -216,35 +222,45 @@ class SecurityAgent(Agent):
         async def sanitize_content(
             content: str, classification: str = "general"
         ) -> Dict[str, Any]:
-            """Sanitize content using backend API"""
-            payload = {"data": content, "classification": classification}
+            """Sanitize content directly using security rules"""
+            import re
+            import html
 
             try:
-                async with self.session.post(
-                    f"{self.backend_config['base_url']}{self.backend_config['endpoints']['sanitize']}",
-                    json=payload,
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return {
-                            "success": True,
-                            "sanitized_content": data.get("sanitizedData"),
-                            "processing_time": "calculated",
-                        }
-                    else:
-                        text = await response.text()
-                        return {
-                            "success": False,
-                            "error": text,
-                            "status_code": response.status,
-                        }
-            except Exception:
-                # Return mock sanitized content for testing when backend is unavailable
+                # Basic sanitization rules based on classification
+                if classification == "general":
+                    # Remove potentially dangerous HTML/script tags
+                    content = re.sub(r'<[^>]+>', '', content)
+                    # Escape HTML entities
+                    content = html.escape(content)
+                    # Remove null bytes and other control characters
+                    content = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', content)
+                elif classification == "llm":
+                    # For LLM input, be more permissive but still safe
+                    content = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.IGNORECASE | re.DOTALL)
+                    content = html.escape(content)
+                elif classification == "api":
+                    # For API data, strict sanitization
+                    content = re.sub(r'[<>"\'&]', '', content)
+                    content = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', content)
+
+                # Limit length to prevent DoS
+                max_length = 1000000
+                if len(content) > max_length:
+                    content = content[:max_length] + "..."
+
                 return {
                     "success": True,
-                    "sanitized_content": f"[SANITIZED - {classification.upper()}] {content[:100]}...",
-                    "processing_time": "mock",
-                    "note": "Using mock sanitization - backend unavailable",
+                    "sanitized_content": content,
+                    "processing_time": "calculated",
+                    "classification": classification,
+                }
+            except Exception as e:
+                # Fallback in case of error
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "sanitized_content": f"[SANITIZATION ERROR - {classification.upper()}] {content[:100]}...",
                 }
 
         return Tool(
@@ -273,7 +289,7 @@ class SecurityAgent(Agent):
         ) -> Dict[str, Any]:
             """Generate a chat response using LLM with security context"""
             print(f"Generating chat response for: {message}")
-            if not self.llm_config.get("api_key"):
+            if not self.llm_config or not self.llm_config.get("api_key"):
                 return {
                     "success": False,
                     "error": "API key not set",
@@ -286,7 +302,7 @@ class SecurityAgent(Agent):
                 llm = ChatGoogleGenerativeAI(
                     temperature=0.1,
                     model="gemini-2.0-flash",
-                    google_api_key=self.llm_config.get("api_key"),
+                    google_api_key=self.llm_config["api_key"] if self.llm_config else None,
                 )
 
                 system_context = ""

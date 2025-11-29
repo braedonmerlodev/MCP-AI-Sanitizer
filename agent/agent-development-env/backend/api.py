@@ -257,7 +257,7 @@ async def get_agent():
             llm_config = {
                 "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
                 "temperature": 0.1,
-                "max_tokens": 2000,
+                "max_tokens": 8000,
                 "api_key": os.getenv("GEMINI_API_KEY"),
                 "base_url": os.getenv("AGENT_LLM_BASE_URL"),
             }
