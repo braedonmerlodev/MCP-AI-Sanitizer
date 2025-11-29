@@ -59,7 +59,7 @@ class AuditLogger {
     this.maxTrailSize = options.maxTrailSize || 1000;
 
     // Load existing audit entries from file on startup
-    this.loadAuditTrailFromFile();
+    // this.loadAuditTrailFromFile(); // Temporarily disabled for troubleshooting
   }
 
   /**

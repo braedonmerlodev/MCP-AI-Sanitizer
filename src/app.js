@@ -1,20 +1,20 @@
 require('dotenv').config();
 
 const express = require('express');
-const winston = require('winston');
+// const winston = require('winston');
 const apiRoutes = require('./routes/api');
-const jobStatusRoutes = require('./routes/jobStatus');
+// const jobStatusRoutes = require('./routes/jobStatus');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
 const { recordRequest, recordError } = require('./utils/monitoring');
 
-// Initialize logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [new winston.transports.Console()],
-});
+// Initialize logger - temporarily disabled
+// const logger = winston.createLogger({
+//   level: 'info',
+//   format: winston.format.json(),
+//   transports: [new winston.transports.Console()],
+// });
 
 // Create Express app
 const app = express();
@@ -38,7 +38,7 @@ app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
-app.use('/api/jobs', jobStatusRoutes);
+// app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -49,10 +49,7 @@ app.get('/', (req, res) => {
       'POST /api/sanitize/json': 'Sanitize input data with trust tokens',
       'POST /api/webhook/n8n': 'Handle n8n webhook with sanitization',
       'POST /api/documents/upload': 'Upload PDF documents for processing',
-      'GET /health': 'Health check',
-      'GET /api/monitoring/reuse-stats': 'Get trust token reuse statistics',
     },
-    documentation: 'See openapi-spec.yaml for full API documentation',
   });
 });
 
@@ -68,17 +65,26 @@ app.get(
   },
 );
 
-// Monitoring endpoint for security metrics, performance, and stability
-app.get('/api/monitoring/metrics', (req, res) => {
-  const { getMetrics } = require('./utils/monitoring');
-  res.json(getMetrics());
-});
-
 // Error handling
-app.use((err, req, res) => {
-  logger.error(err.stack);
-  recordError();
-  res.status(500).json({ error: 'Internal Server Error' });
+app.use((err, req, res, next) => {
+  console.error('Application error:', err.message);
+  // recordError(); // Disabled
+
+  // Safe error response handling
+  try {
+    if (
+      res &&
+      typeof res.status === 'function' &&
+      typeof res.json === 'function' &&
+      !res.headersSent
+    ) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+      console.error('Cannot send error response - response object invalid');
+    }
+  } catch (responseError) {
+    console.error('Failed to send error response', responseError);
+  }
 });
 
 // Start server (don't auto-listen during tests)
