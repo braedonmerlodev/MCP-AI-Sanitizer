@@ -174,7 +174,8 @@ class SecurityAgent(Agent):
             "json_schema": """
             Convert the following text into a structured JSON format with appropriate keys and values.
             Identify logical sections and create a hierarchical JSON structure.
-            Output ONLY valid JSON, no markdown formatting, no code blocks, no explanations.
+            Output ONLY a valid JSON object that can be parsed by JSON.parse(). Do not include any markdown, code blocks, explanations, or extra text.
+            Start directly with {{ and end with }}.
 
             Text: {text}
 
