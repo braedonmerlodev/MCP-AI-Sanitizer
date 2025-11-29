@@ -4,6 +4,7 @@ const JobResult = require('../models/JobResult');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
+const JSONRepair = require('../utils/jsonRepair');
 const pdfParse = require('pdf-parse');
 
 const logger = winston.createLogger({
@@ -107,15 +108,26 @@ async function processJob(job) {
       const sanitized = await sanitizer.sanitize(processedText, job.options);
       result = { sanitizedData: sanitized };
 
-      // If AI structure was applied, parse as JSON
+      // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
-        try {
-          result.sanitizedData = JSON.parse(result.sanitizedData);
-        } catch (e) {
-          logger.warn('Failed to parse AI structured output as JSON in async job', {
+        const jsonRepair = new JSONRepair();
+        const repairResult = jsonRepair.repair(result.sanitizedData);
+
+        if (repairResult.success) {
+          result.sanitizedData = repairResult.data;
+          if (repairResult.repairs.length > 0) {
+            logger.info('JSON repair applied during PDF processing', {
+              jobId,
+              repairs: repairResult.repairs,
+            });
+          }
+        } else {
+          logger.warn('Failed to parse and repair AI structured output as JSON in async job', {
             jobId,
-            error: e.message,
+            error: repairResult.error,
+            repairsAttempted: repairResult.repairs,
           });
+          // Keep the original string data if repair fails
         }
       }
 

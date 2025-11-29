@@ -146,6 +146,7 @@ paths:
         description: |
           Uploads PDF documents, extracts text, and automatically applies AI enhancement.
           Transforms unstructured PDF content into intelligent structured JSON.
+          Includes automatic JSON repair for complex documents to handle malformed AI output.
           AI processing is enabled by default for optimal content understanding.
           Supports synchronous processing for agents.
       operationId: uploadDocument
