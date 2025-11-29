@@ -114,16 +114,18 @@ class TestSecurityAgent:
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Verify agent was created and has tools
-        assert len(agent.tools) == 2
-        assert agent.tools[0].name == "sanitize_content"
-        assert agent.tools[1].name == "ai_pdf_enhancement"
+        assert len(agent.tools) == 3
+        tool_names = [tool.name for tool in agent.tools]
+        assert "sanitize_content" in tool_names
+        assert "ai_pdf_enhancement" in tool_names
+        assert "chat_response" in tool_names
 
     def test_agent_with_valid_config(self):
         """Test agent initialization with valid config"""
         agent = SecurityAgent(llm_config=self.llm_config)
         assert agent.name == "MCP Security Agent"
         assert "security agent" in agent.description.lower()
-        assert len(agent.tools) == 2  # Should have 2 tools
+        assert len(agent.tools) == 3  # Should have 3 tools
 
     def test_agent_tools_structure(self):
         """Test that tools have correct structure"""
@@ -132,6 +134,7 @@ class TestSecurityAgent:
         tool_names = [tool.name for tool in agent.tools]
         assert "sanitize_content" in tool_names
         assert "ai_pdf_enhancement" in tool_names
+        assert "chat_response" in tool_names
 
         # Check tool descriptions
         for tool in agent.tools:
@@ -169,8 +172,8 @@ class TestSecurityAgent:
         else:
             assert result["structured_output"]["document_type"] == "report"
 
-    def test_sanitize_content_fallback(self):
-        """Test sanitize content fallback when backend is unavailable"""
+    def test_sanitize_content_functionality(self):
+        """Test sanitize content functionality"""
         agent = SecurityAgent(llm_config=self.llm_config)
 
         # Find the sanitize tool
@@ -179,17 +182,27 @@ class TestSecurityAgent:
         )
         assert sanitize_tool is not None
 
-        # Test the async function (should use fallback)
+        # Test the async function
         import asyncio
 
+        # Test general classification
         result = asyncio.run(
-            sanitize_tool.function(content="Test content", classification="general")
+            sanitize_tool.function(content="<script>alert('xss')</script>Test content", classification="general")
         )
 
-        # Should return mock sanitized content
         assert result["success"] == True
-        assert "SANITIZED" in result["sanitized_content"]
-        assert result["note"] == "Using mock sanitization - backend unavailable"
+        assert "<script>" not in result["sanitized_content"]
+        assert "Test content" in result["sanitized_content"]
+        assert result["classification"] == "general"
+
+        # Test API classification
+        result = asyncio.run(
+            sanitize_tool.function(content="<>&'Test", classification="api")
+        )
+
+        assert result["success"] == True
+        assert "<>&'" not in result["sanitized_content"]
+        assert "Test" in result["sanitized_content"]
 
     def test_prompt_templates(self):
         """Test that prompt templates are correctly defined"""
