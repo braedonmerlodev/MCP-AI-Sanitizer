@@ -33,7 +33,7 @@ const validateGeminiApiKey = (apiKey, environment) => {
   // Check remaining characters are alphanumeric
   const remaining = apiKey.slice(6);
   if (!/^[a-zA-Z0-9]+$/.test(remaining)) {
-    const errorMsg = 'GEMINI_API_KEY must contain only alphanumeric characters after "AIzaSy"';
+    const errorMsg = 'GEMINI_API_KEY must contain only alphanumeric characters and underscores after "AIzaSy"';
     if (environment === 'production') {
       throw new Error(errorMsg);
     }
