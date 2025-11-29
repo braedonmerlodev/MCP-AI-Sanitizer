@@ -231,11 +231,36 @@ class TestSecurityAgent:
         assert result["key"] == "value"
         assert result["number"] == 42
 
-        # Test invalid JSON fallback
+        # Test JSON with common syntax errors that can be repaired
+        malformed_json = "{key: 'value', number: 42,}"  # unquoted keys, single quotes, trailing comma
+        result = agent._validate_ai_output(malformed_json, "json_schema")
+        assert result["key"] == "value"
+        assert result["number"] == 42
+
+        # Test invalid JSON that cannot be repaired
         invalid_json = "not json at all"
         result = agent._validate_ai_output(invalid_json, "json_schema")
         assert "validation_error" in result
         assert result["enhanced_text"] == invalid_json
+
+    def test_json_repair(self):
+        """Test JSON repair functionality"""
+        agent = SecurityAgent(llm_config=self.llm_config)
+
+        # Test unquoted keys repair
+        input_str = "{key: 'value'}"
+        repaired = agent._repair_json(input_str)
+        assert '"key": "value"' in repaired
+
+        # Test single quotes to double quotes
+        input_str = "{'key': 'value'}"
+        repaired = agent._repair_json(input_str)
+        assert repaired == '{"key": "value"}'
+
+        # Test trailing comma removal
+        input_str = '{"key": "value",}'
+        repaired = agent._repair_json(input_str)
+        assert repaired == '{"key": "value"}'
 
     def test_confidence_calculation(self):
         """Test confidence score calculation"""

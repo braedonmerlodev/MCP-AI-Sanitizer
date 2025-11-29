@@ -189,24 +189,43 @@ class SecurityAgent(Agent):
     def _validate_ai_output(
         self, output: str, transformation_type: str
     ) -> Dict[str, Any]:
-        """Validate and structure AI output"""
+        """Validate and structure AI output, with repair attempts"""
+        import re
         try:
             if transformation_type == "json_schema":
                 # Strip markdown code blocks if present
-                import re
-                # Remove ```json ... ``` or ``` ... ```
                 output = re.sub(r'```\w*\n?', '', output).strip()
+
+                # Attempt to repair common JSON issues
+                output = self._repair_json(output)
+
                 # Parse JSON output
                 return json.loads(output)
             else:
-                # Return structured text
                 return {"enhanced_text": output, "word_count": len(output.split())}
         except json.JSONDecodeError:
-            # Fallback for invalid JSON
             return {
                 "enhanced_text": output,
                 "validation_error": "Invalid JSON structure",
             }
+
+    def _repair_json(self, json_str: str) -> str:
+        """Attempt to repair common JSON syntax errors"""
+        import re
+
+        # Fix unquoted keys (basic regex - may not catch all cases)
+        json_str = re.sub(r'(\w+):', r'"\1":', json_str)
+
+        # Fix single quotes to double quotes
+        json_str = json_str.replace("'", '"')
+
+        # Remove trailing commas before } or ]
+        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+
+        # Basic escape for unescaped quotes in strings (simplified)
+        # This is tricky - in production, consider a proper JSON repair library
+
+        return json_str
 
     def _calculate_confidence(self, structured_output: Dict) -> float:
         """Calculate confidence score for AI output"""
