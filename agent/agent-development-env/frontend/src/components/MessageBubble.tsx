@@ -79,6 +79,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     return 'text-gray-500'
   }
 
+  const messageDate = new Date(message.timestamp)
+
   return (
     <div
       className={containerClasses}
@@ -105,11 +107,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className="flex items-center justify-between mt-2 gap-2">
           <time
             className="text-xs opacity-70"
-            dateTime={message.timestamp.toISOString()}
-            aria-label={`Message sent at ${message.timestamp.toLocaleString()}`}
-            title={message.timestamp.toLocaleString()}
+            dateTime={messageDate.toISOString()}
+            aria-label={`Message sent at ${messageDate.toLocaleString()}`}
+            title={messageDate.toLocaleString()}
           >
-            {formatTimestamp(message.timestamp)}
+            {formatTimestamp(messageDate)}
           </time>
           <div className="flex items-center gap-1">
             {message.status && getStatusIcon() && (
