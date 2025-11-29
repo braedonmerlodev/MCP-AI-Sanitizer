@@ -20,7 +20,6 @@ const JobStatus = require('../../models/JobStatus');
 const queueManager = require('../../utils/queueManager');
 const TrustTokenGenerator = require('../../components/TrustTokenGenerator');
 const ProxySanitizer = require('../../components/proxy-sanitizer');
-const AITextTransformer = require('../../components/AITextTransformer');
 
 describe('End-to-End Integration Validation Tests', () => {
   let validTrustToken;
