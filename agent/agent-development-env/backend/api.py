@@ -312,7 +312,7 @@ async def get_agent():
                     message = kwargs.get('message', 'unknown')
                     return {
                         "success": True,
-                        "response": f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize: {e}",
+                        "response": f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize.",
                         "processing_time": "0.001"
                     }
 
@@ -603,6 +603,7 @@ async def process_pdf(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Start PDF processing job and return job ID"""
+    print(f"Processing PDF upload: {file.filename}")
     client_ip = request.client.host if request.client else "unknown"
 
     # Update system metrics at start
@@ -641,8 +642,11 @@ async def process_pdf(
                 )
             file_content += chunk
 
+        print(f"File read: size={file_size}, filename={file.filename}")
+
         # Validate file type
         if not validate_file_type(file_content, file.filename or "unknown.pdf"):
+            print(f"Invalid file type: {file.filename}")
             log_security_event(
                 "INVALID_FILE_TYPE",
                 {"filename": file.filename, "size": file_size},
@@ -670,21 +674,23 @@ async def process_pdf(
         )
 
         log_security_event(
-            "PDF_JOB_STARTED", {"job_id": job_id, "filename": file.filename, "size": file_size}, client_ip
+            "PDF_PROCESSING_STARTED",
+            {"job_id": job_id, "filename": filename, "size": file_size},
+            client_ip,
         )
 
         return ProcessPdfJobResponse(
             job_id=job_id,
             status="queued",
-            message="PDF processing job started"
+            message="PDF processing job started successfully"
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        log_security_event(
-            "JOB_START_ERROR", {"error_type": type(e).__name__}, client_ip
-        )
+        print(f"Error in process_pdf: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -694,11 +700,13 @@ async def get_processing_status(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Get processing status for a job"""
-    # Authentication
+    print(f"Getting status for job: {job_id}")
+    # Check authentication
     if not authenticate_request(credentials):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     if job_id not in processing_jobs:
+        print(f"Job not found: {job_id}")
         raise HTTPException(status_code=404, detail="Job not found")
 
     job = processing_jobs[job_id]
