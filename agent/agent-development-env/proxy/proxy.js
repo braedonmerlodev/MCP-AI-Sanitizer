@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const NodeCache = require('node-cache');
 const winston = require('winston');
@@ -28,6 +29,7 @@ const logger = winston.createLogger({
 });
 
 // Middleware
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting

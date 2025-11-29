@@ -9,6 +9,7 @@ import {
   logout,
   clearError,
 } from '../store/slices/authSlice'
+import { getEnvironmentConfig } from '../lib/apiKeyManager'
 
 interface AuthContextType {
   apiKey: string | null
@@ -45,7 +46,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch(loadStoredApiKey())
 
     // Validate environment configuration
-    const { getEnvironmentConfig } = require('../lib/apiKeyManager')
     const envConfig = getEnvironmentConfig()
     console.log('Environment configuration:', envConfig)
   }, [dispatch])

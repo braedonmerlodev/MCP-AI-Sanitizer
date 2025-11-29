@@ -117,7 +117,7 @@ async def add_security_headers(request: Request, call_next):
         "max-age=31536000; includeSubDomains"
     )
     response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self' ws: wss: https: http://localhost:8000"
     )
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
@@ -518,7 +518,7 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
         PDF_PROCESSING_DURATION.labels(stage="total").observe(total_duration)
 
 
-@app.post("/api/process-pdf", response_model=ProcessPdfJobResponse)
+@app.post("/api/documents/upload", response_model=ProcessPdfJobResponse)
 async def process_pdf(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -602,7 +602,7 @@ async def process_pdf(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/api/process-pdf/{job_id}")
+@app.get("/api/documents/{job_id}/status")
 async def get_processing_status(
     job_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -989,4 +989,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

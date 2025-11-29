@@ -10,7 +10,7 @@ import type {
 } from '../../types/api'
 
 // Environment configuration
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8001'
 
 const baseQueryWithAuth = fetchBaseQuery({
   baseUrl: BASE_URL,
@@ -78,7 +78,7 @@ export const apiSlice = createApi({
     // Process PDF
     processPdf: builder.mutation<ProcessPdfJobResponse, FormData>({
       query: (formData) => ({
-        url: '/api/process-pdf',
+        url: '/api/documents/upload',
         method: 'POST',
         body: formData,
         formData: true, // This tells RTK Query to not set Content-Type header
@@ -87,7 +87,7 @@ export const apiSlice = createApi({
 
     // Get PDF processing status
     getPdfStatus: builder.query<ProcessPdfStatusResponse, string>({
-      query: (jobId) => `/api/process-pdf/${jobId}`,
+      query: (jobId) => `/api/documents/${jobId}/status`,
     }),
 
     // Chat

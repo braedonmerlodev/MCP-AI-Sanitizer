@@ -31,7 +31,7 @@
     ],
     "testEnvironment": "node",
     "transformIgnorePatterns": [
-      "node_modules/(?!(pdfjs-dist|jsdom|@langchain|langchain|p-retry)/)"
+      "node_modules/(?!(pdfjs-dist|jsdom|@langchain|langchain|p-retry|@langchain/core)/)"
     ]
   },
   "dependencies": {

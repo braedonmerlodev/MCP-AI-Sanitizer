@@ -45,7 +45,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [hasNewMessages, setHasNewMessages] = useState(false)
-  const prevMessagesLengthRef = useRef(messages.length)
+  const prevMessagesLengthRef = useRef(0)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -66,8 +66,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // Check for new messages and handle auto-scroll
   useEffect(() => {
-    const hasNewMessage = messages.length > prevMessagesLengthRef.current
-    prevMessagesLengthRef.current = messages.length
+    const hasNewMessage =
+      Array.isArray(messages) && messages.length > prevMessagesLengthRef.current
+    prevMessagesLengthRef.current = Array.isArray(messages)
+      ? messages.length
+      : 0
 
     if (hasNewMessage) {
       if (isAtBottom) {
@@ -170,13 +173,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           aria-live="polite"
           aria-label="Chat messages"
         >
-          {messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              onRetry={retryMessage}
-            />
-          ))}
+          {Array.isArray(messages) &&
+            messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                onRetry={retryMessage}
+              />
+            ))}
           {isTyping && <TypingIndicator />}
           <div ref={messagesEndRef} />
 
