@@ -111,7 +111,7 @@ export const useChat = (context?: Record<string, any>) => {
     isReconnecting,
     sendMessage: wsSendMessage,
   } = useWebSocket({
-    url: `ws://localhost:8001/ws/chat`,
+    url: `ws://localhost:5173/ws/chat`,
     onMessage: useCallback(
       (message: WebSocketMessage) => {
         handleWebSocketMessage(message)

@@ -252,49 +252,88 @@ async def system_monitoring_task():
 async def get_agent():
     global agent
     if agent is None:
-        # Check if we have required API key
-        api_key = os.getenv("GEMINI_API_KEY")
-        # For now, use mock agent since real agent has model/API issues
-        print(f"Using mock agent (real agent disabled due to model/API issues)")
-        class MockTool:
-            def __init__(self, name, func):
-                self.name = name
-                self.function = func
+        try:
+            # Initialize real SecurityAgent
+            llm_config = {
+                "model": os.getenv("AGENT_LLM_MODEL", "gemini-2.0-flash"),
+                "temperature": 0.1,
+                "max_tokens": 2000,
+                "api_key": os.getenv("GEMINI_API_KEY"),
+                "base_url": os.getenv("AGENT_LLM_BASE_URL"),
+            }
+            print(f"LLM config: model={llm_config['model']}, api_key={'***' if llm_config['api_key'] else 'None'}")
 
-        class MockAgent:
-            def __init__(self):
-                self.tools = [
-                    MockTool('chat_response', self.chat_response),
-                    MockTool('sanitize_content', self.sanitize_content),
-                    MockTool('ai_pdf_enhancement', self.ai_pdf_enhancement)
-                ]
+            try:
+                agent = SecurityAgent(llm_config=llm_config)
+                print("SecurityAgent created")
+            except Exception as e2:
+                print(f"SecurityAgent creation failed: {e2}")
+                raise
 
-            async def chat_response(self, **kwargs):
-                message = kwargs.get('message', 'unknown')
-                return {
-                    "success": True,
-                    "response": f"Mock Agent: I received your message '{message}'. The real AI agent is not available yet due to model configuration issues.",
-                    "processing_time": "0.001"
-                }
+            # Add specialized tool sets
+            from agent.monitoring_tools import MonitoringTools
+            from agent.response_tools import ResponseTools
+            from agent.job_tools import JobTools
 
-            async def sanitize_content(self, **kwargs):
-                content = kwargs.get('content', '')
-                return {
-                    "success": True,
-                    "sanitized_content": content,
-                    "processing_time": "0.001"
-                }
+            monitoring_tools = MonitoringTools(agent)
+            response_tools = ResponseTools(agent)
+            job_tools = JobTools(agent)
 
-            async def ai_pdf_enhancement(self, **kwargs):
-                content = kwargs.get('content', '')
-                return {
-                    "success": True,
-                    "enhanced_content": content,
-                    "structured_output": {"mock": "data"},
-                    "processing_time": "0.001"
-                }
+            agent.add_tools([
+                monitoring_tools.create_monitoring_tool(),
+                monitoring_tools.create_learning_tool(),
+                response_tools.create_orchestration_tool(),
+                response_tools.create_admin_tool(),
+                job_tools.create_job_management_tool(),
+            ])
 
-        agent = MockAgent()
+            # Configure agent
+            from config.agent_prompts import AGENT_SYSTEM_PROMPT
+            agent.set_system_prompt(AGENT_SYSTEM_PROMPT)
+
+            print(f"Initialized real SecurityAgent with {llm_config['model']}")
+        except Exception as e:
+            print(f"Failed to initialize real agent: {e}, falling back to mock")
+            # Fallback to mock agent
+            class MockTool:
+                def __init__(self, name, func):
+                    self.name = name
+                    self.function = func
+
+            class MockAgent:
+                def __init__(self):
+                    self.tools = [
+                        MockTool('chat_response', self.chat_response),
+                        MockTool('sanitize_content', self.sanitize_content),
+                        MockTool('ai_pdf_enhancement', self.ai_pdf_enhancement)
+                    ]
+
+                async def chat_response(self, **kwargs):
+                    message = kwargs.get('message', 'unknown')
+                    return {
+                        "success": True,
+                        "response": f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize: {e}",
+                        "processing_time": "0.001"
+                    }
+
+                async def sanitize_content(self, **kwargs):
+                    content = kwargs.get('content', '')
+                    return {
+                        "success": True,
+                        "sanitized_content": content,
+                        "processing_time": "0.001"
+                    }
+
+                async def ai_pdf_enhancement(self, **kwargs):
+                    content = kwargs.get('content', '')
+                    return {
+                        "success": True,
+                        "enhanced_content": content,
+                        "structured_output": {"mock": "data"},
+                        "processing_time": "0.001"
+                    }
+
+            agent = MockAgent()
     return agent
 
 
@@ -602,6 +641,15 @@ async def process_pdf(
                 )
             file_content += chunk
 
+        # Validate file type
+        if not validate_file_type(file_content, file.filename or "unknown.pdf"):
+            log_security_event(
+                "INVALID_FILE_TYPE",
+                {"filename": file.filename, "size": file_size},
+                client_ip,
+            )
+            raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are accepted.")
+
         # Generate job ID
         job_id = f"pdf_{secrets.token_hex(8)}"
         filename = file.filename or "unknown.pdf"
@@ -778,10 +826,10 @@ class ChatMessage(BaseModel):
 async def websocket_chat(websocket: WebSocket):
     """WebSocket endpoint for real-time chat with streaming responses"""
     # Check origin for security
-    origin = websocket.headers.get("origin", "")
-    if origin not in ALLOWED_ORIGINS and ALLOWED_ORIGINS != ["*"]:
-        await websocket.close(code=1008, reason="Origin not allowed")
-        return
+    # origin = websocket.headers.get("origin", "")
+    # if origin not in ALLOWED_ORIGINS and ALLOWED_ORIGINS != ["*"]:
+    #     await websocket.close(code=1008, reason="Origin not allowed")
+    #     return
 
     await websocket.accept()
 
@@ -958,6 +1006,7 @@ async def http_chat(
         result = await chat_tool.function(
             message=chat_request.message, context=chat_request.context
         )
+        print(f"Chat tool result: {result}")
 
         if not result.get("success", False):
             raise HTTPException(
