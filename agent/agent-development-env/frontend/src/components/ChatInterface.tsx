@@ -131,13 +131,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader className="pb-3">
+    <Card className="h-[500px] sm:h-[600px] flex flex-col">
+      <CardHeader className="pb-3 px-4 sm:px-6">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">
+          <CardTitle className="text-base sm:text-lg">
             Chat with MCP Security Agent
           </CardTitle>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             <div
               className={`w-2 h-2 rounded-full ${
                 isConnected
@@ -154,7 +154,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     : 'Disconnected'
               }
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">
               {isConnected
                 ? 'Connected'
                 : isReconnecting
@@ -168,7 +168,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Messages Area */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+          className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 relative"
           role="log"
           aria-live="polite"
           aria-label="Chat messages"
@@ -192,20 +192,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 setHasNewMessages(false)
               }}
               size="sm"
-              className="absolute bottom-4 right-4 shadow-lg"
+              className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 shadow-lg min-h-[44px]"
               aria-label="Scroll to latest message"
             >
               <ChevronDown className="h-4 w-4 mr-1" />
-              New messages
+              <span className="hidden sm:inline">New messages</span>
             </Button>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="border-t p-4">
+        <div className="border-t p-3 sm:p-4">
           {error && (
             <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-xs sm:text-sm text-red-600">{error}</p>
             </div>
           )}
           <div className="flex space-x-2">
@@ -229,19 +229,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               }}
               onKeyDown={handleKeyPress}
               placeholder="Ask questions about the processed data..."
-              className={`flex-1 ${inputError ? 'border-red-500' : ''}`}
+              className={`flex-1 min-h-[44px] text-base ${inputError ? 'border-red-500' : ''}`}
               disabled={sendingMessage}
             />
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || sendingMessage || !!inputError}
               size="sm"
+              className="min-h-[44px] px-4"
             >
               {sendingMessage ? 'Sending...' : 'Send'}
             </Button>
           </div>
           {inputError && (
-            <p className="text-sm text-red-600 mt-1">{inputError}</p>
+            <p className="text-xs sm:text-sm text-red-600 mt-1">{inputError}</p>
           )}
         </div>
       </CardContent>

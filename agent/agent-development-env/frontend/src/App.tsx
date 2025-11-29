@@ -140,18 +140,18 @@ function App() {
         <div className="min-h-screen flex flex-col">
           <Header />
           <Main>
-            <div className="max-w-2xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <div className="max-w-2xl mx-auto px-4 sm:px-0">
+              <div className="text-center mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
                   Welcome to MCP Security Agent
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-sm sm:text-base text-gray-600">
                   Upload PDF documents and interact with our AI-powered security
                   analysis tool.
                 </p>
               </div>
 
-              <div className="mb-8">
+              <div className="mb-6 sm:mb-8">
                 <UploadZone
                   onFileSelect={handleFileSelect}
                   onFileValidated={handleFileValidated}

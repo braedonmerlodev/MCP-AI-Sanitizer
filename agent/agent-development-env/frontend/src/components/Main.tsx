@@ -6,7 +6,7 @@ interface MainProps {
 
 export const Main: React.FC<MainProps> = ({ children }) => {
   return (
-    <main className="flex-1 bg-gray-50 px-4 py-6">
+    <main className="flex-1 bg-gray-50 px-4 py-4 sm:py-6">
       <div className="max-w-7xl mx-auto">{children}</div>
     </main>
   )
