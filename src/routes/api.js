@@ -1,12 +1,9 @@
 const express = require('express');
 const Joi = require('joi');
-const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const pdfParse = require('pdf-parse');
 const crypto = require('node:crypto');
 const ProxySanitizer = require('../components/proxy-sanitizer');
-const MarkdownConverter = require('../components/MarkdownConverter');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
@@ -40,7 +37,6 @@ router.use(agentAuth);
 router.use(enforceAgentSync);
 
 const proxySanitizer = new ProxySanitizer();
-const markdownConverter = new MarkdownConverter();
 const pdfGenerator = new PDFGenerator();
 const adminOverrideController = new AdminOverrideController();
 // Expose controller on global for middleware integration in tests and server runtime
@@ -61,30 +57,6 @@ const logger = winston.createLogger({
   level: 'info',
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
-});
-
-// Multer configuration for file uploads
-const storage = multer.memoryStorage(); // Store files in memory for processing
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 26_214_400, // 25MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Check file extension and MIME type
-    if (file.originalname.toLowerCase().endsWith('.pdf') && file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
-    }
-  },
-});
-
-// Rate limiting for upload endpoint
-const uploadLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 10, // limit each IP to 10 uploads per windowMs (disabled for tests)
-  message: 'Too many uploads from this IP, please try again later.',
 });
 
 // Rate limiting for sanitization endpoints
@@ -161,12 +133,6 @@ const sanitizeJsonSchema = Joi.object({
     .valid('structure', 'json', 'yaml', 'xml')
     .optional()
     .default('structure'),
-});
-
-const uploadQuerySchema = Joi.object({
-  ai_transform: Joi.boolean().optional().default(true), // Default to AI processing for uploads
-  sync: Joi.alternatives().try(Joi.boolean(), Joi.string().valid('true')).optional(), // Allow sync parameter as boolean or string
-  async: Joi.boolean().optional().default(false), // Allow explicit async processing request
 });
 
 /**
@@ -455,7 +421,6 @@ router.post(
       // Apply AI transformation if requested
       if (value.ai_transform) {
         try {
-          const aiTransformer = new AITextTransformer();
           const aiResult = await aiTransformer.transform(
             contentToSanitize,
             value.ai_transform_type || 'structure',

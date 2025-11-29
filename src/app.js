@@ -7,7 +7,7 @@ const apiRoutes = require('./routes/api');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
-const { recordRequest, recordError } = require('./utils/monitoring');
+const { recordRequest } = require('./utils/monitoring');
 
 // Initialize logger - temporarily disabled
 // const logger = winston.createLogger({
@@ -66,7 +66,7 @@ app.get(
 );
 
 // Error handling
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error('Application error:', err.message);
   // recordError(); // Disabled
 
