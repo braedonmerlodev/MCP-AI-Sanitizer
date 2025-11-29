@@ -77,50 +77,69 @@ const responseSchemas = {
  * Intercepts res.json() calls to validate response data against schemas
  */
 const responseValidationMiddleware = (req, res, next) => {
-  // Store original json method
+  // Store original methods
   const originalJson = res.json;
+  const originalStatus = res.status;
 
   // Override res.json to validate response
   res.json = function (data) {
-    // Get the endpoint path
-    const endpoint = req.originalUrl.split('?')[0]; // Remove query params
-
-    // Find matching schema
-    const schemaKey = Object.keys(responseSchemas).find((key) => {
-      if (key === '/health' && endpoint === '/health') return true;
-      if (endpoint.startsWith(key)) return true;
-      return false;
-    });
-
-    if (schemaKey && responseSchemas[schemaKey]) {
-      const schema = responseSchemas[schemaKey];
-      const validation = schema.validate(data, { abortEarly: false });
-
-      if (validation.error) {
-        // Log validation errors but don't block response
-        logger.warn('Response validation failed', {
-          endpoint,
-          schema: schemaKey,
-          errors: validation.error.details.map((detail) => ({
-            field: detail.path.join('.'),
-            message: detail.message,
-            value: detail.context?.value,
-          })),
-          responseData: data,
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        // Log successful validation (optional, can be removed for performance)
-        logger.debug('Response validation passed', {
-          endpoint,
-          schema: schemaKey,
-        });
+    try {
+      // Skip validation for error responses or if headers already sent
+      if (res.headersSent || (res.statusCode && res.statusCode >= 400)) {
+        return originalJson.call(res, data);
       }
-    }
 
-    // Call original json method
-    return originalJson.call(this, data);
+      // Get the endpoint path
+      const endpoint = req.originalUrl.split('?')[0]; // Remove query params
+
+      // Find matching schema
+      const schemaKey = Object.keys(responseSchemas).find((key) => {
+        if (key === '/health' && endpoint === '/health') return true;
+        if (endpoint.startsWith(key)) return true;
+        return false;
+      });
+
+      if (schemaKey && responseSchemas[schemaKey]) {
+        const schema = responseSchemas[schemaKey];
+        const validation = schema.validate(data, { abortEarly: false });
+
+        if (validation.error) {
+          // Log validation errors but don't block response
+          logger.warn('Response validation failed', {
+            endpoint,
+            schema: schemaKey,
+            errors: validation.error.details.map((detail) => ({
+              field: detail.path.join('.'),
+              message: detail.message,
+              value: detail.context?.value,
+            })),
+            responseData: data,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          // Log successful validation (optional, can be removed for performance)
+          logger.debug('Response validation passed', {
+            endpoint,
+            schema: schemaKey,
+          });
+        }
+      }
+
+      // Call original json method with proper context
+      return originalJson.call(res, data);
+    } catch (error) {
+      logger.error('Error in response validation middleware', {
+        error: error.message,
+        stack: error.stack,
+        endpoint: req.originalUrl,
+      });
+      // Fallback to original method if something goes wrong
+      return originalJson.call(res, data);
+    }
   };
+
+  // Ensure status method is preserved
+  res.status = originalStatus;
 
   next();
 };

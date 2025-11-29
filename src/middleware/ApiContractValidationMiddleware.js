@@ -26,8 +26,9 @@ const logger = winston.createLogger({
  */
 function apiContractValidationMiddleware(requestSchema, responseSchema) {
   return (req, res, next) => {
-    // Store original res.json method BEFORE any validation
+    // Store original methods BEFORE any validation
     const originalJson = res.json;
+    const originalStatus = res.status;
 
     // Validate request body if schema provided
     if (requestSchema) {
@@ -85,9 +86,12 @@ function apiContractValidationMiddleware(requestSchema, responseSchema) {
         }
       }
 
-      // Call original json method
-      return originalJson.call(this, data);
+      // Call original json method with correct context
+      return originalJson.call(res, data);
     };
+
+    // Ensure status method is preserved
+    res.status = originalStatus;
 
     next();
   };
