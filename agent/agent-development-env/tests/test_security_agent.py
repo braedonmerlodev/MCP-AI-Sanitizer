@@ -262,6 +262,17 @@ class TestSecurityAgent:
         repaired = agent._repair_json(input_str)
         assert repaired == '{"key": "value"}'
 
+        # Test complex nested JSON repair (the user's case)
+        complex_input = '{ "enhanced_text": "{ "title": "SOLVING AMILLION-STEPLLM TASK WITHZEROERRORSElliot Meyerson", "authors": [ { "name": "Elliot Meyerson", "affiliation": "Cognizant AI Lab", "email": "elliot.meyerson@cognizant.com" } ] }", "validation_error": "Invalid JSON structure" }'
+        result = agent._validate_ai_output(complex_input, "json_schema")
+        assert "enhanced_text" in result
+        assert "validation_error" in result
+        # The enhanced_text should now be valid JSON
+        import json
+        parsed = json.loads(result["enhanced_text"])
+        assert parsed["title"] == "SOLVING AMILLION-STEPLLM TASK WITHZEROERRORSElliot Meyerson"
+        assert len(parsed["authors"]) == 1
+
     def test_confidence_calculation(self):
         """Test confidence score calculation"""
         agent = SecurityAgent(llm_config=self.llm_config)
