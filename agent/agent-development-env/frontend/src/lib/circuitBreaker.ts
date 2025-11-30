@@ -1,13 +1,14 @@
-export enum CircuitState {
-  CLOSED = 'closed',
-  OPEN = 'open',
-  HALF_OPEN = 'half-open',
-}
+export const CircuitState = {
+  CLOSED: 'closed',
+  OPEN: 'open',
+  HALF_OPEN: 'half-open',
+} as const
+
+export type CircuitState = (typeof CircuitState)[keyof typeof CircuitState]
 
 export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED
   private failureCount = 0
-  private lastFailureTime = 0
   private nextAttemptTime = 0
 
   private readonly failureThreshold = 5
@@ -31,7 +32,6 @@ export class CircuitBreaker {
 
   recordFailure(): void {
     this.failureCount++
-    this.lastFailureTime = Date.now()
 
     if (this.failureCount >= this.failureThreshold) {
       this.state = CircuitState.OPEN

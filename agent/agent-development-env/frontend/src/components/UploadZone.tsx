@@ -235,17 +235,21 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   }, [])
 
   const getStateStyles = () => {
-    if (validationError) return 'border-red-300 bg-red-50'
-    if (selectedFile && !isValidating) return 'border-green-300 bg-green-50'
-    if (isDragOver) return 'border-blue-300 bg-blue-50'
-    return 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+    if (validationError)
+      return 'border-destructive/50 bg-destructive/5 hover:bg-destructive/10'
+    if (selectedFile && !isValidating)
+      return 'border-green-500/50 bg-green-500/5 hover:bg-green-500/10'
+    if (isDragOver)
+      return 'border-primary/50 bg-primary/5 hover:bg-primary/10 ring-2 ring-primary/20'
+    return 'border-border bg-card hover:bg-accent/50 transition-all duration-200'
   }
 
   const getStateIcon = () => {
-    if (validationError) return <AlertCircle className="w-8 h-8 text-red-500" />
+    if (validationError)
+      return <AlertCircle className="w-8 h-8 text-destructive" />
     if (selectedFile && !isValidating)
       return <CheckCircle className="w-8 h-8 text-green-500" />
-    return <Upload className="w-8 h-8 text-gray-400" />
+    return <Upload className="w-8 h-8 text-muted-foreground" />
   }
 
   return (
@@ -275,16 +279,16 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
             <div className="mt-4">
               {isValidating ? (
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     Validating file...
                   </p>
-                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div className="mt-3 w-full bg-muted rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-2">
                     {Math.round(uploadProgress)}%
                   </p>
                 </div>
@@ -292,11 +296,11 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                 <div>
                   <div className="flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4 text-green-500" />
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-foreground">
                       {selectedFile.name}
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                   </p>
                   <Button
@@ -306,17 +310,19 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                       e.stopPropagation()
                       handleReplace()
                     }}
-                    className="mt-2"
+                    className="mt-3 rounded-lg"
                   >
                     Replace File
                   </Button>
                 </div>
               ) : validationError ? (
                 <div>
-                  <p className="text-sm font-medium text-red-900">
+                  <p className="text-sm font-medium text-destructive">
                     Upload Failed
                   </p>
-                  <p className="text-xs text-red-600 mt-1">{validationError}</p>
+                  <p className="text-xs text-destructive/80 mt-1">
+                    {validationError}
+                  </p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -324,19 +330,19 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                       e.stopPropagation()
                       handleRetry()
                     }}
-                    className="mt-2"
+                    className="mt-3 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10"
                   >
                     Try Again
                   </Button>
                 </div>
               ) : (
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     {isDragOver
                       ? 'Drop your PDF here'
                       : 'Drag & drop your PDF here'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     or click to browse files (max 10MB)
                   </p>
                 </div>

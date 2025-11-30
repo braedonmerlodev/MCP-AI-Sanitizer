@@ -231,11 +231,47 @@ class TestSecurityAgent:
         assert result["key"] == "value"
         assert result["number"] == 42
 
-        # Test invalid JSON fallback
+        # Test JSON with common syntax errors that can be repaired
+        malformed_json = "{key: 'value', number: 42,}"  # unquoted keys, single quotes, trailing comma
+        result = agent._validate_ai_output(malformed_json, "json_schema")
+        assert result["key"] == "value"
+        assert result["number"] == 42
+
+        # Test invalid JSON that cannot be repaired
         invalid_json = "not json at all"
         result = agent._validate_ai_output(invalid_json, "json_schema")
         assert "validation_error" in result
         assert result["enhanced_text"] == invalid_json
+
+    def test_json_repair(self):
+        """Test JSON repair functionality"""
+        agent = SecurityAgent(llm_config=self.llm_config)
+
+        # Test unquoted keys repair
+        input_str = "{key: 'value'}"
+        repaired = agent._repair_json(input_str)
+        assert '"key": "value"' in repaired
+
+        # Test single quotes to double quotes
+        input_str = "{'key': 'value'}"
+        repaired = agent._repair_json(input_str)
+        assert repaired == '{"key": "value"}'
+
+        # Test trailing comma removal
+        input_str = '{"key": "value",}'
+        repaired = agent._repair_json(input_str)
+        assert repaired == '{"key": "value"}'
+
+        # Test complex nested JSON repair (the user's case)
+        complex_input = '{ "enhanced_text": "{ "title": "SOLVING AMILLION-STEPLLM TASK WITHZEROERRORSElliot Meyerson", "authors": [ { "name": "Elliot Meyerson", "affiliation": "Cognizant AI Lab", "email": "elliot.meyerson@cognizant.com" } ] }", "validation_error": "Invalid JSON structure" }'
+        result = agent._validate_ai_output(complex_input, "json_schema")
+        assert "enhanced_text" in result
+        assert "validation_error" in result
+        # The enhanced_text should now be valid JSON
+        import json
+        parsed = json.loads(result["enhanced_text"])
+        assert parsed["title"] == "SOLVING AMILLION-STEPLLM TASK WITHZEROERRORSElliot Meyerson"
+        assert len(parsed["authors"]) == 1
 
     def test_confidence_calculation(self):
         """Test confidence score calculation"""

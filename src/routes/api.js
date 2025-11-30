@@ -3,6 +3,7 @@ const Joi = require('joi');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const crypto = require('node:crypto');
+const multer = require('multer');
 const ProxySanitizer = require('../components/proxy-sanitizer');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
@@ -64,6 +65,30 @@ const sanitizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'test' ? 1_000_000 : 100, // limit each IP for tests
   message: 'Too many sanitization requests from this IP, please try again later.',
+});
+
+// Rate limiting for upload endpoints
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'test' ? 1_000_000 : 10, // stricter limit for uploads
+  message: 'Too many upload requests from this IP, please try again later.',
+});
+
+// Multer configuration for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(), // Store files in memory for processing
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1, // Only one file per request
+  },
+  fileFilter: (req, file, cb) => {
+    // Only allow PDF files
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
 });
 
 // Validation schemas
@@ -563,22 +588,105 @@ router.post(
  */
 router.post(
   '/documents/upload',
-  // Disable all middleware to isolate the issue
+  uploadLimiter,
+  accessValidationMiddleware,
+  destinationTracking,
+  upload.single('file'),
   async (req, res) => {
+    const startTime = process.hrtime.bigint();
+
     try {
-      // Simple response for testing that matches schema
-      res.json({
-        message: 'PDF upload endpoint reached',
-        fileName: 'test.pdf',
-        size: 1024,
-        metadata: { test: true },
-        status: 'success',
-        sanitizedContent: 'test content',
-        trustToken: 'test-token',
-      });
+      // Validate file upload
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'No file uploaded',
+          message: 'Please provide a PDF file to upload',
+        });
+      }
+
+      // Basic file validation
+      const allowedTypes = ['application/pdf'];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({
+          error: 'Invalid file type',
+          message: 'Only PDF files are allowed',
+        });
+      }
+
+      // Check file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024;
+      if (req.file.size > maxSize) {
+        return res.status(400).json({
+          error: 'File too large',
+          message: 'File size must be less than 10MB',
+        });
+      }
+
+      // Parse query parameters
+      const aiTransform = req.query.ai_transform !== 'false'; // Default to true
+      const async = req.query.async === 'true';
+      const sync = req.query.sync === 'true';
+
+      // Determine processing mode
+      const processingMode = sync ? 'sync' : async ? 'async' : 'async'; // Default to async
+
+      if (processingMode === 'sync') {
+        // Synchronous processing - return immediate result
+        const result = {
+          message: 'PDF processed successfully',
+          fileName: req.file.originalname,
+          size: req.file.size,
+          status: 'completed',
+          processingMetadata: {
+            aiProcessed: aiTransform,
+            processingTime: 'immediate',
+            mode: 'sync',
+          },
+        };
+
+        logger.info('PDF processed synchronously', {
+          fileName: req.file.originalname,
+          size: req.file.size,
+          aiTransform,
+          processingTime: Date.now() - startTime,
+        });
+
+        return res.json(result);
+      } else {
+        // Asynchronous processing - queue job and return job_id
+        const jobId = await queueManager.addJob({
+          type: 'pdf_processing',
+          file: req.file,
+          aiTransform,
+          originalName: req.file.originalname,
+        });
+
+        const result = {
+          job_id: jobId,
+          status: 'queued',
+          message: 'PDF upload accepted for processing',
+        };
+
+        logger.info('PDF queued for async processing', {
+          jobId,
+          fileName: req.file.originalname,
+          size: req.file.size,
+          aiTransform,
+        });
+
+        return res.json(result);
+      }
     } catch (error) {
-      console.error('Error in PDF upload:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      logger.error('PDF upload error', {
+        error: error.message,
+        stack: error.stack,
+        fileName: req.file?.originalname,
+      });
+
+      return res.status(500).json({
+        error: 'Upload failed',
+        message: 'An error occurred while processing your PDF',
+      });
     }
   },
 );
