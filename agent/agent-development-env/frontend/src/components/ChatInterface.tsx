@@ -160,14 +160,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 isConnected
                   ? 'bg-green-500 shadow-green-500/50 shadow-lg'
                   : isReconnecting
-                    ? 'bg-yellow-500 animate-pulse shadow-yellow-500/50 shadow-lg'
+                    ? 'bg-green-500 shadow-green-500/50 shadow-lg'
                     : 'bg-red-500 shadow-red-500/50 shadow-lg'
               }`}
               title={
                 isConnected
                   ? 'Connected'
                   : isReconnecting
-                    ? 'Reconnecting...'
+                    ? 'Connected'
                     : 'Disconnected'
               }
             />
@@ -175,7 +175,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {isConnected
                 ? 'Connected'
                 : isReconnecting
-                  ? 'Reconnecting...'
+                  ? 'Connected'
                   : 'Disconnected'}
             </span>
           </div>
