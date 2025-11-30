@@ -19,10 +19,9 @@ class JSONRepair {
   /**
    * Main repair function - attempts to fix malformed JSON
    * @param {string} jsonString - The potentially malformed JSON string
-   * @param {Object} options - Repair options
    * @returns {Object} - {success: boolean, data: any, repairs: string[]}
    */
-  repair(jsonString, options = {}) {
+  repair(jsonString) {
     if (!jsonString || typeof jsonString !== 'string') {
       return { success: false, data: null, repairs: [], error: 'Invalid input: not a string' };
     }
@@ -40,7 +39,7 @@ class JSONRepair {
         this.logger.debug(`JSON parse attempt ${attempt + 1} failed:`, parseError.message);
 
         // Apply repair strategies based on error
-        const repairResult = this.applyRepairStrategy(currentString, parseError, repairs);
+        const repairResult = this.applyRepairStrategy(currentString, parseError);
 
         if (!repairResult.repaired) {
           break; // No more repairs possible
@@ -112,7 +111,7 @@ class JSONRepair {
         depth--;
         if (depth === 0 && start !== -1) {
           try {
-            const substr = jsonString.substring(start, i + 1);
+            const substr = jsonString.slice(start, i + 1);
             const obj = JSON.parse(substr);
             objects.push(obj);
           } catch (e) {
@@ -133,7 +132,7 @@ class JSONRepair {
   /**
    * Apply repair strategy based on parse error
    */
-  applyRepairStrategy(jsonString, parseError, repairs) {
+  applyRepairStrategy(jsonString, parseError) {
     const errorMessage = parseError.message;
 
     // Strategy 1: Fix unterminated strings (missing closing quotes)
@@ -180,11 +179,8 @@ class JSONRepair {
     // Find the last unterminated string and add closing quote
     let inString = false;
     let escapeNext = false;
-    let lastStringStart = -1;
 
-    for (let i = 0; i < fixed.length; i++) {
-      const char = fixed[i];
-
+    for (const char of fixed) {
       if (escapeNext) {
         escapeNext = false;
         continue;
@@ -196,13 +192,7 @@ class JSONRepair {
       }
 
       if (char === '"') {
-        if (!inString) {
-          inString = true;
-          lastStringStart = i;
-        } else {
-          inString = false;
-          lastStringStart = -1;
-        }
+        inString = !inString;
       }
     }
 
@@ -233,9 +223,7 @@ class JSONRepair {
     let inString = false;
     let escapeNext = false;
 
-    for (let i = 0; i < fixed.length; i++) {
-      const char = fixed[i];
-
+    for (const char of fixed) {
       if (escapeNext) {
         escapeNext = false;
         continue;
@@ -284,62 +272,14 @@ class JSONRepair {
   }
 
   /**
-   * Fix unterminated strings (missing closing quotes)
-   */
-  fixUnterminatedString(jsonString) {
-    let fixed = jsonString;
-
-    // Find the last unterminated string and add closing quote
-    let inString = false;
-    let escapeNext = false;
-    let lastStringStart = -1;
-
-    for (let i = 0; i < fixed.length; i++) {
-      const char = fixed[i];
-
-      if (escapeNext) {
-        escapeNext = false;
-        continue;
-      }
-
-      if (char === '\\') {
-        escapeNext = true;
-        continue;
-      }
-
-      if (char === '"') {
-        if (!inString) {
-          inString = true;
-          lastStringStart = i;
-        } else {
-          inString = false;
-          lastStringStart = -1;
-        }
-      }
-    }
-
-    // If we're still in a string at the end, add closing quote
-    if (inString) {
-      fixed += '"';
-      return {
-        repaired: true,
-        string: fixed,
-        description: 'Added missing closing quote for unterminated string',
-      };
-    }
-
-    return { repaired: false };
-  }
-
-  /**
    * Fix unescaped quotes in string values
    */
   fixUnescapedQuotes(jsonString) {
     // This is complex - we'll use a simple approach to escape unescaped quotes
     // More sophisticated parsing would be needed for production
-    let fixed = jsonString.replace(
+    let fixed = jsonString.replaceAll(
       /([^\\])"([^"]*)"([^,}\]]*[^\\])"([^,}\]]*)/g,
-      '$1"$2\\"$3\\"$4',
+      String.raw`$1"$2\"$3\"$4`,
     );
 
     return {
@@ -354,8 +294,8 @@ class JSONRepair {
    */
   fixTrailingCommas(jsonString) {
     let fixed = jsonString
-      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
-      .replace(/,(\s*),/g, ','); // Remove duplicate commas
+      .replaceAll(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+      .replaceAll(/,(\s*),/g, ','); // Remove duplicate commas
 
     return {
       repaired: fixed !== jsonString,
@@ -370,10 +310,10 @@ class JSONRepair {
   fixMissingCommas(jsonString) {
     // This is a simplistic approach - in practice, this would need more sophisticated parsing
     let fixed = jsonString
-      .replace(/}(\s*"){/g, '},$1{') // Add commas between objects
-      .replace(/](\s*)\[/g, '],$1[') // Add commas between arrays
-      .replace(/](\s*){/g, '],$1{') // Add commas between array and object
-      .replace(/}(\s*)\[/g, '},$1['); // Add commas between object and array
+      .replaceAll(/}(\s*"){/g, '},$1{') // Add commas between objects
+      .replaceAll(/](\s*)\[/g, '],$1[') // Add commas between arrays
+      .replaceAll(/](\s*){/g, '],$1{') // Add commas between array and object
+      .replaceAll(/}(\s*)\[/g, '},$1['); // Add commas between object and array
 
     return {
       repaired: fixed !== jsonString,
@@ -396,8 +336,8 @@ class JSONRepair {
       }
 
       const start = Math.min(
-        startBrace !== -1 ? startBrace : Infinity,
-        startBracket !== -1 ? startBracket : Infinity,
+        startBrace === -1 ? Infinity : startBrace,
+        startBracket === -1 ? Infinity : startBracket,
       );
 
       // Find matching closing brace/bracket
@@ -434,7 +374,7 @@ class JSONRepair {
         // If we have balanced braces/brackets, try parsing
         if (braceCount === 0 && bracketCount === 0 && i > start) {
           try {
-            const partial = jsonString.substring(start, i + 1);
+            const partial = jsonString.slice(start, i + 1);
             const parsed = JSON.parse(partial);
             return { success: true, data: parsed };
           } catch (e) {

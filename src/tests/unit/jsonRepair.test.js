@@ -19,7 +19,7 @@ describe('JSONRepair', () => {
 
     test('should return failure for invalid input types', () => {
       expect(repair.repair(null).success).toBe(false);
-      expect(repair.repair(undefined).success).toBe(false);
+      expect(repair.repair().success).toBe(false);
       expect(repair.repair(123).success).toBe(false);
       expect(repair.repair({}).success).toBe(false);
     });

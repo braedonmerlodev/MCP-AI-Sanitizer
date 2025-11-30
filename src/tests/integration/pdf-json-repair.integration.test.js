@@ -1,7 +1,5 @@
 const request = require('supertest');
 const app = require('../app');
-const fs = require('fs');
-const path = require('path');
 const JSONRepair = require('../../utils/jsonRepair');
 
 describe('PDF Processing Integration with JSON Repair', () => {
@@ -99,7 +97,7 @@ describe('PDF Processing Integration with JSON Repair', () => {
 
       // Test repair performance with large JSON
       const largeJson =
-        '{"data": "' + 'x'.repeat(10000) + '", "nested": {"content": "' + 'y'.repeat(5000) + '"}}';
+        '{"data": "' + 'x'.repeat(10_000) + '", "nested": {"content": "' + 'y'.repeat(5000) + '"}}';
 
       const startTime = Date.now();
       const result = jsonRepair.repair(largeJson);
