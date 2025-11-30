@@ -131,7 +131,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="h-[500px] sm:h-[600px] flex flex-col shadow-xl border-border/50">
+    <Card className="h-[500px] sm:h-[600px] flex flex-col shadow-xl border-border/50 overflow-hidden">
       <CardHeader className="pb-4 px-6 bg-gradient-to-r from-primary/5 to-accent/5 border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">

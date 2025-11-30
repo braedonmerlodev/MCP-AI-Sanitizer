@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { PersistGate } from 'redux-persist/integration/react'
 import { persistor } from '@/store'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -13,6 +13,7 @@ import {
   Toast,
   About,
 } from '@/components'
+import Marketplace from '@/pages/Marketplace'
 import {
   useProcessPdfMutation,
   useGetPdfStatusQuery,
@@ -185,7 +186,27 @@ function App() {
                         />
                       </div>
 
-                      
+                      {/* <div className="mb-8 sm:mb-12 text-center">
+                        <Link
+                          to="/marketplace"
+                          className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          <svg
+                            className="w-5 h-5 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                            />
+                          </svg>
+                          Access MCP Marketplace
+                        </Link>
+                      </div> */}
 
                       {uploadedFile &&
                         pdfState.status !== 'completed' &&
@@ -205,42 +226,75 @@ function App() {
                           <ChatInterface processingResult={pdfState.result} />
                         </div>
                       )}
+
+                      {pdfState.status === 'completed' && pdfState.result && (
+                        <div className="mt-12 mb-8 sm:mb-12 text-center">
+                          <Link
+                            to="/marketplace"
+                            className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                          >
+                            <svg
+                              className="w-5 h-5 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                              />
+                            </svg>
+                            Access MCP Marketplace
+                          </Link>
+                        </div>
+                      )}
                     </div>
-                       <div className="max-w-4xl mx-auto">
-          <div className="bg-card p-6 rounded-lg border">
-            <h2 className="text-2xl font-semibold mb-4">How It Works</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-primary font-bold text-lg">1</span>
-                </div>
-                <h3 className="font-semibold mb-2">Upload</h3>
-                <p className="text-sm text-muted-foreground">
-                  Upload your PDF document securely to our platform
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-primary font-bold text-lg">2</span>
-                </div>
-                <h3 className="font-semibold mb-2">Analyze</h3>
-                <p className="text-sm text-muted-foreground">
-                  Our AI analyzes the document for security threats
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-primary font-bold text-lg">3</span>
-                </div>
-                <h3 className="font-semibold mb-2">Review</h3>
-                <p className="text-sm text-muted-foreground">
-                  Review detailed analysis results and recommendations
-                </p>
-              </div>
-            </div>
-          </div>
-        
-          {/* <div className="grid md:grid-cols-2 gap-8 mb-12">
+                    {/* <div className="max-w-4xl mx-auto">
+                      <div className="bg-card p-6 rounded-lg border">
+                        <h2 className="text-2xl font-semibold mb-4">
+                          How It Works
+                        </h2>
+                        <div className="grid md:grid-cols-3 gap-6">
+                          <div className="text-center">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <span className="text-primary font-bold text-lg">
+                                1
+                              </span>
+                            </div>
+                            <h3 className="font-semibold mb-2">Upload</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Upload your PDF document securely to our platform
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <span className="text-primary font-bold text-lg">
+                                2
+                              </span>
+                            </div>
+                            <h3 className="font-semibold mb-2">Analyze</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Our AI analyzes the document for security threats
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <span className="text-primary font-bold text-lg">
+                                3
+                              </span>
+                            </div>
+                            <h3 className="font-semibold mb-2">Review</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Review detailed analysis results and
+                              recommendations
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-8 mb-12">
             <div className="bg-card p-6 rounded-lg border">
               <h2 className="text-2xl font-semibold mb-4">What We Do</h2>
               <p className="text-muted-foreground mb-4">
@@ -270,16 +324,13 @@ function App() {
                 <li>Real-time progress tracking</li>
               </ul>
             </div>
-          </div> */}
-
-          
-        </div>
+          </div>
+                    </div> */}
                   </Main>
-
-                  
                 }
               />
               <Route path="/about" element={<About />} />
+              <Route path="/marketplace" element={<Marketplace />} />
             </Routes>
             <Footer />
             <Toast />

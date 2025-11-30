@@ -54,7 +54,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     },
   }
 
-  const bubbleClasses = `max-w-[80%] sm:max-w-[70%] md:max-w-[60%] rounded-lg p-3 relative ${
+  const bubbleClasses = `max-w-[80%] sm:max-w-[70%] md:max-w-[60%] max-h-96 overflow-y-auto rounded-lg p-3 relative ${
     isUser
       ? isError
         ? 'bg-red-500 text-white'
@@ -93,7 +93,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             {message.content}
           </p>
         ) : (
-          <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert break-words">
             <ReactMarkdown components={markdownComponents}>
               {message.content}
             </ReactMarkdown>
