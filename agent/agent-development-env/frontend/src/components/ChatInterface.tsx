@@ -131,20 +131,37 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="h-[500px] sm:h-[600px] flex flex-col">
-      <CardHeader className="pb-3 px-4 sm:px-6">
+    <Card className="h-[500px] sm:h-[600px] flex flex-col shadow-xl border-border/50">
+      <CardHeader className="pb-4 px-6 bg-gradient-to-r from-primary/5 to-accent/5 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base sm:text-lg">
-            Chat with MCP Security Agent
-          </CardTitle>
-          <div className="flex items-center space-x-1 sm:space-x-2">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+              <svg
+                className="w-4 h-4 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <CardTitle className="text-lg sm:text-xl font-semibold text-foreground">
+              Security Analysis Chat
+            </CardTitle>
+          </div>
+          <div className="flex items-center space-x-2">
             <div
-              className={`w-2 h-2 rounded-full ${
+              className={`w-3 h-3 rounded-full ${
                 isConnected
-                  ? 'bg-green-500'
+                  ? 'bg-green-500 shadow-green-500/50 shadow-lg'
                   : isReconnecting
-                    ? 'bg-yellow-500 animate-pulse'
-                    : 'bg-red-500'
+                    ? 'bg-yellow-500 animate-pulse shadow-yellow-500/50 shadow-lg'
+                    : 'bg-red-500 shadow-red-500/50 shadow-lg'
               }`}
               title={
                 isConnected
@@ -154,7 +171,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     : 'Disconnected'
               }
             />
-            <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">
+            <span className="text-sm text-muted-foreground hidden sm:inline font-medium">
               {isConnected
                 ? 'Connected'
                 : isReconnecting
@@ -168,7 +185,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Messages Area */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 relative"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 relative bg-gradient-to-b from-background/50 to-muted/10"
           role="log"
           aria-live="polite"
           aria-label="Chat messages"
@@ -192,23 +209,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 setHasNewMessages(false)
               }}
               size="sm"
-              className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 shadow-lg min-h-[44px]"
+              className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 shadow-xl min-h-[44px] rounded-xl bg-primary hover:bg-primary/90 border-0"
               aria-label="Scroll to latest message"
             >
-              <ChevronDown className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">New messages</span>
+              <ChevronDown className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline font-medium">New messages</span>
             </Button>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="border-t p-3 sm:p-4">
+        <div className="border-t border-border/50 p-4 sm:p-6 bg-card/30">
           {error && (
-            <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-xs sm:text-sm text-red-600">{error}</p>
+            <div className="mb-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive font-medium">{error}</p>
             </div>
           )}
-          <div className="flex space-x-2">
+          <div className="flex space-x-3">
             <Input
               value={inputValue}
               onChange={(e) => {
@@ -228,21 +245,30 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 if (error) dismissError() // Clear error when user starts typing
               }}
               onKeyDown={handleKeyPress}
-              placeholder="Ask questions about the processed data..."
-              className={`flex-1 min-h-[44px] text-base ${inputError ? 'border-red-500' : ''}`}
+              placeholder="Ask questions about the security analysis..."
+              className={`flex-1 min-h-[48px] text-base rounded-xl border-border/50 focus:border-primary/50 focus:ring-primary/20 ${inputError ? 'border-destructive/50 focus:border-destructive/50' : ''}`}
               disabled={sendingMessage}
             />
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || sendingMessage || !!inputError}
-              size="sm"
-              className="min-h-[44px] px-4"
+              size="lg"
+              className="min-h-[48px] px-6 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              {sendingMessage ? 'Sending...' : 'Send'}
+              {sendingMessage ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                  <span>Sending...</span>
+                </div>
+              ) : (
+                'Send'
+              )}
             </Button>
           </div>
           {inputError && (
-            <p className="text-xs sm:text-sm text-red-600 mt-1">{inputError}</p>
+            <p className="text-sm text-destructive mt-2 font-medium">
+              {inputError}
+            </p>
           )}
         </div>
       </CardContent>
