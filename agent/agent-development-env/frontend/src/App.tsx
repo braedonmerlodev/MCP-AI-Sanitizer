@@ -165,7 +165,7 @@ function App() {
                           </svg>
                         </div>
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-                          MCP Security Agent
+                          Model Context Protocol Security Agent
                         </h1>
                         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                           Upload PDF documents and interact with our AI-powered
