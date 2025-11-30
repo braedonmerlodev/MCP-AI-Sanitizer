@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from './ui/button'
 import { ApiKeyInput } from './ApiKeyInput'
 import { useAuth } from '../contexts/AuthContext'
@@ -15,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ children }) => {
     <>
       <header className="bg-card/50 backdrop-blur-sm border-b border-border px-4 py-4 sm:py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-primary"
@@ -34,8 +35,14 @@ export const Header: React.FC<HeaderProps> = ({ children }) => {
             <h1 className="text-xl sm:text-2xl font-bold text-foreground">
               MCP Security Agent
             </h1>
-          </div>
+          </Link>
           <div className="flex items-center space-x-3">
+            <Link
+              to="/about"
+              className="text-foreground hover:text-primary transition-colors font-medium"
+            >
+              About
+            </Link>
             <Button
               variant="outline"
               size="sm"
