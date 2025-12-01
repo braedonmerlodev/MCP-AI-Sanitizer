@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from './ui/button'
 import { ApiKeyInput } from './ApiKeyInput'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -9,7 +8,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ children }) => {
-  const [showSettings, setShowSettings] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
   const { isAuthenticated } = useAuth()
 
   return (
@@ -43,30 +42,41 @@ export const Header: React.FC<HeaderProps> = ({ children }) => {
             >
               About
             </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettings(true)}
-              className="min-h-[44px] px-4 font-medium"
-            >
-              <span className="mr-2">{isAuthenticated ? '✓' : '⚠'}</span>
-              API Key
-            </Button>
+            <div className="relative">
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className={`font-medium transition-colors ${
+                  isAuthenticated
+                    ? 'text-green-600 hover:text-green-700'
+                    : 'text-foreground hover:text-primary'
+                }`}
+              >
+                {!isAuthenticated && <span className="mr-2">⚠</span>}
+                API Key
+              </button>
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-96 bg-card border border-border rounded-md shadow-lg z-50">
+                  <div className="p-4">
+                    <ApiKeyInput
+                      onSuccess={() => setShowDropdown(false)}
+                      onCancel={() => setShowDropdown(false)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             {children}
-          </div>
-        </div>
-      </header>
-
-      {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-4 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <ApiKeyInput
-              onSuccess={() => setShowSettings(false)}
-              onCancel={() => setShowSettings(false)}
+            <div
+              className={`w-2 h-2 rounded-full ml-2 ${
+                isAuthenticated ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+              }`}
+              title={
+                isAuthenticated ? 'Authenticated' : 'Authentication required'
+              }
             />
           </div>
         </div>
-      )}
+      </header>
     </>
   )
 }

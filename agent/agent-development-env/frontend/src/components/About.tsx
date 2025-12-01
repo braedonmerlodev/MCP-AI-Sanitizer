@@ -14,7 +14,7 @@ export const About: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
+          <div className="grid md:grid-cols-2 gap-8 mb-6">
             <div className="bg-card p-6 rounded-lg border">
               <h2 className="text-2xl font-semibold mb-4">What We Do</h2>
               <p className="text-muted-foreground mb-4">
@@ -45,7 +45,6 @@ export const About: React.FC = () => {
               </ul>
             </div>
           </div>
-
           <div className="bg-card p-6 rounded-lg border">
             <h2 className="text-2xl font-semibold mb-4">How It Works</h2>
             <div className="grid md:grid-cols-3 gap-6">
