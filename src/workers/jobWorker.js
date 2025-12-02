@@ -7,6 +7,9 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const pdfParse = require('pdf-parse');
 
+// Ensure config is loaded for environment variables
+const config = require('../config');
+
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.json(),
