@@ -31,10 +31,25 @@ Ready for Development
 - Uses HMAC-SHA256 for signatures.
 - Reduces redundant processing by up to 42%.
 - Critical for performance and security.
+- JSON Output Example: `{ "sanitizedData": "...", "trustToken": { "contentHash": "...", "originalHash": "...", "sanitizationVersion": "1.0", "rulesApplied": [...], "timestamp": "...", "expiresAt": "...", "signature": "..." } }`
+- Cryptographic Validation Endpoints: New `/api/trust-tokens/validate` route for token verification.
+- Caching Strategy: In-memory LRU cache with configurable TTL and size limits.
+
+## Risk Notes
+
+- **Token Tampering**: Weak signatures could allow malicious cache bypass; mitigated by HMAC-SHA256.
+- **Key Compromise**: Exposed secret keys enable forged tokens; mitigated by secure key management.
+- **Cache Poisoning**: Invalid cached results from tampered tokens; mitigated by content hash validation.
+
+## Recommendations
+
+- **Resolve Dependency Cycle**: Implement TrustTokenGenerator component independently first, then integrate into Story-1. This avoids circular dependencies between token generation and sanitization.
+- **Security Best Practices**: Ensure HMAC secret key is securely managed (environment variables, key rotation).
+- **Performance Monitoring**: Track cache hit rates and token validation times in production.
 
 ## Dependencies
 
-- Story-1 (for sanitized content and trust token generation)
+- None (implement TrustTokenGenerator independently to resolve cycle with Story-1)
 
 ## Change Log
 
