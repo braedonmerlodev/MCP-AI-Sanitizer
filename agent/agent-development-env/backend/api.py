@@ -159,8 +159,8 @@ def sanitize_input(text: str) -> str:
     # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
     text = re.sub(r'\x1b\[[^A-Za-z]*[A-Za-z]', '', text)
 
-    # 3. Symbol stripping - remove zero-width and control characters
-    zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF'
+    # 3. Symbol stripping - remove zero-width, control characters, and soft hyphens
+    zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF\u00AD'
     control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
     text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
 
@@ -287,9 +287,10 @@ def validate_trust_token(trust_token: dict) -> bool:
 
 
 def sanitize_dict(data):
-    """Recursively sanitize string values in a dict using the main sanitize_input function"""
+    """Recursively sanitize string values (and keys) in a dict using the main sanitize_input function"""
     if isinstance(data, dict):
-        return {k: sanitize_dict(v) for k, v in data.items()}
+        # Sanitize both keys and values
+        return {sanitize_input(k): sanitize_dict(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [sanitize_dict(item) for item in data]
     elif isinstance(data, str):
