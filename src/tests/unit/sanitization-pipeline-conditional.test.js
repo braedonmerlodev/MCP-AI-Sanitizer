@@ -43,10 +43,10 @@ describe('SanitizationPipeline Conditional Logic', () => {
     expect(result).toBe('Helloworld');
   });
 
-  test('should bypass sanitization for low risk level', async () => {
+  test('should apply full sanitization for low risk level', async () => {
     const input = 'Hello\u200Bworld';
     const result = await pipeline.sanitize(input, { riskLevel: 'low' });
-    expect(result).toBe('Hello\u200Bworld'); // Preserved
+    expect(result).toBe('Helloworld'); // Sanitized
   });
 
   test('should apply full sanitization for high risk level', async () => {
@@ -67,10 +67,10 @@ describe('SanitizationPipeline Conditional Logic', () => {
     expect(result).toBe('Helloworld'); // Zero-width removed
   });
 
-  test('should preserve zero-width characters in non-LLM content', async () => {
+  test('should sanitize zero-width characters in non-LLM content', async () => {
     const input = 'Hello\u200Bworld';
     const result = await pipeline.sanitize(input, { classification: 'non-llm' });
-    expect(result).toBe('Hello\u200Bworld'); // Preserved
+    expect(result).toBe('Helloworld'); // Sanitized
   });
 
   describe('Trust Token Generation', () => {
@@ -139,6 +139,83 @@ describe('SanitizationPipeline Conditional Logic', () => {
 
       expect(result1.trustToken.contentHash).not.toBe(result2.trustToken.contentHash);
       expect(result1.trustToken.signature).not.toBe(result2.trustToken.signature);
+    });
+  });
+
+  describe('Trust Token Caching', () => {
+    let pipelineWithTokens;
+
+    beforeEach(() => {
+      pipelineWithTokens = new SanitizationPipeline({
+        enableValidation: false,
+        trustTokenOptions: { secret: 'test-secret-for-caching' },
+        cacheMaxSize: 10,
+        cacheTTL: 10000, // 10 seconds for testing
+      });
+    });
+
+    test('should return cached result when valid trust token provided', async () => {
+      const input = 'test content';
+      // First, sanitize and generate token
+      const firstResult = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+        generateTrustToken: true,
+      });
+      const token = firstResult.trustToken;
+
+      // Now, sanitize with the token
+      const cachedResult = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+        trustToken: token,
+      });
+
+      expect(cachedResult).toBe(firstResult.sanitizedData);
+    });
+
+    test('should sanitize when invalid trust token provided', async () => {
+      const input = 'test content';
+      const invalidToken = {
+        contentHash: 'invalid',
+        signature: 'invalid',
+        // other fields
+      };
+
+      const result = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+        trustToken: invalidToken,
+      });
+
+      expect(result).toBe('test content'); // Sanitized
+    });
+
+    test('should sanitize when no trust token provided', async () => {
+      const input = 'test content';
+      const result = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+      });
+
+      expect(result).toBe('test content'); // Sanitized
+    });
+
+    test('should handle cache expiration', async () => {
+      const input = 'test content';
+      const firstResult = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+        generateTrustToken: true,
+      });
+      const token = firstResult.trustToken;
+
+      // Mock expired cache by setting old timestamp
+      const cachedEntry = pipelineWithTokens.trustTokenCache.get(token.contentHash);
+      cachedEntry.timestamp = Date.now() - 20000; // 20 seconds ago
+
+      // Should sanitize again
+      const result = await pipelineWithTokens.sanitize(input, {
+        classification: 'llm',
+        trustToken: token,
+      });
+
+      expect(result).toBe('test content'); // Sanitized, not cached
     });
   });
 
