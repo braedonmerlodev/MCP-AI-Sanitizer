@@ -8,6 +8,7 @@ const TrustTokenGenerator = require('./TrustTokenGenerator');
 const AuditLogger = require('./data-integrity/AuditLogger');
 const winston = require('winston');
 const config = require('../config');
+const { recordTokenGeneration } = require('../utils/monitoring');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -270,7 +271,11 @@ class SanitizationPipeline {
       if (!this.trustTokenGenerator) {
         this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
       }
+      const startTime = process.hrtime.bigint();
       const trustToken = this.trustTokenGenerator.generateToken(result, data, appliedRules);
+      const endTime = process.hrtime.bigint();
+      const durationMs = Number(endTime - startTime) / 1_000_000;
+      recordTokenGeneration(durationMs);
       return {
         sanitizedData: result,
         trustToken,
