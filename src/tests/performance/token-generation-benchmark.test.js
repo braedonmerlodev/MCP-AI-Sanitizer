@@ -74,7 +74,6 @@ describe('TokenGenerationBenchmark', () => {
       const time = benchmark.measureExecutionTime(() => {
         // Simulate some work
         for (let i = 0; i < 1000; i++) {
-           
           i + 1;
         }
       });

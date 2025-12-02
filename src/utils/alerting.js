@@ -68,7 +68,7 @@ class PerformanceAlerting {
     alerts.push(...tokenAlerts);
 
     // Send alerts
-    alerts.forEach((alert) => this.sendAlert(alert));
+    for (const alert of alerts) this.sendAlert(alert);
 
     // Auto-resolve alerts
     this.autoResolveAlerts(metrics, now);
@@ -326,16 +326,6 @@ class PerformanceAlerting {
 
     try {
       const subject = `Performance Alert: ${alert.severity.toUpperCase()} - ${alert.metric}`;
-      const body = `
-Performance Alert Details:
-- Severity: ${alert.severity}
-- Metric: ${alert.metric}
-- Current Value: ${alert.value}
-- Threshold: ${alert.threshold}
-- Time: ${new Date(alert.timestamp).toISOString()}
-
-Message: ${alert.message}
-      `;
 
       // In real implementation, send email
       logger.info('Email alert sent', {
@@ -414,11 +404,7 @@ Message: ${alert.message}
     const [metricType, metricName] = alert.metric.split('.');
     const currentValue = metrics[metricType][metricName];
 
-    if (alert.isLowerBetter) {
-      return currentValue >= alert.threshold;
-    } else {
-      return currentValue <= alert.threshold;
-    }
+    return alert.isLowerBetter ? currentValue >= alert.threshold : currentValue <= alert.threshold;
   }
 
   /**
@@ -450,12 +436,6 @@ Message: ${alert.message}
    */
   async sendPagerDutyResolution(alertKey) {
     try {
-      const payload = {
-        routing_key: this.config.channels.pagerduty,
-        event_action: 'resolve',
-        dedup_key: alertKey,
-      };
-
       // In real implementation, send to PagerDuty API
       logger.info('PagerDuty resolution sent', { alertKey });
     } catch (error) {
@@ -469,7 +449,7 @@ Message: ${alert.message}
    */
   getAlertState() {
     return {
-      activeAlerts: Array.from(this.state.activeAlerts.values()),
+      activeAlerts: [...this.state.activeAlerts.values()],
       lastAlertTimes: Object.fromEntries(this.state.lastAlertTime),
       consecutiveGoodChecks: Object.fromEntries(this.state.consecutiveGoodChecks),
     };

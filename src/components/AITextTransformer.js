@@ -16,9 +16,9 @@ class RateLimiter {
   canMakeRequest() {
     const now = Date.now();
     // Filter requests within the last hour
-    const recentRequests = this.requests.filter((time) => now - time < 3600000); // 1 hour in ms
+    const recentRequests = this.requests.filter((time) => now - time < 3_600_000); // 1 hour in ms
     // Filter requests within the last minute
-    const minuteRequests = recentRequests.filter((time) => now - time < 60000); // 1 minute in ms
+    const minuteRequests = recentRequests.filter((time) => now - time < 60_000); // 1 minute in ms
 
     return (
       minuteRequests.length < this.requestsPerMinute && recentRequests.length < this.requestsPerHour
