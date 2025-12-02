@@ -3,8 +3,8 @@ const crypto = require('node:crypto');
 // LRU cache for trust token validation
 const trustTokenCache = new Map();
 const trustTokenCacheOrder = [];
-const trustTokenCacheMaxSize = parseInt(process.env.TRUST_TOKEN_CACHE_MAX_SIZE) || 1000;
-const trustTokenCacheTTL = parseInt(process.env.TRUST_TOKEN_CACHE_TTL_MS) || 10 * 60 * 1000; // 10 minutes
+const trustTokenCacheMaxSize = Number.parseInt(process.env.TRUST_TOKEN_CACHE_MAX_SIZE) || 1000;
+const trustTokenCacheTTL = Number.parseInt(process.env.TRUST_TOKEN_CACHE_TTL_MS) || 10 * 60 * 1000; // 10 minutes
 
 function getCachedValidation(signature) {
   const now = Date.now();
@@ -12,7 +12,7 @@ function getCachedValidation(signature) {
   if (cached && cached.timestamp + trustTokenCacheTTL > now) {
     // Move to end for LRU
     const index = trustTokenCacheOrder.indexOf(signature);
-    if (index > -1) {
+    if (index !== -1) {
       trustTokenCacheOrder.splice(index, 1);
       trustTokenCacheOrder.push(signature);
     }
@@ -22,7 +22,7 @@ function getCachedValidation(signature) {
       // Expired, remove
       trustTokenCache.delete(signature);
       const index = trustTokenCacheOrder.indexOf(signature);
-      if (index > -1) trustTokenCacheOrder.splice(index, 1);
+      if (index !== -1) trustTokenCacheOrder.splice(index, 1);
     }
     return null;
   }

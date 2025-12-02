@@ -150,7 +150,7 @@ describe('SanitizationPipeline Conditional Logic', () => {
         enableValidation: false,
         trustTokenOptions: { secret: 'test-secret-for-caching' },
         cacheMaxSize: 10,
-        cacheTTL: 10000, // 10 seconds for testing
+        cacheTTL: 10_000, // 10 seconds for testing
       });
     });
 
@@ -207,7 +207,7 @@ describe('SanitizationPipeline Conditional Logic', () => {
 
       // Mock expired cache by setting old timestamp
       const cachedEntry = pipelineWithTokens.trustTokenCache.get(token.contentHash);
-      cachedEntry.timestamp = Date.now() - 20000; // 20 seconds ago
+      cachedEntry.timestamp = Date.now() - 20_000; // 20 seconds ago
 
       // Should sanitize again
       const result = await pipelineWithTokens.sanitize(input, {

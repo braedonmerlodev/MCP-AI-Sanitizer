@@ -81,7 +81,7 @@ class SanitizationPipeline {
         if (cached && cached.timestamp + this.cacheTTL > Date.now()) {
           // Move to end for LRU
           const index = this.cacheOrder.indexOf(trustToken.contentHash);
-          if (index > -1) {
+          if (index !== -1) {
             this.cacheOrder.splice(index, 1);
             this.cacheOrder.push(trustToken.contentHash);
           }
