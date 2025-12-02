@@ -191,6 +191,10 @@ def sanitize_input(text: str) -> str:
     # Remove specific bad characters and symbols
     text = re.sub(r'[`©®™€£¥§¶†‡‹›Øß²³´]', '', text)
 
+    # Remove PDF-specific bad characters
+    text = re.sub(r'[þÿ]', '', text)  # Remove þÿ
+    text = re.sub(r'[‰°ÀÐï•]', '', text)  # Remove other bad chars
+
     # Remove potential XSS keywords
     text = re.sub(r'\b(alert|img|src|javascript|script|onerror|onload)\b', '', text, flags=re.IGNORECASE)
 
