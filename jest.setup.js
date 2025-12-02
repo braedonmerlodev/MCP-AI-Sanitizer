@@ -3,6 +3,56 @@
 // Set up environment variables for tests
 process.env.TRUST_TOKEN_SECRET = 'test-secret-key-for-jest-tests';
 
+// Mock langchain modules globally to avoid ES module issues
+jest.mock('@langchain/google-genai', () => ({
+  ChatGoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+    invoke: jest.fn().mockResolvedValue({
+      content: 'Mocked AI response for testing',
+    }),
+  })),
+}));
+
+jest.mock('@langchain/core/prompts', () => ({
+  PromptTemplate: {
+    fromTemplate: jest.fn().mockReturnValue({
+      format: jest.fn().mockReturnValue('Mocked prompt'),
+    }),
+  },
+}));
+
+jest.mock('@langchain/openai', () => ({
+  ChatOpenAI: jest.fn().mockImplementation(() => ({
+    invoke: jest.fn().mockResolvedValue({
+      content: 'Mocked OpenAI response for testing',
+    }),
+  })),
+}));
+
+jest.mock('@google/generative-ai', () => ({
+  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+    getGenerativeModel: jest.fn().mockReturnValue({
+      generateContent: jest.fn().mockResolvedValue({
+        response: {
+          text: () => 'Mocked Gemini response',
+        },
+      }),
+    }),
+  })),
+}));
+
+// Mock AITextTransformer globally
+jest.mock('./src/components/AITextTransformer', () => {
+  return jest.fn().mockImplementation(() => ({
+    transform: jest.fn().mockResolvedValue({
+      title: 'Mocked Title',
+      summary: 'Mocked summary for testing',
+      content: 'Mocked content',
+      key_points: ['Point 1', 'Point 2'],
+    }),
+    validateTransformation: jest.fn().mockReturnValue(true),
+  }));
+});
+
 // Provide DOMMatrix polyfill if not available
 if (typeof global.DOMMatrix === 'undefined') {
   // Simple DOMMatrix polyfill for pdf-parse

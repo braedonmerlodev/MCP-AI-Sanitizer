@@ -1,0 +1,34 @@
+{
+  "inputFile": "simple-document.pdf",
+  "extractedText": "This is a simple PDF document with basic text content. It contains multiple lines and paragraphs for testing purposes. Key sections: - Introduction - Main content - Conclusion This document is used for testing the PDF-to-AI pipeline integration.",
+  "sanitizedText": "This is a simple PDF document with basic text content. It contains multiple lines and paragraphs for testing purposes. Key sections: - Introduction - Main content - Conclusion This document is used for testing the PDF-to-AI pipeline integration.",
+  "aiTransform": {
+    "type": "structure",
+    "output": {
+      "title": "Simple PDF Document",
+      "summary": "This is a simple PDF document with basic text content for testing the PDF-to-AI pipeline integration.",
+      "content": "This is a simple PDF document with basic text content. It contains multiple lines and paragraphs for testing purposes. Key sections: - Introduction - Main content - Conclusion This document is used for testing the PDF-to-AI pipeline integration.",
+      "key_points": [
+        "Contains basic text content",
+        "Includes multiple lines and paragraphs",
+        "Has key sections (Introduction, Main content, Conclusion)",
+        "Used for testing PDF-to-AI pipeline integration"
+      ]
+    }
+  },
+  "trustToken": {
+    "contentHash": "abc123def456",
+    "originalHash": "def789ghi012",
+    "sanitizationVersion": "1.0",
+    "rulesApplied": ["basic-sanitization"],
+    "timestamp": "2025-12-01T12:00:00Z",
+    "expiresAt": "2025-12-02T12:00:00Z",
+    "signature": "signature123"
+  },
+  "metadata": {
+    "processingTime": 150,
+    "originalLength": 180,
+    "sanitizedLength": 180,
+    "pipelineStage": "completed"
+  }
+}

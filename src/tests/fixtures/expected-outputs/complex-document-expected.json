@@ -1,0 +1,49 @@
+{
+  "inputFile": "complex-document.pdf",
+  "extractedText": "Page 1: Introduction This is a complex PDF document with multiple pages and sections. It contains various types of content including text, lists, and structured data. Key features: - Multi-page layout - Table of contents - Detailed sections - Technical specifications Page 2: Technical Details The system supports advanced AI processing capabilities. Features include natural language processing, content analysis, and automated summarization. Technical specifications: - Input formats: PDF, DOCX, TXT - Output formats: JSON, XML, Markdown - Processing time: < 2 seconds for standard documents Page 3: Conclusion This document demonstrates the comprehensive capabilities of the PDF processing system. All features have been tested and validated for production use.",
+  "sanitizedText": "Page 1: Introduction This is a complex PDF document with multiple pages and sections. It contains various types of content including text, lists, and structured data. Key features: - Multi-page layout - Table of contents - Detailed sections - Technical specifications Page 2: Technical Details The system supports advanced AI processing capabilities. Features include natural language processing, content analysis, and automated summarization. Technical specifications: - Input formats: PDF, DOCX, TXT - Output formats: JSON, XML, Markdown - Processing time: < 2 seconds for standard documents Page 3: Conclusion This document demonstrates the comprehensive capabilities of the PDF processing system. All features have been tested and validated for production use.",
+  "aiTransform": {
+    "type": "structure",
+    "output": {
+      "title": "Complex PDF Document - Multi-page Technical Specification",
+      "summary": "Comprehensive PDF document covering system capabilities, technical specifications, and AI processing features across multiple pages.",
+      "content": "Page 1: Introduction This is a complex PDF document with multiple pages and sections. It contains various types of content including text, lists, and structured data. Key features: - Multi-page layout - Table of contents - Detailed sections - Technical specifications Page 2: Technical Details The system supports advanced AI processing capabilities. Features include natural language processing, content analysis, and automated summarization. Technical specifications: - Input formats: PDF, DOCX, TXT - Output formats: JSON, XML, Markdown - Processing time: < 2 seconds for standard documents Page 3: Conclusion This document demonstrates the comprehensive capabilities of the PDF processing system. All features have been tested and validated for production use.",
+      "key_points": [
+        "Multi-page PDF with structured content",
+        "Advanced AI processing capabilities",
+        "Support for multiple input/output formats",
+        "Technical specifications and performance metrics",
+        "Production-ready system validation"
+      ],
+      "sections": [
+        {
+          "title": "Introduction",
+          "content": "Complex PDF document with multiple pages and sections"
+        },
+        {
+          "title": "Technical Details",
+          "content": "AI processing capabilities and specifications"
+        },
+        {
+          "title": "Conclusion",
+          "content": "System capabilities validation"
+        }
+      ]
+    }
+  },
+  "trustToken": {
+    "contentHash": "xyz789abc123",
+    "originalHash": "uvw456def789",
+    "sanitizationVersion": "1.0",
+    "rulesApplied": ["basic-sanitization"],
+    "timestamp": "2025-12-01T12:00:00Z",
+    "expiresAt": "2025-12-02T12:00:00Z",
+    "signature": "signature456"
+  },
+  "metadata": {
+    "processingTime": 250,
+    "originalLength": 650,
+    "sanitizedLength": 650,
+    "pipelineStage": "completed"
+  }
+}

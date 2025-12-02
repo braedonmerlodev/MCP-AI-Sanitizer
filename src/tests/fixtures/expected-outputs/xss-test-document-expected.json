@@ -1,0 +1,49 @@
+{
+  "inputFile": "xss-test-document.pdf",
+  "extractedText": "Test PDF with Special Characters and XSS This document contains special characters and potential security issues for testing. Special characters: àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ Symbols: ©®™€£¥§¶†‡•°±×÷¼½¾¹²³ Math: ∫∑∏√∂∆∇∈∉∋∌∏∐∑−±×÷∓∔∕∖∗∘∙√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿ Potential XSS: <script>alert('XSS Attack')</script> <img src=x onerror=alert('XSS')> <iframe src=\"javascript:alert('XSS')\"></iframe> SQL Injection attempts: ' OR '1'='1 ; DROP TABLE users; -- This content should be properly sanitized by the pipeline.",
+  "sanitizedText": "Test PDF with Special Characters and XSS This document contains special characters and potential security issues for testing. Special characters: àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ Symbols: ©®™€£¥§¶†‡•°±×÷¼½¾¹²³ Math: ∫∑∏√∂∆∇∈∉∋∌∏∐∑−±×÷∓∔∕∖∗∘∙√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿ Potential XSS: [XSS content removed] [XSS content removed] [XSS content removed] SQL Injection attempts: [SQL injection removed] [SQL injection removed] This content should be properly sanitized by the pipeline.",
+  "aiTransform": {
+    "type": "structure",
+    "output": {
+      "title": "Security Test Document - Special Characters and XSS",
+      "summary": "Test document containing special characters, mathematical symbols, and potential security vulnerabilities that should be sanitized.",
+      "content": "Test PDF with Special Characters and XSS This document contains special characters and potential security issues for testing. Special characters: àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ Symbols: ©®™€£¥§¶†‡•°±×÷¼½¾¹²³ Math: ∫∑∏√∂∆∇∈∉∋∌∏∐∑−±×÷∓∔∕∖∗∘∙√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿ Potential XSS: [XSS content removed] [XSS content removed] [XSS content removed] SQL Injection attempts: [SQL injection removed] [SQL injection removed] This content should be properly sanitized by the pipeline.",
+      "key_points": [
+        "Contains extensive special characters and symbols",
+        "Includes potential XSS attack vectors",
+        "Has SQL injection attempts",
+        "Tests sanitization pipeline effectiveness",
+        "Validates security measures"
+      ],
+      "security_notes": {
+        "xss_attempts": 3,
+        "sql_injection_attempts": 2,
+        "sanitization_applied": true
+      }
+    }
+  },
+  "trustToken": {
+    "contentHash": "secure789xyz123",
+    "originalHash": "dangerous456abc789",
+    "sanitizationVersion": "1.0",
+    "rulesApplied": [
+      "xss-sanitization",
+      "sql-injection-prevention",
+      "special-characters-preserved"
+    ],
+    "timestamp": "2025-12-01T12:00:00Z",
+    "expiresAt": "2025-12-02T12:00:00Z",
+    "signature": "secure-signature789"
+  },
+  "metadata": {
+    "processingTime": 200,
+    "originalLength": 1200,
+    "sanitizedLength": 1100,
+    "pipelineStage": "completed",
+    "securityEvents": {
+      "xss_detected": 3,
+      "sql_injection_detected": 2,
+      "content_sanitized": true
+    }
+  }
+}
