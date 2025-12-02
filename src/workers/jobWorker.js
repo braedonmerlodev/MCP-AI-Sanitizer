@@ -44,7 +44,12 @@ async function processJob(job) {
       let extractedText, metadata;
       try {
         const data = await pdfParse(buffer);
-        extractedText = String(data.text || '');
+        // Ensure extractedText is a string
+        if (typeof data.text === 'string') {
+          extractedText = data.text;
+        } else {
+          extractedText = String(data.text || '');
+        }
         metadata = {
           pages: data.numpages,
           title: data.info?.Title || null,
