@@ -32,6 +32,7 @@ from agent.security_agent import SecurityAgent
 import logging
 from datetime import datetime, timedelta
 import re
+import bleach
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 import psutil
 from monitoring.alerting import alert_manager
@@ -155,25 +156,37 @@ def sanitize_input(text: str) -> str:
     # 1. Unicode normalization
     text = unicodedata.normalize('NFC', text)
 
-    # 2. Symbol stripping - remove zero-width and control characters
+    # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
+    text = re.sub(r'\x1b\[[^A-Za-z]*[A-Za-z]', '', text)
+
+    # 3. Symbol stripping - remove zero-width and control characters
     zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF'
     control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
     text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
 
-    # 3. Escape neutralization - remove ANSI escape sequences
-    text = re.sub(r'\x1B\[[0-9;]*[A-Za-z]', '', text)
+    # 4. HTML sanitization - hybrid approach for performance
+    # Use fast regex for most cases, bleach only for complex content
+    if '<' in text and '>' in text:
+        # Use bleach only for content with script tags (most security-critical)
+        if '<script' in text.lower():
+            # First remove script tags and content (critical for security)
+            text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+            # Then use bleach for remaining HTML
+            text = bleach.clean(text, tags=[], strip=True)
+        else:
+            # Use fast regex for non-script HTML
+            # Remove HTML tags
+            text = re.sub(r'<[^>]*>', '', text)
+            # Remove event handlers
+            text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
 
-    # 4. Pattern redaction
-    # Remove script tags and content
-    text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
-    # Remove HTML tags
-    text = re.sub(r'<[^>]*>', '', text)
-    # Remove javascript:
+    # Always apply non-HTML XSS protection
+    # Remove javascript: URLs
     text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
-    # Remove event handlers
-    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
-    # Remove data URLs
+    # Remove data URLs that might contain scripts
     text = re.sub(r'data:\s*text\/html[^,]+,', '', text, flags=re.IGNORECASE)
+    # Remove potential XSS keywords
+    text = re.sub(r'\b(alert|img|src|javascript|script|onerror|onload)\b', '', text, flags=re.IGNORECASE)
 
     # Remove specific bad characters and symbols
     text = re.sub(r'[`©®™€£¥§¶†‡‹›Øß²³´]', '', text)
@@ -230,7 +243,7 @@ def log_security_event(
 def generate_trust_token(content: str, rules_applied: list = None) -> dict:
     """Generate a trust token for sanitized content"""
     if rules_applied is None:
-        rules_applied = ["UnicodeNormalization", "SymbolStripping"]
+        rules_applied = ["UnicodeNormalization", "SymbolStripping", "BleachSanitization"]
 
     # Generate content hash
     content_hash = hashlib.sha256(content.encode('utf-8')).digest().hex()
@@ -419,17 +432,9 @@ async def get_agent():
 
                 async def sanitize_content(self, **kwargs):
                     content = kwargs.get('content', '')
-                    # Simple sanitization for mock agent
-                    import re
-                    # Remove dangerous characters and patterns
-                    sanitized = re.sub(r'[<>]', '', content)  # Remove < >
-                    sanitized = re.sub(r'script', '', sanitized, flags=re.IGNORECASE)  # Remove script tags
-                    sanitized = re.sub(r'on\w+=', '', sanitized, flags=re.IGNORECASE)  # Remove event handlers
-                    sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)  # Remove javascript:
-                    # Remove invisible/zero-width characters
-                    sanitized = re.sub(r'[\u200B-\u200D\uFEFF]', '', sanitized)
-                    # Remove control characters except common whitespace
-                    sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', sanitized)
+                    # Use bleach for consistent sanitization with main implementation
+                    import bleach
+                    sanitized = bleach.clean(content, tags=[], strip=True)
                     return {
                         "success": True,
                         "sanitized_content": sanitized,
