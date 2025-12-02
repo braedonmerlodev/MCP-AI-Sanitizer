@@ -56,10 +56,30 @@ const recordError = () => {
       : metrics.stability.errors > 0
         ? 1
         : 0;
+
+  // Check for rollback triggers
+  checkRollbackTriggers();
 };
 
 const getMetrics = () => {
   return { ...metrics };
+};
+
+const checkRollbackTriggers = () => {
+  const errorRateThreshold = 0.05; // 5%
+  const latencyThreshold = 500; // 500ms
+
+  if (metrics.stability.errorRate > errorRateThreshold) {
+    console.error(
+      `ROLLBACK TRIGGER: Error rate ${(metrics.stability.errorRate * 100).toFixed(2)}% exceeds threshold ${errorRateThreshold * 100}%`,
+    );
+  }
+
+  if (metrics.performance.avgResponseTime > latencyThreshold) {
+    console.error(
+      `ROLLBACK TRIGGER: Average latency ${metrics.performance.avgResponseTime.toFixed(2)}ms exceeds threshold ${latencyThreshold}ms`,
+    );
+  }
 };
 
 const resetMetrics = () => {

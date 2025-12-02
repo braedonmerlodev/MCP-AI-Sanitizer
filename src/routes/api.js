@@ -8,6 +8,7 @@ const ProxySanitizer = require('../components/proxy-sanitizer');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
+const config = require('../config');
 
 const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
 const { agentAuth, enforceAgentSync } = require('../middleware/agentAuth');
@@ -269,7 +270,7 @@ router.post(
         const jobData = contentToSanitize;
         const jobOptions = {
           classification: value.classification || req.destinationTracking.classification,
-          generateTrustToken: true,
+          generateTrustToken: config.features.trustTokens.enabled,
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
 

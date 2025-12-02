@@ -7,6 +7,7 @@ const DataIntegrityValidator = require('./DataIntegrityValidator');
 const TrustTokenGenerator = require('./TrustTokenGenerator');
 const AuditLogger = require('./data-integrity/AuditLogger');
 const winston = require('winston');
+const config = require('../config');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -69,8 +70,11 @@ class SanitizationPipeline {
       trustToken,
     } = options;
 
+    const trustTokensEnabled = config.features.trustTokens.enabled;
+    generateTrustToken = generateTrustToken && trustTokensEnabled;
+
     // Check for valid trust token and return cached result if available
-    if (trustToken) {
+    if (trustToken && trustTokensEnabled) {
       if (!this.trustTokenGenerator) {
         this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
       }
