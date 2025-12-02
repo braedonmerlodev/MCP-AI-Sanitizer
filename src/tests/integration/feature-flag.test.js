@@ -50,5 +50,31 @@ describe('Feature Flag Integration Tests', () => {
       expect(response.body.trustToken).toBeNull();
       expect(typeof response.body.sanitizedContent).toBe('string');
     });
+
+    test('should validate API response matches documented JSON schema when enabled', async () => {
+      delete process.env.TRUST_TOKENS_ENABLED;
+
+      const response = await request(app)
+        .post('/api/sanitize/json')
+        .send({
+          content: 'Test content for JSON sanitization',
+        })
+        .expect(200);
+
+      // Validate response structure matches API documentation
+      expect(response.body).toHaveProperty('sanitizedContent');
+      expect(response.body).toHaveProperty('trustToken');
+      expect(response.body.trustToken).toHaveProperty('contentHash');
+      expect(response.body.trustToken).toHaveProperty('originalHash');
+      expect(response.body.trustToken).toHaveProperty('sanitizationVersion');
+      expect(response.body.trustToken).toHaveProperty('rulesApplied');
+      expect(Array.isArray(response.body.trustToken.rulesApplied)).toBe(true);
+      expect(response.body.trustToken).toHaveProperty('timestamp');
+      expect(response.body.trustToken).toHaveProperty('expiresAt');
+      expect(response.body.trustToken).toHaveProperty('signature');
+      expect(response.body).toHaveProperty('metadata');
+      expect(response.body.metadata).toHaveProperty('originalLength');
+      expect(response.body.metadata).toHaveProperty('sanitizedLength');
+    });
   });
 });

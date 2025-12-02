@@ -3,6 +3,36 @@ const { PromptTemplate } = require('@langchain/core/prompts');
 const winston = require('winston');
 const SanitizationPipeline = require('./sanitization-pipeline');
 const aiConfig = require('../config/aiConfig');
+const config = require('../config');
+
+// Simple in-memory rate limiter for Gemini API
+class RateLimiter {
+  constructor(requestsPerMinute = 60, requestsPerHour = 1000) {
+    this.requestsPerMinute = requestsPerMinute;
+    this.requestsPerHour = requestsPerHour;
+    this.requests = []; // For tracking all requests within hour window
+  }
+
+  canMakeRequest() {
+    const now = Date.now();
+    // Filter requests within the last hour
+    const recentRequests = this.requests.filter((time) => now - time < 3600000); // 1 hour in ms
+    // Filter requests within the last minute
+    const minuteRequests = recentRequests.filter((time) => now - time < 60000); // 1 minute in ms
+
+    return (
+      minuteRequests.length < this.requestsPerMinute && recentRequests.length < this.requestsPerHour
+    );
+  }
+
+  recordRequest() {
+    this.requests.push(Date.now());
+  }
+} // Global rate limiter instance
+const geminiRateLimiter = new RateLimiter(
+  config.rateLimits.gemini.requestsPerMinute,
+  config.rateLimits.gemini.requestsPerHour,
+);
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -63,6 +93,24 @@ class AITextTransformer {
     try {
       // Sanitize input before AI processing
       const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
+
+      // Check rate limits before calling Gemini API
+      if (!geminiRateLimiter.canMakeRequest()) {
+        this.logger.warn('Gemini API rate limit exceeded, using fallback strategy', {
+          type,
+          inputLength: text.length,
+        });
+        // Fallback: return the sanitized input
+        return {
+          text: sanitizedInput,
+          metadata: {
+            fallback: true,
+            reason: 'rate_limit_exceeded',
+          },
+        };
+      }
+
+      geminiRateLimiter.recordRequest();
 
       // Create and execute the Langchain pipeline
       const chain = prompt.pipe(this.gemini);
