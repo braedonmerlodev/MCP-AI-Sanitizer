@@ -104,8 +104,8 @@ describe('TrustTokenGenerator', () => {
       expect(typeof token.originalHash).toBe('string');
       expect(typeof token.sanitizationVersion).toBe('string');
       expect(Array.isArray(token.rulesApplied)).toBe(true);
-      expect(token.timestamp).toBeInstanceOf(Date);
-      expect(token.expiresAt).toBeInstanceOf(Date);
+      expect(typeof token.timestamp).toBe('string');
+      expect(typeof token.expiresAt).toBe('string');
       expect(typeof token.signature).toBe('string');
     });
 
@@ -116,8 +116,8 @@ describe('TrustTokenGenerator', () => {
       });
 
       expect(token.sanitizationVersion).toBe('2.0');
-      const expectedExpiry = new Date(token.timestamp.getTime() + 48 * 60 * 60 * 1000);
-      expect(token.expiresAt.getTime()).toBe(expectedExpiry.getTime());
+      const expectedExpiry = new Date(new Date(token.timestamp).getTime() + 48 * 60 * 60 * 1000);
+      expect(new Date(token.expiresAt).getTime()).toBe(expectedExpiry.getTime());
     });
 
     it('should generate different hashes for different content', () => {

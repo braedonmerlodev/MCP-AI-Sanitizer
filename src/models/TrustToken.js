@@ -62,8 +62,15 @@ class TrustToken {
     const id =
       token.contentHash || `token-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
+    // Parse dates if they are strings
+    const parsedToken = {
+      ...token,
+      timestamp: token.timestamp instanceof Date ? token.timestamp : new Date(token.timestamp),
+      expiresAt: token.expiresAt instanceof Date ? token.expiresAt : new Date(token.expiresAt),
+    };
+
     // Add to cache (allow expired tokens to be saved, they'll be filtered on load)
-    this.cache.set(id, token);
+    this.cache.set(id, parsedToken);
 
     // Enforce cache size limit (LRU eviction)
     if (this.cache.size > this.maxCacheSize) {
@@ -167,9 +174,13 @@ class TrustToken {
       const serializedToken = {
         ...token,
         timestamp:
-          token.timestamp instanceof Date ? token.timestamp.toISOString() : token.timestamp,
+          token.timestamp instanceof Date && !Number.isNaN(token.timestamp)
+            ? token.timestamp.toISOString()
+            : token.timestamp,
         expiresAt:
-          token.expiresAt instanceof Date ? token.expiresAt.toISOString() : token.expiresAt,
+          token.expiresAt instanceof Date && !Number.isNaN(token.expiresAt)
+            ? token.expiresAt.toISOString()
+            : token.expiresAt,
       };
       data[id] = serializedToken;
     }

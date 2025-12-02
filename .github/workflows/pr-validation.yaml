@@ -35,6 +35,68 @@ jobs:
       - name: Run tests (if available)
         run: npm test --if-present
 
+      - name: Run performance benchmarks
+        run: |
+          npm test -- src/tests/performance/token-generation-benchmark.test.js
+          # Run comprehensive benchmarks
+          node -e "
+          const Benchmark = require('./src/utils/benchmark');
+          const Generator = require('./src/components/TrustTokenGenerator');
+          const gen = new Generator();
+          const bench = new Benchmark({ generator: gen });
+          bench.runComprehensiveTests().then(results => {
+            console.log('Performance Results:', JSON.stringify(results.summary, null, 2));
+            // Check SLA
+            if (results.summary.overall.slaCompliance < 95) {
+              console.error('SLA violation: ' + results.summary.overall.slaCompliance + '% < 95%');
+              process.exit(1);
+            }
+            if (results.summary.overall.statistics.mean > 100) {
+              console.error('Average response time violation: ' + results.summary.overall.statistics.mean + 'ms > 100ms');
+              process.exit(1);
+            }
+          });
+          "
+
+      - name: Comment performance results on PR
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            try {
+              const results = execSync('node -e "
+              const Benchmark = require(\'./src/utils/benchmark\');
+              const Generator = require(\'./src/components/TrustTokenGenerator\');
+              const gen = new Generator();
+              const bench = new Benchmark({ generator: gen });
+              bench.runComprehensiveTests().then(results => {
+                console.log(JSON.stringify(results.summary));
+              });
+              "', { encoding: 'utf8' });
+              const summary = JSON.parse(results.trim());
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: \`🚀 **Performance Benchmark Results**
+                
+                **Overall Statistics:**
+                - Average Response Time: \${summary.overall.statistics.mean.toFixed(2)}ms
+                - P95 Response Time: \${summary.overall.statistics.p95.toFixed(2)}ms
+                - SLA Compliance: \${summary.overall.slaCompliance.toFixed(2)}%
+                
+                **Worst Case:**
+                - P95: \${summary.worstCase.p95.toFixed(2)}ms
+                - SLA: \${summary.worstCase.slaCompliance.toFixed(2)}%
+                
+                ✅ All performance targets met!\`
+              });
+            } catch (error) {
+              console.log('Performance comment failed:', error.message);
+            }
+
       - name: Comment on PR if checks fail
         if: failure()
         uses: actions/github-script@v7

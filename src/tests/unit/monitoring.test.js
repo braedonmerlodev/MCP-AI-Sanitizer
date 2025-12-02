@@ -1,5 +1,6 @@
 const {
   recordRequest,
+  recordTokenGeneration,
   recordSecurityEvent,
   recordError,
   getMetrics,
@@ -20,6 +21,10 @@ describe('Monitoring Utils', () => {
       expect(metrics.requests.byEndpoint['/test']).toBe(1);
       expect(metrics.performance.responseTimes).toContain(100);
       expect(metrics.performance.avgResponseTime).toBe(100);
+      expect(metrics.performance.p50).toBe(100);
+      expect(metrics.performance.p95).toBe(100);
+      expect(metrics.performance.p99).toBe(100);
+      expect(metrics.performance.slaCompliance).toBe(100);
     });
   });
 
@@ -40,6 +45,19 @@ describe('Monitoring Utils', () => {
       recordSecurityEvent('suspiciousRequest');
       const metrics = getMetrics();
       expect(metrics.security.suspiciousRequests).toBe(1);
+    });
+  });
+
+  describe('recordTokenGeneration', () => {
+    it('should record token generation metrics', () => {
+      recordTokenGeneration(50);
+      const metrics = getMetrics();
+      expect(metrics.tokenGeneration.times).toContain(50);
+      expect(metrics.tokenGeneration.avgTime).toBe(50);
+      expect(metrics.tokenGeneration.p50).toBe(50);
+      expect(metrics.tokenGeneration.p95).toBe(50);
+      expect(metrics.tokenGeneration.p99).toBe(50);
+      expect(metrics.tokenGeneration.slaCompliance).toBe(100);
     });
   });
 
@@ -66,11 +84,13 @@ describe('Monitoring Utils', () => {
   describe('resetMetrics', () => {
     it('should reset all metrics', () => {
       recordRequest('GET', '/test', 100);
+      recordTokenGeneration(50);
       recordSecurityEvent('failedValidation');
       recordError();
       resetMetrics();
       const metrics = getMetrics();
       expect(metrics.requests.total).toBe(0);
+      expect(metrics.tokenGeneration.times.length).toBe(0);
       expect(metrics.security.failedValidations).toBe(0);
       expect(metrics.stability.errors).toBe(0);
     });

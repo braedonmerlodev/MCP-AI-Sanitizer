@@ -7,6 +7,8 @@ const DataIntegrityValidator = require('./DataIntegrityValidator');
 const TrustTokenGenerator = require('./TrustTokenGenerator');
 const AuditLogger = require('./data-integrity/AuditLogger');
 const winston = require('winston');
+const config = require('../config');
+const { recordTokenGeneration } = require('../utils/monitoring');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -38,6 +40,12 @@ class SanitizationPipeline {
     // Initialize trust token generator (lazy initialization)
     this.trustTokenGenerator = null;
     this.trustTokenOptions = options.trustTokenOptions || {};
+
+    // Initialize trust token cache for sanitized content
+    this.trustTokenCache = new Map();
+    this.cacheOrder = [];
+    this.cacheMaxSize = options.cacheMaxSize || 1000;
+    this.cacheTTL = options.cacheTTL || 10 * 60 * 1000; // 10 minutes
   }
 
   /**
@@ -49,27 +57,63 @@ class SanitizationPipeline {
    * @param {boolean} options.skipValidation - Skip integrity validation
    * @param {Object} options.validationOptions - Options for integrity validation
    * @param {boolean} options.generateTrustToken - Generate trust token for sanitized content
+   * @param {Object} options.trustToken - Trust token to validate for caching
    * @returns {string|Object} - The sanitized result or {sanitizedData, trustToken} if generateTrustToken is true
    */
   async sanitize(data, options = {}) {
     const startTime = Date.now();
-    const {
+    let {
       classification = 'unclear',
       riskLevel,
       skipValidation = false,
       validationOptions = {},
       generateTrustToken = false,
+      trustToken,
     } = options;
 
-    // Determine if to bypass based on risk level or classification for backward compatibility
-    const shouldBypass = riskLevel ? riskLevel === 'low' : classification === 'non-llm';
+    const trustTokensEnabled = config.features.trustTokens.enabled;
+    generateTrustToken = generateTrustToken && trustTokensEnabled;
 
-    // Log risk assessment decision
-    const decisionType = shouldBypass
-      ? 'classification'
-      : riskLevel === 'high'
-        ? 'detection'
-        : 'classification';
+    // Check for valid trust token and return cached result if available
+    if (trustToken && trustTokensEnabled) {
+      if (!this.trustTokenGenerator) {
+        this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
+      }
+      const validation = this.trustTokenGenerator.validateToken(trustToken);
+      if (validation.isValid) {
+        // Check cache for sanitized content
+        const cached = this.trustTokenCache.get(trustToken.contentHash);
+        if (cached && cached.timestamp + this.cacheTTL > Date.now()) {
+          // Move to end for LRU
+          const index = this.cacheOrder.indexOf(trustToken.contentHash);
+          if (index !== -1) {
+            this.cacheOrder.splice(index, 1);
+            this.cacheOrder.push(trustToken.contentHash);
+          }
+          logger.info('Returning cached sanitized content via trust token', {
+            contentHash: trustToken.contentHash,
+            cacheAge: Date.now() - cached.timestamp,
+          });
+          // Log audit for cached sanitization
+          await this.auditLogger.logRiskAssessmentDecision(
+            'cached',
+            'Low',
+            { riskScore: 0, triggers: ['trust_token_valid'] },
+            {
+              userId: options.userId,
+              resourceId: options.resourceId || 'unknown',
+              stage: 'trust-token-cache',
+            },
+          );
+          return cached.sanitizedData;
+        }
+      } else {
+        logger.warn('Invalid trust token provided', { error: validation.error });
+      }
+    }
+
+    // Log risk assessment decision (always sanitize unless cached)
+    const decisionType = riskLevel === 'high' ? 'detection' : 'classification';
     const assessedRiskLevel =
       riskLevel ||
       (classification === 'non-llm' ? 'Low' : classification === 'llm' ? 'High' : 'Unknown');
@@ -133,34 +177,7 @@ class SanitizationPipeline {
       );
     }
 
-    // For security, default to full sanitization if classification is unclear and no risk level
-    if (shouldBypass) {
-      // Skip sanitization for low-risk traffic
-      logger.info('Sanitization bypassed for low-risk traffic', {
-        classification,
-        riskLevel,
-        dataLength: data.length,
-      });
-
-      // Still validate if enabled and not explicitly skipped
-      if (this.enableValidation && !skipValidation) {
-        const validationResult = await this.integrityValidator.validateData(data, {
-          source: 'low-risk-bypass',
-          ...validationOptions,
-        });
-
-        if (!validationResult.isValid) {
-          logger.warn('Data integrity validation failed for bypassed sanitization', {
-            validationId: validationResult.validationId,
-            errors: validationResult.errors,
-          });
-        }
-      }
-
-      return data;
-    }
-
-    // Apply full sanitization for high/medium-risk or unclear traffic
+    // Apply full sanitization pipeline (default behavior)
     logger.info('Applying full sanitization pipeline', {
       classification,
       riskLevel,
@@ -210,11 +227,24 @@ class SanitizationPipeline {
       }
     }
 
+    // Cache the sanitized result
+    const contentHash = crypto.createHash('sha256').update(result).digest('hex');
+    this.trustTokenCache.set(contentHash, {
+      sanitizedData: result,
+      timestamp: Date.now(),
+    });
+    this.cacheOrder.push(contentHash);
+    // Maintain cache size (LRU)
+    if (this.trustTokenCache.size > this.cacheMaxSize) {
+      const oldestKey = this.cacheOrder.shift();
+      this.trustTokenCache.delete(oldestKey);
+    }
+
     // Log high-fidelity data collection for AI training
     const processingTime = Date.now() - startTime;
     const inputDataHash = crypto.createHash('sha256').update(data).digest('hex');
     const decisionOutcome = {
-      decision: shouldBypass ? 'bypass' : 'sanitized',
+      decision: 'sanitized',
       reasoning: assessedRiskLevel,
       riskScore: confidence,
     };
@@ -223,7 +253,7 @@ class SanitizationPipeline {
       outputLength: result.length,
       processingTime,
     };
-    const processingSteps = shouldBypass ? [] : appliedRules;
+    const processingSteps = appliedRules;
     await this.auditLogger.logHighFidelityDataCollection(
       inputDataHash,
       processingSteps,
@@ -241,7 +271,11 @@ class SanitizationPipeline {
       if (!this.trustTokenGenerator) {
         this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
       }
+      const startTime = process.hrtime.bigint();
       const trustToken = this.trustTokenGenerator.generateToken(result, data, appliedRules);
+      const endTime = process.hrtime.bigint();
+      const durationMs = Number(endTime - startTime) / 1_000_000;
+      recordTokenGeneration(durationMs);
       return {
         sanitizedData: result,
         trustToken,

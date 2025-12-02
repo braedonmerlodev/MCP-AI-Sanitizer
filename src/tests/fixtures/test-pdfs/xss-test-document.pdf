@@ -1,0 +1,16 @@
+# Test PDF with Special Characters and XSS
+
+This document contains special characters and potential security issues for testing.
+
+Special characters: àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ
+Symbols: ©®™€£¥§¶†‡•°±×÷¼½¾¹²³
+Math: ∫∑∏√∂∆∇∈∉∋∌∏∐∑−±×÷∓∔∕∖∗∘∙√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿
+
+Potential XSS: <script>alert('XSS Attack')</script>
+<img src=x onerror=alert('XSS')>
+<iframe src="javascript:alert('XSS')"></iframe>
+
+SQL Injection attempts: ' OR '1'='1
+; DROP TABLE users; --
+
+This content should be properly sanitized by the pipeline.

@@ -51,9 +51,6 @@ describe('PDFGenerator', () => {
     validTrustToken = trustTokenGenerator.generateToken('test content', 'original content', [
       'rule1',
     ]);
-    // Serialize dates for API compatibility
-    validTrustToken.timestamp = validTrustToken.timestamp.toISOString();
-    validTrustToken.expiresAt = validTrustToken.expiresAt.toISOString();
   });
 
   describe('generatePDF', () => {

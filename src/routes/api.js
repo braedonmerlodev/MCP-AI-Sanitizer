@@ -8,6 +8,7 @@ const ProxySanitizer = require('../components/proxy-sanitizer');
 const PDFGenerator = require('../components/PDFGenerator');
 const destinationTracking = require('../middleware/destination-tracking');
 const accessValidationMiddleware = require('../middleware/AccessValidationMiddleware');
+const config = require('../config');
 
 const apiContractValidationMiddleware = require('../middleware/ApiContractValidationMiddleware');
 const { agentAuth, enforceAgentSync } = require('../middleware/agentAuth');
@@ -18,6 +19,7 @@ const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
+const { getMetrics } = require('../utils/monitoring');
 const queueManager = require('../utils/queueManager');
 const {
   normalizeKeys,
@@ -269,7 +271,7 @@ router.post(
         const jobData = contentToSanitize;
         const jobOptions = {
           classification: value.classification || req.destinationTracking.classification,
-          generateTrustToken: true,
+          generateTrustToken: config.features.trustTokens.enabled,
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
 
@@ -936,6 +938,53 @@ router.get('/monitoring/reuse-stats', accessValidationMiddleware, (req, res) => 
   });
 
   res.json(monitoringData);
+});
+
+/**
+ * GET /api/monitoring/metrics
+ * Gets comprehensive system metrics including performance, security, and stability
+ */
+router.get('/monitoring/metrics', accessValidationMiddleware, (req, res) => {
+  // Enforce access control - monitoring data requires strict access
+  const accessResult = accessControlEnforcer.enforce(req, 'strict');
+  if (!accessResult.allowed) {
+    logger.warn('Access denied for system metrics', {
+      reason: accessResult.error,
+      code: accessResult.code,
+      method: req.method,
+      path: req.path,
+    });
+    return res.status(403).json({
+      error: 'Access denied',
+      message: accessResult.error,
+      code: accessResult.code,
+    });
+  }
+
+  const metrics = getMetrics();
+
+  // Create audit log for monitoring access
+  const auditLog = auditLogger.logEvent({
+    eventType: 'MONITORING_ACCESS',
+    userId: req.user?.id || 'anonymous',
+    resourceType: 'system_metrics',
+    resourceId: 'system-monitoring',
+    action: 'read',
+    details: {
+      endpoint: req.path,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      sessionId: req.session?.id,
+    },
+  });
+
+  logger.info('System metrics accessed', {
+    auditLogId: auditLog.id,
+    uptime: metrics.uptime,
+    totalRequests: metrics.requests.total,
+  });
+
+  res.json(metrics);
 });
 
 // Data export route

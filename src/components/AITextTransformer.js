@@ -3,6 +3,36 @@ const { PromptTemplate } = require('@langchain/core/prompts');
 const winston = require('winston');
 const SanitizationPipeline = require('./sanitization-pipeline');
 const aiConfig = require('../config/aiConfig');
+const config = require('../config');
+
+// Simple in-memory rate limiter for Gemini API
+class RateLimiter {
+  constructor(requestsPerMinute = 60, requestsPerHour = 1000) {
+    this.requestsPerMinute = requestsPerMinute;
+    this.requestsPerHour = requestsPerHour;
+    this.requests = []; // For tracking all requests within hour window
+  }
+
+  canMakeRequest() {
+    const now = Date.now();
+    // Filter requests within the last hour
+    const recentRequests = this.requests.filter((time) => now - time < 3_600_000); // 1 hour in ms
+    // Filter requests within the last minute
+    const minuteRequests = recentRequests.filter((time) => now - time < 60_000); // 1 minute in ms
+
+    return (
+      minuteRequests.length < this.requestsPerMinute && recentRequests.length < this.requestsPerHour
+    );
+  }
+
+  recordRequest() {
+    this.requests.push(Date.now());
+  }
+} // Global rate limiter instance
+const geminiRateLimiter = new RateLimiter(
+  config.rateLimits.gemini.requestsPerMinute,
+  config.rateLimits.gemini.requestsPerHour,
+);
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -19,7 +49,7 @@ class AITextTransformer {
   constructor(options = {}) {
     this.gemini = new ChatGoogleGenerativeAI({
       apiKey: aiConfig.gemini.apiKey,
-      model: 'models/gemini-pro',
+      model: options.model ? `models/${options.model}` : 'models/gemini-pro',
       temperature: options.temperature ?? 0.1,
       maxOutputTokens: options.maxTokens ?? 2000,
     });
@@ -63,6 +93,24 @@ class AITextTransformer {
     try {
       // Sanitize input before AI processing
       const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
+
+      // Check rate limits before calling Gemini API
+      if (!geminiRateLimiter.canMakeRequest()) {
+        this.logger.warn('Gemini API rate limit exceeded, using fallback strategy', {
+          type,
+          inputLength: text.length,
+        });
+        // Fallback: return the sanitized input
+        return {
+          text: sanitizedInput,
+          metadata: {
+            fallback: true,
+            reason: 'rate_limit_exceeded',
+          },
+        };
+      }
+
+      geminiRateLimiter.recordRequest();
 
       // Create and execute the Langchain pipeline
       const chain = prompt.pipe(this.gemini);
@@ -118,21 +166,40 @@ class AITextTransformer {
         },
       };
     } catch (error) {
-      // Log the error
       const processingTime = Date.now() - startTime;
-      this.logger.error('AI transformation failed, falling back to sanitized input', {
-        type,
-        error: error.message,
-        inputLength: text.length,
-        processingTime,
-        stack: error.stack,
-      });
+
+      // Check for quota/rate limit errors
+      const isQuotaError =
+        error.message?.includes('quota') ||
+        error.message?.includes('rate limit') ||
+        error.status === 429 ||
+        error.code === 'RESOURCE_EXHAUSTED';
+
+      if (isQuotaError) {
+        this.logger.warn('Gemini API quota exceeded, using fallback strategy', {
+          type,
+          error: error.message,
+          inputLength: text.length,
+          processingTime,
+        });
+      } else {
+        this.logger.error('AI transformation failed, falling back to sanitized input', {
+          type,
+          error: error.message,
+          inputLength: text.length,
+          processingTime,
+          stack: error.stack,
+        });
+      }
 
       // Fallback: return the sanitized original text
       const fallbackOutput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
       return {
         text: fallbackOutput,
-        metadata: null,
+        metadata: {
+          fallback: true,
+          reason: isQuotaError ? 'quota_exceeded' : 'ai_error',
+        },
       };
     }
   }

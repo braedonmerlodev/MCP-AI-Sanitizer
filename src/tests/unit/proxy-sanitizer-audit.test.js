@@ -70,7 +70,7 @@ describe('ProxySanitizer Audit Logging', () => {
         operation: 'response',
       });
       expect(proxySanitizer.forwardToLLM).toHaveBeenCalledWith('sanitized input');
-      expect(result).toEqual({ result: 'sanitized output' });
+      expect(result).toEqual({ result: { sanitizedData: 'sanitized output' } });
     });
   });
 

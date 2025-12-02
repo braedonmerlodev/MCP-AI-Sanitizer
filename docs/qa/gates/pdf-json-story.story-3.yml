@@ -1,0 +1,56 @@
+schema: 1
+story: pdf-json-story.story-3
+story_title: Integrate Trust Tokens into JSON Outputs
+gate: FAIL
+status_reason: Story status is Refined, not Review. No implementation or tests completed. Prerequisites for QA review not met.
+reviewer: Quinn (Test Architect)
+updated: 2025-12-01T12:00:00Z
+waiver: { active: false }
+top_issues:
+  - id: PREREQ-001
+    severity: high
+    finding: Story status not "Review" - prerequisites not met
+    suggested_action: Complete implementation and change status to "Review"
+  - id: IMPL-001
+    severity: high
+    finding: No code implementation for any acceptance criteria
+    suggested_action: Implement all tasks and update File List
+  - id: TEST-001
+    severity: high
+    finding: No tests implemented for any acceptance criteria
+    suggested_action: Add comprehensive test suite
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 0 }
+  recommendations:
+    must_fix: []
+    monitor: []
+evidence:
+  tests_reviewed: 0
+  risks_identified: 3
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5]
+nfr_validation:
+  security:
+    status: FAIL
+    notes: High security risks not addressed due to no implementation
+  performance:
+    status: FAIL
+    notes: Performance requirements not implemented
+  reliability:
+    status: FAIL
+    notes: Backward compatibility and error handling not tested
+  maintainability:
+    status: PASS
+    notes: Story documentation is clear
+recommendations:
+  immediate:
+    - action: Complete all development tasks
+      refs: []
+    - action: Implement comprehensive tests
+      refs: []
+  future:
+    - action: Resolve dependency cycle with Story-1
+      refs: []
+quality_score: 0
+expires: 2025-12-15T00:00:00Z

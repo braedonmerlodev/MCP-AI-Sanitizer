@@ -119,7 +119,7 @@ describe('AITextTransformer', () => {
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2); // Input sanitization + fallback sanitization
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
   });
 
   test('should pass options to sanitizer', async () => {
@@ -201,17 +201,62 @@ describe('AITextTransformer', () => {
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
   });
 
   test('should handle network connectivity issues', async () => {
     mockInvoke.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    const result = await transformer.transform('test input', 'structure');
+    const result = await transformer.transform('raw text', 'structure');
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
+  });
+
+  test('should handle Gemini API quota exceeded errors', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('Quota exceeded for quota metric'));
+
+    const result = await transformer.transform('raw text', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toEqual({ fallback: true, reason: 'quota_exceeded' });
+  });
+
+  test('should handle Gemini API rate limit errors', async () => {
+    const rateLimitError = new Error('Rate limit exceeded');
+    rateLimitError.status = 429;
+    mockInvoke.mockRejectedValueOnce(rateLimitError);
+
+    const result = await transformer.transform('raw text', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toEqual({ fallback: true, reason: 'quota_exceeded' });
+  });
+
+  test('should enforce rate limits and fallback when exceeded', async () => {
+    // Mock the rate limiter to return false
+    const originalCanMakeRequest = transformer.constructor.prototype.rateLimiter?.canMakeRequest;
+    if (transformer.constructor.prototype.rateLimiter) {
+      transformer.constructor.prototype.rateLimiter.canMakeRequest = jest
+        .fn()
+        .mockReturnValue(false);
+    }
+
+    // Since rate limiter is global, we need to mock it differently
+    // For this test, we'll mock the config to have low limit and simulate
+    const result = await transformer.transform('raw text', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(1); // Only input sanitization
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toEqual({ fallback: true, reason: 'rate_limit_exceeded' });
+
+    // Restore
+    if (originalCanMakeRequest) {
+      transformer.constructor.prototype.rateLimiter.canMakeRequest = originalCanMakeRequest;
+    }
   });
 
   test('should validate transformation type exists', async () => {
@@ -235,7 +280,7 @@ describe('AITextTransformer', () => {
 
     expect(MockChatGoogleGenerativeAI).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelName: 'gemini-pro-vision',
+        model: 'models/gemini-pro-vision',
         temperature: 0.5,
         maxOutputTokens: 1000,
         apiKey: 'mock-api-key',

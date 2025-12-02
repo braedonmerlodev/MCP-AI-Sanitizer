@@ -1,0 +1,42 @@
+schema: 1
+story: pdf-json-story.story-1
+story_title: Implement Automatic Full Sanitization with Trust Token Caching
+gate: CONCERNS
+status_reason: Test coverage gap for trust token bypass logic - test expects incorrect behavior for non-LLM content
+reviewer: Quinn (Test Architect)
+updated: 2025-12-01T00:00:00Z
+waiver: { active: false }
+top_issues:
+  - id: TEST-001
+    severity: medium
+    finding: Test expects bypass for non-LLM content, but code correctly applies full sanitization always
+    suggested_action: Update test to expect sanitization for all content, remove bypass expectation
+    suggested_owner: dev
+evidence:
+  tests_reviewed: 22
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+nfr_validation:
+  security:
+    status: PASS
+    notes: HMAC-SHA256 signatures, proper validation
+  performance:
+    status: CONCERNS
+    notes: No benchmark enforcement in code
+  reliability:
+    status: PASS
+    notes: Comprehensive error handling and logging
+  maintainability:
+    status: PASS
+    notes: Well-structured, documented code
+recommendations:
+  immediate:
+    - action: Fix test expectation for non-LLM content sanitization
+      refs: ['src/tests/unit/sanitization-pipeline-conditional.test.js:27-32']
+  future:
+    - action: Add performance benchmark tests
+      refs: ['src/tests/unit/sanitization-pipeline-conditional.test.js']
+    - action: Verify audit logging for sanitization rates
+      refs: ['src/components/sanitization-pipeline.js']
