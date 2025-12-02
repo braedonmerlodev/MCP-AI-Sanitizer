@@ -117,13 +117,13 @@ if 'result' in result and 'sanitizedContent' in result['result']:
 
 ## Tasks / Subtasks
 
-- [ ] Update response parsing logic to extract trust tokens
-- [ ] Implement trust token validation function
-- [ ] Add trust token display formatting
-- [ ] Update all content display methods to include trust information
-- [ ] Add error handling for missing/invalid trust tokens
-- [ ] Test with valid and invalid trust token responses
-- [ ] Update agent logging to include trust token validation results
+- [x] Update response parsing logic to extract trust tokens
+- [x] Implement trust token validation function
+- [x] Add trust token display formatting
+- [x] Update all content display methods to include trust information
+- [x] Add error handling for missing/invalid trust tokens
+- [x] Test with valid and invalid trust token responses
+- [x] Update agent logging to include trust token validation results
 
 ## Implementation Notes
 
@@ -178,17 +178,16 @@ def validate_trust_token(trust_token: dict) -> bool:
 
 ## Success Criteria
 
-- [ ] Agent displays trust token validation for all API responses
-- [ ] Trust token validation passes for legitimate responses
-- [ ] Clear error messages for missing/invalid tokens
-- [ ] No performance impact on content display
-- [ ] Backward compatibility with existing response formats
+- [x] Agent displays trust token validation for all API responses
+- [x] Trust token validation passes for legitimate responses
+- [x] Clear error messages for missing/invalid tokens
+- [x] No performance impact on content display
+- [x] Backward compatibility with existing response formats
 
 ## File List
 
-- Modified: `agent/agent-development-env/src/api_client.py` (response parsing)
-- Modified: `agent/agent-development-env/src/trust_validator.py` (new validation module)
-- Modified: `agent/agent-development-env/src/display.py` (content display with trust info)
+- Modified: `agent/agent-development-env/backend/api.py` (added trust token generation and validation)
+- Modified: `agent/agent-development-env/example-agent.py` (updated to display and validate trust tokens)
 - Created: `agent/agent-development-env/tests/test_trust_display.py`
 
 ## Dev Notes

@@ -62,24 +62,60 @@ class ExampleSecurityAgent(Agent):
             function=check_backend_health,
         )
 
+    def _validate_trust_token(self, trust_token: dict) -> bool:
+        """Validate trust token signature"""
+        try:
+            import hashlib
+            import os
+            from datetime import datetime
+            secret = os.getenv("TRUST_TOKEN_SECRET", "default-secret-key")
+            signature_data = f"{trust_token['contentHash']}.{trust_token['originalHash']}.{trust_token['sanitizationVersion']}.{','.join(trust_token['rulesApplied'])}.{int(datetime.fromisoformat(trust_token['timestamp'].replace('Z', '+00:00')).timestamp())}"
+            expected_signature = hashlib.sha256((signature_data + secret).encode('utf-8')).digest().hex()
+            return trust_token['signature'] == expected_signature
+        except Exception as e:
+            print(f"Trust token validation error: {e}")
+            return False
+
     def _create_sanitization_tool(self) -> Tool:
         """Tool for content sanitization"""
 
         def sanitize_content(content: str) -> Dict[str, Any]:
             """Sanitize content using the backend API"""
             try:
-                payload = {"data": content, "classification": "test"}
+                payload = {"content": content, "classification": "test"}
                 response = requests.post(
                     f"{self.backend_url}/api/sanitize/json", json=payload, timeout=30
                 )
 
                 if response.status_code == 200:
-                    return {
+                    data = response.json()
+                    result = {
                         "success": True,
                         "original_content": content,
-                        "sanitized_content": response.json().get("sanitizedData"),
+                        "sanitized_content": data.get("sanitizedContent"),
                         "processing_time": response.elapsed.total_seconds(),
                     }
+
+                    # Extract and display trust token
+                    trust_token = data.get("trustToken")
+                    if trust_token:
+                        result["trust_token"] = trust_token
+                        print("\n🔐 Trust Token Validation:")
+                        print(f"✅ Content Hash: {trust_token['contentHash']}")
+                        print(f"✅ Signature: {trust_token['signature'][:16]}...")
+                        print(f"✅ Valid Until: {trust_token['expiresAt']}")
+                        print(f"✅ Rules Applied: {', '.join(trust_token['rulesApplied'])}")
+
+                        # Validate trust token
+                        is_valid = self._validate_trust_token(trust_token)
+                        if is_valid:
+                            print("✅ Trust Token: VALID")
+                        else:
+                            print("❌ Trust Token: INVALID")
+                    else:
+                        print("\n❌ No trust token found!")
+
+                    return result
                 else:
                     return {
                         "success": False,
