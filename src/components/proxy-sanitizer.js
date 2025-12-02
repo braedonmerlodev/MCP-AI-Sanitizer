@@ -40,7 +40,9 @@ class ProxySanitizer {
     const {
       classification = 'unclear',
       operation = 'unknown',
+      // eslint-disable-next-line no-unused-vars
       generateTrustToken = false,
+      // eslint-disable-next-line no-unused-vars
       trustToken,
     } = options;
     const riskLevel = sanitizationConfig.getRiskLevel(classification);

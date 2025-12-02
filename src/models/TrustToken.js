@@ -174,11 +174,11 @@ class TrustToken {
       const serializedToken = {
         ...token,
         timestamp:
-          token.timestamp instanceof Date && !isNaN(token.timestamp)
+          token.timestamp instanceof Date && !Number.isNaN(token.timestamp)
             ? token.timestamp.toISOString()
             : token.timestamp,
         expiresAt:
-          token.expiresAt instanceof Date && !isNaN(token.expiresAt)
+          token.expiresAt instanceof Date && !Number.isNaN(token.expiresAt)
             ? token.expiresAt.toISOString()
             : token.expiresAt,
       };
