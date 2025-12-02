@@ -21,7 +21,7 @@ Ready for Development
 ## Tasks / Subtasks
 
 - [ ] Add compatibility tests for LangChain/Gemini versions.
-- [ ] Create detailed integration test procedures, including tests for non-restricted data preservation from Story-1.
+- [ ] Create detailed integration test procedures, including tests for sanitization and trust token caching from Story-1.
 - [ ] Document technical debt and future extensibility.
 - [ ] Implement performance benchmarks and monitoring.
 - [ ] Establish code review sharing processes.

@@ -1,5 +1,43 @@
 const crypto = require('node:crypto');
 
+// LRU cache for trust token validation
+const trustTokenCache = new Map();
+const trustTokenCacheOrder = [];
+const trustTokenCacheMaxSize = parseInt(process.env.TRUST_TOKEN_CACHE_MAX_SIZE) || 1000;
+const trustTokenCacheTTL = parseInt(process.env.TRUST_TOKEN_CACHE_TTL_MS) || 10 * 60 * 1000; // 10 minutes
+
+function getCachedValidation(signature) {
+  const now = Date.now();
+  const cached = trustTokenCache.get(signature);
+  if (cached && cached.timestamp + trustTokenCacheTTL > now) {
+    // Move to end for LRU
+    const index = trustTokenCacheOrder.indexOf(signature);
+    if (index > -1) {
+      trustTokenCacheOrder.splice(index, 1);
+      trustTokenCacheOrder.push(signature);
+    }
+    return cached.result;
+  } else {
+    if (cached) {
+      // Expired, remove
+      trustTokenCache.delete(signature);
+      const index = trustTokenCacheOrder.indexOf(signature);
+      if (index > -1) trustTokenCacheOrder.splice(index, 1);
+    }
+    return null;
+  }
+}
+
+function setCachedValidation(signature, result) {
+  const now = Date.now();
+  trustTokenCache.set(signature, { result, timestamp: now });
+  trustTokenCacheOrder.push(signature);
+  if (trustTokenCache.size > trustTokenCacheMaxSize) {
+    const oldest = trustTokenCacheOrder.shift();
+    trustTokenCache.delete(oldest);
+  }
+}
+
 /**
  * TrustTokenGenerator handles the creation and validation of cryptographic trust tokens
  * for sanitized content verification and reuse.
@@ -67,6 +105,14 @@ class TrustTokenGenerator {
    */
   validateToken(token) {
     try {
+      // Check cache first
+      if (token.signature) {
+        const cached = getCachedValidation(token.signature);
+        if (cached) {
+          return cached;
+        }
+      }
+
       // Check required fields
       const requiredFields = [
         'contentHash',
@@ -110,6 +156,9 @@ class TrustTokenGenerator {
       if (expectedSignature !== token.signature) {
         return { isValid: false, error: 'Invalid token signature' };
       }
+
+      // Valid, cache it
+      setCachedValidation(token.signature, { isValid: true });
 
       return { isValid: true };
     } catch (error) {
