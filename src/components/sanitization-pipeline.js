@@ -242,14 +242,16 @@ class SanitizationPipeline {
 
     // Log high-fidelity data collection for AI training
     const processingTime = Date.now() - startTime;
-    const inputDataHash = crypto.createHash('sha256').update(data).digest('hex');
+    const inputDataForHash = typeof data === 'string' ? data : JSON.stringify(data);
+    const inputDataHash = crypto.createHash('sha256').update(inputDataForHash).digest('hex');
     const decisionOutcome = {
       decision: 'sanitized',
       reasoning: assessedRiskLevel,
       riskScore: confidence,
     };
+    const inputDataForLength = typeof data === 'string' ? data : JSON.stringify(data);
     const contextMetadata = {
-      inputLength: data.length,
+      inputLength: inputDataForLength.length,
       outputLength: result.length,
       processingTime,
     };

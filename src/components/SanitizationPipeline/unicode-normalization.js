@@ -9,7 +9,9 @@ class UnicodeNormalization {
    * @returns {string} - The normalized string.
    */
   sanitize(data) {
-    return data.normalize('NFC');
+    // Ensure data is a string before normalizing
+    const str = typeof data === 'string' ? data : String(data || '');
+    return str.normalize('NFC');
   }
 }
 

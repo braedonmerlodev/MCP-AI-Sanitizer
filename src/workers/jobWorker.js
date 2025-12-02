@@ -44,7 +44,7 @@ async function processJob(job) {
       let extractedText, metadata;
       try {
         const data = await pdfParse(buffer);
-        extractedText = data.text;
+        extractedText = String(data.text || '');
         metadata = {
           pages: data.numpages,
           title: data.info?.Title || null,
@@ -76,6 +76,9 @@ async function processJob(job) {
       } catch (convertError) {
         // Fallback to plain text
       }
+
+      // Ensure processedText is a string
+      processedText = String(processedText || '');
 
       // Apply AI transformation if specified
       if (job.options?.aiTransformType) {
