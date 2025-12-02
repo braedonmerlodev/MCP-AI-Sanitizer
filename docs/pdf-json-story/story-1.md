@@ -1,4 +1,4 @@
-# Story-1: Implement Core PDF Sanitization with Non-Restricted Data Preservation
+# Story-1: Implement Automatic Full Sanitization with Trust Token Caching
 
 ## Status
 
@@ -7,34 +7,35 @@ Ready for Development
 ## Story
 
 **As a** Security Engineer,  
-**I want** the PDF sanitization process to preserve non-restricted data while preparing for restricted data segregation,  
-**so that** clean content remains intact and dangerous elements are isolated without over-sanitizing valid information.
+**I want** the PDF sanitization process to automatically apply full sanitization by default, with smart caching via trust token validation to skip redundant processing,  
+**so that** all content is secured while maintaining performance through reuse mechanisms.
 
 ## Acceptance Criteria
 
-1. Process PDF text and identify threats (zero-width/invisible/XSS, PII, malicious patterns) without sanitizing non-restricted content.
-2. Preserve structure markers (bullet points, newlines, colons) in non-restricted data.
-3. Prepare data structure for segregation (restricted data flagged but not yet moved).
-4. Test with content containing zero-width characters, PII, etc., to ensure non-restricted data remains unsanitized.
-5. Maintain backward compatibility and performance benchmarks (e.g., 1.8s average processing time).
+1. Automatically apply full sanitization to all PDF content unless bypassed by valid trust token.
+2. Implement trust token validation to enable caching and skip sanitization for previously processed content.
+3. Generate trust tokens after sanitization for future validation and caching.
+4. Maintain performance benchmarks (e.g., <10ms for cached content, 1.8s for new processing).
+5. Track sanitization rates through audit logging for detection metrics.
 
 ## Tasks / Subtasks
 
-- [ ] Update sanitization pipeline to distinguish between restricted and non-restricted data.
-- [ ] Implement logic to preserve non-restricted content while flagging restricted elements.
-- [ ] Add detection for zero-width characters, PII patterns, and malicious content without removal.
-- [ ] Create unit tests for preservation logic and threat detection.
-- [ ] Verify no over-sanitization of valid content.
+- [ ] Modify sanitization pipeline to check for valid trust tokens before processing.
+- [ ] Implement caching logic: return cached result if trust token validates.
+- [ ] Ensure full sanitization applies to all new content.
+- [ ] Integrate trust token generation post-sanitization.
+- [ ] Add audit logging for sanitization rate tracking.
+- [ ] Create tests for token validation, caching, and full sanitization.
 
 ## Dev Notes
 
-- Focus on detection and preservation, not removal/segregation (handled in Story-2).
-- Builds on existing sanitization components.
-- Critical for ensuring clean data isn't corrupted during processing.
+- Default behavior: Full sanitization unless trust token bypasses it.
+- Uses existing audit logging for sanitization rate detection (no separate flagging needed).
+- Builds on current pipeline with trust token integration.
 
 ## Dependencies
 
-- None (foundation for Story-2 segregation)
+- TrustTokenGenerator component (from Story-3)
 
 ## Change Log
 

@@ -1,7 +1,7 @@
 # Master Story: Integrated AI-Powered PDF Processing with Restricted Data Segregation and Trust Token Validation
 
 **As a** Product Manager and Security Compliance Officer,  
-**I want** the system to process PDF text, sanitize threats, segregate restricted data, structure content into semantic JSON, and include trust tokens for cryptographic validation and smart caching,  
+**I want** the system to process PDF text with automatic full sanitization, structure content into semantic JSON, and include trust tokens for cryptographic validation and smart caching,  
 **so that** downstream agents receive clean, structured, and verifiable data while ensuring compliance, security, and performance through reuse mechanisms.
 
 ## Business Context
@@ -10,7 +10,7 @@ This master story combines the AI-powered structuring and sanitization of PDFs (
 
 ## Risk Assessment
 
-- **High Risk**: Failure to segregate restricted data could expose PII/malicious content; missing trust tokens could lead to invalid caching and security bypasses.
+- **High Risk**: Missing trust tokens could lead to invalid caching and security bypasses; full sanitization ensures no malicious content exposure.
 - **Medium Risk**: AI structuring might lose semantic meaning if sanitization is too aggressive; trust token generation could impact performance.
 - **Mitigation**: Comprehensive testing for segregation, structuring, and token integration; performance benchmarks for token generation.
 
@@ -21,19 +21,14 @@ This master story combines the AI-powered structuring and sanitization of PDFs (
    - Output semantic JSON with keys like `headline`, `problem_statement`, `recommended_approach`, `target_outcomes`.
    - Verify content extraction (e.g., bullet points for problem statements) using test cases like "Rippling" PDF.
 
-2. **Restricted Data Segregation (from Story 1)**:
-   - Identify and segregate PII (emails, phones, SSNs), malicious patterns (XSS, SQLi), control/invisible characters, and problematic sections into a `restricted_data` key.
-   - Ensure main `summary` and `content` fields are clean; `restricted_data` is clearly marked.
-   - Maintain valid JSON structure and test with problematic content (e.g., "Test PDF").
-
-3. **Trust Token Integration**:
+2. **Trust Token Integration**:
    - Generate trust tokens during sanitization with content hash, applied rules, HMAC-SHA256 signature, expiration, and version.
    - Include trust tokens in JSON output (e.g., add `trustToken` field with token details).
    - Enable smart caching: Valid tokens skip redundant sanitization (achieve <10ms response for cached content).
    - Support cryptographic validation: Tokens verify content integrity and prevent tampering.
    - Backward compatibility: Requests without tokens process normally.
 
-4. **Integration and Verification**:
+3. **Integration and Verification**:
    - JSON output includes both structured content and `trustToken` for all processed PDFs.
    - End-to-end testing confirms segregation, structuring, and token validation.
    - No regression in normal document processing; performance meets benchmarks (e.g., 1.8s average processing time).
@@ -46,8 +41,6 @@ This master story combines the AI-powered structuring and sanitization of PDFs (
   - Preserve structure markers during sanitization.
   - Create integration tests for content extraction (e.g., `manual-test-rippling-structure.js`).
 
-- [ ] **Restricted Data Segregation Tasks** (from Story 1):
-  - Modify `structure` prompt in `AITextTransformer.js` to segregate restricted data into `restricted_data` key.
   - Add unit tests for segregation logic and JSON validity.
 
 - [ ] **Trust Token Integration Tasks**:

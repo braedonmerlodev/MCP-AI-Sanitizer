@@ -13,7 +13,7 @@ Ready for Development
 ## Acceptance Criteria
 
 1. Verify LangChain/Gemini version compatibility with tests.
-2. Implement detailed integration testing steps for the full pipeline, including non-restricted data preservation from Story-1.
+2. Implement detailed integration testing steps for the full pipeline, including sanitization and trust token caching from Story-1.
 3. Document technical debt and extensibility points.
 4. Add performance benchmarks for token generation.
 5. Plan code review knowledge sharing procedures.
@@ -34,7 +34,7 @@ Ready for Development
 
 ## Dependencies
 
-- Story-1 (for preservation logic testing), Story-2 (for segregation validation), Story-3 (for token integration testing), Story-4 (for rollback testing), Story-5 (for API constraint validation)
+- Story-1 (for sanitization and caching testing), Story-3 (for token integration testing), Story-4 (for rollback testing), Story-5 (for API constraint validation)
 
 ## Change Log
 

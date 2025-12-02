@@ -34,7 +34,7 @@ Ready for Development
 
 ## Dependencies
 
-- Story-1 (for preserved non-restricted data) and Story-2 (for segregated restricted data)
+- Story-1 (for sanitized content and trust token generation)
 
 ## Change Log
 
