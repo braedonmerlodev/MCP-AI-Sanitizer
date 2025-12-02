@@ -597,6 +597,18 @@ describe('API Trust Token Validation and Audit Logging', () => {
 });
 
 describe('Concurrent Token Validation', () => {
+  let app;
+  let generator;
+
+  beforeEach(() => {
+    // Setup app
+    app = express();
+    app.use(express.json());
+    app.use('/api', apiRoutes);
+
+    generator = new TrustTokenGenerator();
+  });
+
   test('should handle concurrent validation requests without race conditions', async () => {
     const content = '{"test": "data"}';
     const validToken = generator.generateToken(content, content, ['test']);

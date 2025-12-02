@@ -59,7 +59,14 @@ describe('TrustToken Model', () => {
       expect(typeof id).toBe('string');
 
       const loaded = await model.load(id);
-      expect(loaded).toEqual(token);
+      expect(loaded.contentHash).toBe(token.contentHash);
+      expect(loaded.originalHash).toBe(token.originalHash);
+      expect(loaded.sanitizationVersion).toBe(token.sanitizationVersion);
+      expect(loaded.rulesApplied).toEqual(token.rulesApplied);
+      expect(loaded.timestamp.toISOString()).toBe(token.timestamp);
+      expect(loaded.expiresAt.toISOString()).toBe(token.expiresAt);
+      expect(loaded.signature).toBe(token.signature);
+      expect(loaded.nonce).toBe(token.nonce);
     });
 
     it('should allow saving invalid token but filter on load', async () => {
@@ -149,7 +156,14 @@ describe('TrustToken Model', () => {
       expect(newModel.cache.size).toBe(1);
 
       const loaded = await newModel.load(token.contentHash);
-      expect(loaded).toEqual(token);
+      expect(loaded.contentHash).toBe(token.contentHash);
+      expect(loaded.originalHash).toBe(token.originalHash);
+      expect(loaded.sanitizationVersion).toBe(token.sanitizationVersion);
+      expect(loaded.rulesApplied).toEqual(token.rulesApplied);
+      expect(loaded.timestamp.toISOString()).toBe(token.timestamp);
+      expect(loaded.expiresAt.toISOString()).toBe(token.expiresAt);
+      expect(loaded.signature).toBe(token.signature);
+      expect(loaded.nonce).toBe(token.nonce);
     });
 
     it('should handle missing storage file gracefully', async () => {

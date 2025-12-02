@@ -32,10 +32,17 @@ class ProxySanitizer {
    * @param {Object} options - Sanitization options
    * @param {string} options.classification - Destination classification
    * @param {string} options.operation - 'request' or 'response' for audit logging
-   * @returns {string} - The sanitized data.
+   * @param {boolean} options.generateTrustToken - Generate trust token for sanitized content
+   * @param {Object} options.trustToken - Trust token to validate for caching
+   * @returns {string|Object} - The sanitized data or {sanitizedData, trustToken} if generateTrustToken is true.
    */
   async sanitize(data, options = {}) {
-    const { classification = 'unclear', operation = 'unknown' } = options;
+    const {
+      classification = 'unclear',
+      operation = 'unknown',
+      generateTrustToken = false,
+      trustToken,
+    } = options;
     const riskLevel = sanitizationConfig.getRiskLevel(classification);
     const sanitizationLevel = riskLevel === 'low' ? 'bypassed' : 'full';
 
