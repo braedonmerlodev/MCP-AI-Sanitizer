@@ -126,6 +126,20 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
+# Pre-compiled regex patterns for performance
+ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[^A-Za-z]*[A-Za-z]')
+SCRIPT_TAG_PATTERN = re.compile(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', re.IGNORECASE)
+HTML_TAG_PATTERN = re.compile(r'<[^>]*>')
+EVENT_HANDLER_PATTERN = re.compile(r'on\w+\s*=', re.IGNORECASE)
+JAVASCRIPT_URL_PATTERN = re.compile(r'javascript:', re.IGNORECASE)
+DATA_URL_PATTERN = re.compile(r'data:\s*text\/html[^,]+,', re.IGNORECASE)
+XSS_KEYWORD_PATTERN = re.compile(r'\b(alert|img|src|javascript|script|onerror|onload)\b', re.IGNORECASE)
+BAD_CHARS_PATTERN = re.compile(r'[`©®™€£¥§¶†‡‹›Øß²³´]')
+PDF_ARTIFACTS_PATTERN = re.compile(r'[þÿ‰°ÀÐï•]')
+
+# Initialize globally to avoid re-creation overhead
+BLEACH_CLEANER = bleach.sanitizer.Cleaner(tags=[], strip=True)
+
 # Security functions
 def validate_file_type(file_content: bytes, filename: str) -> bool:
     """Validate file type by checking magic bytes and extension"""
@@ -157,7 +171,7 @@ def sanitize_input(text: str) -> str:
     text = unicodedata.normalize('NFC', text)
 
     # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
-    text = re.sub(r'\x1b\[[^A-Za-z]*[A-Za-z]', '', text)
+    text = ANSI_ESCAPE_PATTERN.sub('', text)
 
     # 3. Symbol stripping - remove zero-width, control characters, and soft hyphens
     zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF\u00AD'
@@ -170,33 +184,29 @@ def sanitize_input(text: str) -> str:
         # Use bleach only for content with script tags (most security-critical)
         if '<script' in text.lower():
             # First remove script tags and content (critical for security)
-            text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+            text = SCRIPT_TAG_PATTERN.sub('', text)
             # Then use bleach for remaining HTML
-            text = bleach.clean(text, tags=[], strip=True)
+            text = BLEACH_CLEANER.clean(text)
         else:
             # Use fast regex for non-script HTML
             # Remove HTML tags
-            text = re.sub(r'<[^>]*>', '', text)
+            text = HTML_TAG_PATTERN.sub('', text)
             # Remove event handlers
-            text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+            text = EVENT_HANDLER_PATTERN.sub('', text)
 
     # Always apply non-HTML XSS protection
     # Remove javascript: URLs
-    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+    text = JAVASCRIPT_URL_PATTERN.sub('', text)
     # Remove data URLs that might contain scripts
-    text = re.sub(r'data:\s*text\/html[^,]+,', '', text, flags=re.IGNORECASE)
+    text = DATA_URL_PATTERN.sub('', text)
     # Remove potential XSS keywords
-    text = re.sub(r'\b(alert|img|src|javascript|script|onerror|onload)\b', '', text, flags=re.IGNORECASE)
+    text = XSS_KEYWORD_PATTERN.sub('', text)
 
     # Remove specific bad characters and symbols
-    text = re.sub(r'[`©®™€£¥§¶†‡‹›Øß²³´]', '', text)
+    text = BAD_CHARS_PATTERN.sub('', text)
 
     # Remove PDF-specific bad characters
-    text = re.sub(r'[þÿ]', '', text)  # Remove þÿ
-    text = re.sub(r'[‰°ÀÐï•]', '', text)  # Remove other bad chars
-
-    # Remove potential XSS keywords
-    text = re.sub(r'\b(alert|img|src|javascript|script|onerror|onload)\b', '', text, flags=re.IGNORECASE)
+    text = PDF_ARTIFACTS_PATTERN.sub('', text)
 
     # Limit length
     return text[:MAX_TEXT_LENGTH]
