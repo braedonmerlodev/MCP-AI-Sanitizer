@@ -283,26 +283,14 @@ def validate_trust_token(trust_token: dict) -> bool:
 
 
 def sanitize_dict(data):
-    """Recursively sanitize string values in a dict"""
+    """Recursively sanitize string values in a dict using the main sanitize_input function"""
     if isinstance(data, dict):
         return {k: sanitize_dict(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [sanitize_dict(item) for item in data]
     elif isinstance(data, str):
-        # Sanitize string
-        import re
-        sanitized = re.sub(r'[<>]', '', data)  # Remove < >
-        sanitized = re.sub(r'script', '', sanitized, flags=re.IGNORECASE)  # Remove script
-        sanitized = re.sub(r'on\w+=', '', sanitized, flags=re.IGNORECASE)  # Remove event handlers
-        sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)  # Remove javascript:
-        # Remove invisible/zero-width characters
-        sanitized = re.sub(r'[\u200B-\u200D\uFEFF]', '', sanitized)
-        # Remove control characters except common whitespace
-        sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', sanitized)
-        # Remove specific bad characters from the PDF
-        sanitized = re.sub(r'[þÿ]', '', sanitized)  # Remove þÿ
-        sanitized = re.sub(r'[‰°ÀÐï•]', '', sanitized)  # Remove other bad chars
-        return sanitized
+        # Use the main sanitize_input function for consistent sanitization
+        return sanitize_input(data)
     else:
         return data
 
@@ -684,7 +672,7 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
         trust_token = None
         structured_output = enhance_result.get("structured_output")
         if success and enhance_result.get("enhanced_content"):
-            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement"])
+            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement", "BleachSanitization"])
             # Add trust token to structured output if it exists
             if structured_output and isinstance(structured_output, dict):
                 structured_output["trustToken"] = trust_token
