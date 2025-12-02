@@ -5,6 +5,9 @@ import asyncio
 import io
 import json
 from typing import Optional, Dict, Any
+import hashlib
+import secrets
+import time
 
 from fastapi import (
     FastAPI,
@@ -27,10 +30,8 @@ import PyPDF2
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.security_agent import SecurityAgent
 import logging
-import secrets
 from datetime import datetime, timedelta
 import re
-import time
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 import psutil
 from monitoring.alerting import alert_manager
@@ -191,6 +192,48 @@ def log_security_event(
     logging.info(
         f"SECURITY_EVENT: {event_type} - {json.dumps(details)} - IP: {client_ip}"
     )
+
+
+def generate_trust_token(content: str, rules_applied: list = None) -> dict:
+    """Generate a trust token for sanitized content"""
+    if rules_applied is None:
+        rules_applied = ["UnicodeNormalization", "SymbolStripping"]
+
+    # Generate content hash
+    content_hash = hashlib.sha256(content.encode('utf-8')).digest().hex()
+
+    # Generate original hash (simulated)
+    original_hash = hashlib.sha256((content + "original").encode('utf-8')).digest().hex()
+
+    # Generate signature using HMAC with a secret
+    secret = os.getenv("TRUST_TOKEN_SECRET", "default-secret-key")
+    signature_data = f"{content_hash}.{original_hash}.1.0.{','.join(rules_applied)}.{int(time.time())}"
+    signature = hashlib.sha256((signature_data + secret).encode('utf-8')).digest().hex()
+
+    nonce = secrets.token_hex(16)
+
+    return {
+        "contentHash": content_hash,
+        "originalHash": original_hash,
+        "sanitizationVersion": "1.0",
+        "rulesApplied": rules_applied,
+        "timestamp": datetime.now().isoformat(),
+        "expiresAt": (datetime.now() + timedelta(hours=1)).isoformat(),
+        "signature": signature,
+        "nonce": nonce
+    }
+
+
+def validate_trust_token(trust_token: dict) -> bool:
+    """Validate trust token signature"""
+    try:
+        secret = os.getenv("TRUST_TOKEN_SECRET", "default-secret-key")
+        signature_data = f"{trust_token['contentHash']}.{trust_token['originalHash']}.{trust_token['sanitizationVersion']}.{','.join(trust_token['rulesApplied'])}.{int(datetime.fromisoformat(trust_token['timestamp'].replace('Z', '+00:00')).timestamp())}"
+        expected_signature = hashlib.sha256((signature_data + secret).encode('utf-8')).digest().hex()
+        return secrets.compare_digest(trust_token['signature'], expected_signature)
+    except Exception as e:
+        logging.error(f"Trust token validation failed: {e}")
+        return False
 
 
 def update_system_metrics():
@@ -374,6 +417,7 @@ class SanitizeRequest(BaseModel):
 class SanitizeResponse(BaseModel):
     success: bool
     sanitized_content: Optional[str] = None
+    trustToken: Optional[dict] = None
     processing_time: Optional[str] = None
     error: Optional[str] = None
 
@@ -562,13 +606,23 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             client_ip,
         )
 
+        # Generate trust token for the enhanced content
+        trust_token = None
+        structured_output = enhance_result.get("structured_output")
+        if success and enhance_result.get("enhanced_content"):
+            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement"])
+            # Add trust token to structured output if it exists
+            if structured_output and isinstance(structured_output, dict):
+                structured_output["trustToken"] = trust_token
+
         # Update job with results
         processing_jobs[job_id]["status"] = "completed" if success else "failed"
         processing_jobs[job_id]["result"] = {
             "success": success,
             "sanitized_content": sanitize_result.get("sanitized_content"),
             "enhanced_content": enhance_result.get("enhanced_content"),
-            "structured_output": enhance_result.get("structured_output"),
+            "structured_output": structured_output,
+            "trustToken": trust_token,
             "processing_time": enhance_result.get("processing_metadata", {}).get(
                 "processing_time"
             ),
@@ -800,9 +854,15 @@ async def sanitize_content(
             content=req.content, classification=req.classification
         )
 
+        # Generate trust token if sanitization was successful
+        trust_token = None
+        if result.get("success", False) and result.get("sanitized_content"):
+            trust_token = generate_trust_token(result["sanitized_content"])
+
         return SanitizeResponse(
             success=result.get("success", False),
             sanitized_content=result.get("sanitized_content"),
+            trustToken=trust_token,
             processing_time=result.get("processing_time"),
             error=result.get("error"),
         )

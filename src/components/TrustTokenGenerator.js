@@ -65,7 +65,9 @@ class TrustTokenGenerator {
     const expirationHours = options.expirationHours || this.defaultExpirationHours;
 
     const contentHash = crypto.createHash('sha256').update(sanitizedContent).digest('hex');
-    const originalHash = crypto.createHash('sha256').update(originalContent).digest('hex');
+    const originalContentForHash =
+      typeof originalContent === 'string' ? originalContent : JSON.stringify(originalContent);
+    const originalHash = crypto.createHash('sha256').update(originalContentForHash).digest('hex');
     const timestamp = new Date();
     const expiresAt = new Date(timestamp.getTime() + expirationHours * 60 * 60 * 1000);
     const nonce = Math.random().toString(36).slice(2);

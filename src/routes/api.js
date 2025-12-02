@@ -656,12 +656,17 @@ router.post(
         return res.json(result);
       } else {
         // Asynchronous processing - queue job and return job_id
-        const jobId = await queueManager.addJob({
-          type: 'pdf_processing',
-          file: req.file,
-          aiTransform,
-          originalName: req.file.originalname,
-        });
+        const jobId = await queueManager.addJob(
+          {
+            type: 'pdf_processing',
+            fileBuffer: req.file.buffer.toString('base64'),
+            aiTransform,
+            originalName: req.file.originalname,
+          },
+          {
+            generateTrustToken: true,
+          },
+        );
 
         const result = {
           job_id: jobId,
@@ -685,9 +690,12 @@ router.post(
         fileName: req.file?.originalname,
       });
 
+      console.error('PDF upload error details:', error);
+
       return res.status(500).json({
         error: 'Upload failed',
         message: 'An error occurred while processing your PDF',
+        details: error.message,
       });
     }
   },

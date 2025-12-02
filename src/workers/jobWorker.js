@@ -7,6 +7,9 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const pdfParse = require('pdf-parse');
 
+// Ensure config is loaded for environment variables
+const config = require('../config');
+
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.json(),
@@ -41,7 +44,12 @@ async function processJob(job) {
       let extractedText, metadata;
       try {
         const data = await pdfParse(buffer);
-        extractedText = data.text;
+        // Ensure extractedText is a string
+        if (typeof data.text === 'string') {
+          extractedText = data.text;
+        } else {
+          extractedText = String(data.text || '');
+        }
         metadata = {
           pages: data.numpages,
           title: data.info?.Title || null,
@@ -74,6 +82,9 @@ async function processJob(job) {
         // Fallback to plain text
       }
 
+      // Ensure processedText is a string
+      processedText = String(processedText || '');
+
       // Apply AI transformation if specified
       if (job.options?.aiTransformType) {
         await jobStatus.updateProgress(
@@ -104,9 +115,16 @@ async function processJob(job) {
       await jobStatus.updateProgress(70, 'Sanitizing content');
 
       // Sanitize converted text
-      const sanitizer = new ProxySanitizer();
-      const sanitized = await sanitizer.sanitize(processedText, job.options);
-      result = { sanitizedData: sanitized };
+      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
+      const sanitizeOptions = { ...job.options, generateTrustToken: true };
+      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
+
+      // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
+      if (typeof sanitized === 'object' && sanitized.sanitizedData) {
+        result = sanitized; // Includes trustToken
+      } else {
+        result = { sanitizedData: sanitized };
+      }
 
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
