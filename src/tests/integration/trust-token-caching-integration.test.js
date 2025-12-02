@@ -1,8 +1,8 @@
 const request = require('supertest');
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Mock all external dependencies
 jest.mock('../../components/TrustTokenGenerator', () => {
@@ -10,7 +10,7 @@ jest.mock('../../components/TrustTokenGenerator', () => {
     generateToken: jest.fn().mockResolvedValue({
       contentHash: 'cached-hash',
       signature: 'cached-signature',
-      expiresAt: new Date(Date.now() + 86400000),
+      expiresAt: new Date(Date.now() + 86_400_000),
     }),
     validateToken: jest.fn().mockReturnValue({ isValid: true }),
   }));
@@ -106,7 +106,7 @@ describe('Trust Token Caching Integration Tests', () => {
             sanitizationVersion: '1.0',
             rulesApplied: ['basic-sanitization'],
             timestamp: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
             signature: 'cached-signature-' + contentHash,
             nonce: 'cached-nonce-' + contentHash,
           },
@@ -149,20 +149,16 @@ describe('Trust Token Caching Integration Tests', () => {
 
     test('should cache and reuse trust tokens for repeated requests', async () => {
       // First request
-      const startTime1 = Date.now();
       const response1 = await request(app)
         .post('/api/documents/upload?ai_transform=true')
         .attach('file', testPdf, 'simple-document.pdf')
         .expect(200);
-      const endTime1 = Date.now();
 
       // Second request (should use cache)
-      const startTime2 = Date.now();
       const response2 = await request(app)
         .post('/api/documents/upload?ai_transform=true')
         .attach('file', testPdf, 'simple-document.pdf')
         .expect(200);
-      const endTime2 = Date.now();
 
       // Validate caching behavior
       expect(response1.body.sanitizedContent).toBe(response2.body.sanitizedContent);

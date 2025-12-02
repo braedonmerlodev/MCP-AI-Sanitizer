@@ -1,8 +1,8 @@
 const request = require('supertest');
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Mock all external dependencies
 jest.mock('../../components/AITextTransformer', () => {
@@ -22,7 +22,7 @@ jest.mock('../../components/TrustTokenGenerator', () => {
     generateToken: jest.fn().mockResolvedValue({
       contentHash: 'mock-hash',
       signature: 'mock-signature',
-      expiresAt: new Date(Date.now() + 86400000),
+      expiresAt: new Date(Date.now() + 86_400_000),
     }),
     validateToken: jest.fn().mockReturnValue({ isValid: true }),
   }));
@@ -55,6 +55,76 @@ const mockAgentAuth = (req, res, next) => {
   next();
 };
 
+const createTestApp = (trustTokensEnabled = true) => {
+  const testApp = express();
+  testApp.use(express.json());
+
+  // Mock middleware
+  testApp.use((req, res, next) => {
+    req.user = { id: 'test-user' };
+    req.ip = '127.0.0.1';
+    next();
+  });
+
+  testApp.use(mockAgentAuth);
+  testApp.use(mockAccessValidation);
+
+  // Set up multer for file uploads
+  const upload = multer({ storage: multer.memoryStorage() });
+
+  // Mock PDF upload endpoint with feature flag
+  testApp.post('/api/documents/upload', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'No file uploaded',
+          message: 'Please provide a PDF file to upload',
+        });
+      }
+
+      // Mock the full pipeline response with feature flag logic
+      const mockResponse = {
+        message: 'PDF uploaded and processed successfully',
+        status: 'processed',
+        fileName: req.file.originalname,
+        size: req.file.size,
+        sanitizedContent: {
+          title: 'Mocked Title',
+          summary: 'Mocked summary for testing',
+          content: 'Mocked sanitized content',
+          key_points: ['Point 1', 'Point 2'],
+        },
+        processingMetadata: {
+          aiProcessed: true,
+          model: 'gpt-3.5-turbo',
+          processingTime: 150,
+          tokens: { prompt: 100, completion: 50, total: 150 },
+        },
+      };
+
+      // Add trust token based on feature flag
+      mockResponse.trustToken = trustTokensEnabled
+        ? {
+            contentHash: 'mock-hash',
+            originalHash: 'original-mock-hash',
+            sanitizationVersion: '1.0',
+            rulesApplied: ['basic-sanitization', 'xss-sanitization'],
+            timestamp: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+            signature: 'mock-signature',
+            nonce: 'mock-nonce',
+          }
+        : null;
+
+      res.json(mockResponse);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  return testApp;
+};
+
 describe('Feature Flag Pipeline Tests', () => {
   let app;
   let testPdf;
@@ -78,82 +148,7 @@ describe('Feature Flag Pipeline Tests', () => {
 
     app.use(mockAgentAuth);
     app.use(mockAccessValidation);
-
-    // Set up multer for file uploads
-    const upload = multer({ storage: multer.memoryStorage() });
   });
-
-  const createTestApp = (trustTokensEnabled = true) => {
-    const testApp = express();
-    testApp.use(express.json());
-
-    // Mock middleware
-    testApp.use((req, res, next) => {
-      req.user = { id: 'test-user' };
-      req.ip = '127.0.0.1';
-      next();
-    });
-
-    testApp.use(mockAgentAuth);
-    testApp.use(mockAccessValidation);
-
-    // Set up multer for file uploads
-    const upload = multer({ storage: multer.memoryStorage() });
-
-    // Mock PDF upload endpoint with feature flag
-    testApp.post('/api/documents/upload', upload.single('file'), async (req, res) => {
-      try {
-        if (!req.file) {
-          return res.status(400).json({
-            error: 'No file uploaded',
-            message: 'Please provide a PDF file to upload',
-          });
-        }
-
-        // Mock the full pipeline response with feature flag logic
-        const mockResponse = {
-          message: 'PDF uploaded and processed successfully',
-          status: 'processed',
-          fileName: req.file.originalname,
-          size: req.file.size,
-          sanitizedContent: {
-            title: 'Mocked Title',
-            summary: 'Mocked summary for testing',
-            content: 'Mocked sanitized content',
-            key_points: ['Point 1', 'Point 2'],
-          },
-          processingMetadata: {
-            aiProcessed: true,
-            model: 'gpt-3.5-turbo',
-            processingTime: 150,
-            tokens: { prompt: 100, completion: 50, total: 150 },
-          },
-        };
-
-        // Add trust token based on feature flag
-        if (trustTokensEnabled) {
-          mockResponse.trustToken = {
-            contentHash: 'mock-hash',
-            originalHash: 'original-mock-hash',
-            sanitizationVersion: '1.0',
-            rulesApplied: ['basic-sanitization', 'xss-sanitization'],
-            timestamp: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
-            signature: 'mock-signature',
-            nonce: 'mock-nonce',
-          };
-        } else {
-          mockResponse.trustToken = null;
-        }
-
-        res.json(mockResponse);
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    return testApp;
-  };
 
   describe('Trust Token Feature Flag Interactions', () => {
     test('should generate trust tokens when feature is enabled (default)', async () => {

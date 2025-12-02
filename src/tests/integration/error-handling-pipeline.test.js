@@ -1,8 +1,8 @@
 const request = require('supertest');
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Mock all external dependencies
 jest.mock('../../components/AITextTransformer', () => {
@@ -22,7 +22,7 @@ jest.mock('../../components/TrustTokenGenerator', () => {
     generateToken: jest.fn().mockResolvedValue({
       contentHash: 'mock-hash',
       signature: 'mock-signature',
-      expiresAt: new Date(Date.now() + 86400000),
+      expiresAt: new Date(Date.now() + 86_400_000),
     }),
     validateToken: jest.fn().mockReturnValue({ isValid: true }),
   }));
@@ -141,7 +141,7 @@ describe('Error Handling Pipeline Tests', () => {
             sanitizationVersion: '1.0',
             rulesApplied: ['basic-sanitization', 'xss-sanitization'],
             timestamp: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
             signature: 'mock-signature',
             nonce: 'mock-nonce',
           },
@@ -157,7 +157,7 @@ describe('Error Handling Pipeline Tests', () => {
     // Mock PDF process endpoint
     app.post('/api/documents/process', express.json(), async (req, res) => {
       try {
-        const { taskId, transform, transformType } = req.body;
+        const { taskId } = req.body;
 
         if (!taskId) {
           return res.status(400).json({
@@ -177,7 +177,7 @@ describe('Error Handling Pipeline Tests', () => {
             sanitizationVersion: '1.0',
             rulesApplied: ['basic-sanitization'],
             timestamp: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
             signature: 'process-signature',
           },
           metadata: {
@@ -375,10 +375,10 @@ describe('Error Handling Pipeline Tests', () => {
       const responses = await Promise.all(promises);
 
       // All should return success (mock implementation)
-      responses.forEach((response) => {
+      for (const response of responses) {
         expect(response.status).toBe(200);
         expect(response.body).toHaveProperty('taskId');
-      });
+      }
     });
   });
 });

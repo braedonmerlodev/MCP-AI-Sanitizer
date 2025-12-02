@@ -1,8 +1,8 @@
 const request = require('supertest');
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Mock all external dependencies
 jest.mock('../../components/AITextTransformer', () => {
@@ -22,7 +22,7 @@ jest.mock('../../components/TrustTokenGenerator', () => {
     generateToken: jest.fn().mockResolvedValue({
       contentHash: 'mock-hash',
       signature: 'mock-signature',
-      expiresAt: new Date(Date.now() + 86400000),
+      expiresAt: new Date(Date.now() + 86_400_000),
     }),
     validateToken: jest.fn().mockReturnValue({ isValid: true }),
   }));
@@ -58,7 +58,6 @@ const mockAgentAuth = (req, res, next) => {
 describe('Full Pipeline E2E Test Suite', () => {
   let app;
   let testPdfs;
-  let expectedOutputs;
 
   beforeAll(() => {
     // Load test fixtures
@@ -68,26 +67,7 @@ describe('Full Pipeline E2E Test Suite', () => {
       xss: fs.readFileSync(path.join(__dirname, '../fixtures/test-pdfs/xss-test-document.pdf')),
     };
 
-    expectedOutputs = {
-      simple: JSON.parse(
-        fs.readFileSync(
-          path.join(__dirname, '../fixtures/expected-outputs/simple-document-expected.json'),
-          'utf8',
-        ),
-      ),
-      complex: JSON.parse(
-        fs.readFileSync(
-          path.join(__dirname, '../fixtures/expected-outputs/complex-document-expected.json'),
-          'utf8',
-        ),
-      ),
-      xss: JSON.parse(
-        fs.readFileSync(
-          path.join(__dirname, '../fixtures/expected-outputs/xss-test-document-expected.json'),
-          'utf8',
-        ),
-      ),
-    };
+    // Note: expectedOutputs removed as it was not being used in tests
   });
 
   beforeEach(() => {
@@ -142,7 +122,7 @@ describe('Full Pipeline E2E Test Suite', () => {
             sanitizationVersion: '1.0',
             rulesApplied: ['basic-sanitization', 'xss-sanitization'],
             timestamp: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
             signature: 'mock-signature',
             nonce: 'mock-nonce',
           },
