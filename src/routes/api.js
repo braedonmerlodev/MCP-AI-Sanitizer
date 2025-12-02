@@ -656,12 +656,17 @@ router.post(
         return res.json(result);
       } else {
         // Asynchronous processing - queue job and return job_id
-        const jobId = await queueManager.addJob({
-          type: 'pdf_processing',
-          file: req.file,
-          aiTransform,
-          originalName: req.file.originalname,
-        });
+        const jobId = await queueManager.addJob(
+          {
+            type: 'pdf_processing',
+            file: req.file,
+            aiTransform,
+            originalName: req.file.originalname,
+          },
+          {
+            generateTrustToken: true,
+          },
+        );
 
         const result = {
           job_id: jobId,

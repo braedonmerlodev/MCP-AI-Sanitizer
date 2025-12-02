@@ -104,9 +104,16 @@ async function processJob(job) {
       await jobStatus.updateProgress(70, 'Sanitizing content');
 
       // Sanitize converted text
-      const sanitizer = new ProxySanitizer();
-      const sanitized = await sanitizer.sanitize(processedText, job.options);
-      result = { sanitizedData: sanitized };
+      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
+      const sanitizeOptions = { ...job.options, generateTrustToken: true };
+      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
+
+      // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
+      if (typeof sanitized === 'object' && sanitized.sanitizedData) {
+        result = sanitized; // Includes trustToken
+      } else {
+        result = { sanitizedData: sanitized };
+      }
 
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {

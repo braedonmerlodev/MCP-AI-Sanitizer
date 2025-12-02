@@ -15,8 +15,8 @@ const logger = winston.createLogger({
  * Routes requests through the sanitization pipeline and forwards to LLMs/MCP servers.
  */
 class ProxySanitizer {
-  constructor() {
-    this.pipeline = new SanitizationPipeline();
+  constructor(options = {}) {
+    this.pipeline = new SanitizationPipeline(options);
     this.metrics = {
       totalOperations: 0,
       totalLatency: 0,
