@@ -67,7 +67,13 @@ app.get(
 
 // Error handling
 app.use((err, req, res) => {
-  console.error('Application error:', err.message);
+  // Handle both Error objects and primitive values
+  console.error('Application error object:', err);
+  const errorMessage = err instanceof Error ? err.message : String(err || 'Unknown error');
+  console.error('Application error:', errorMessage);
+  if (err instanceof Error && err.stack) {
+    console.error('Stack trace:', err.stack);
+  }
   // recordError(); // Disabled
 
   // Safe error response handling

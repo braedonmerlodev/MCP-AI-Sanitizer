@@ -40,19 +40,6 @@ jest.mock('@google/generative-ai', () => ({
   })),
 }));
 
-// Mock AITextTransformer globally
-jest.mock('./src/components/AITextTransformer', () => {
-  return jest.fn().mockImplementation(() => ({
-    transform: jest.fn().mockResolvedValue({
-      title: 'Mocked Title',
-      summary: 'Mocked summary for testing',
-      content: 'Mocked content',
-      key_points: ['Point 1', 'Point 2'],
-    }),
-    validateTransformation: jest.fn().mockReturnValue(true),
-  }));
-});
-
 // Provide DOMMatrix polyfill if not available
 if (typeof global.DOMMatrix === 'undefined') {
   // Simple DOMMatrix polyfill for pdf-parse
