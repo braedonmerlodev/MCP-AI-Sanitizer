@@ -119,7 +119,7 @@ describe('AITextTransformer', () => {
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2); // Input sanitization + fallback sanitization
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
   });
 
   test('should pass options to sanitizer', async () => {
@@ -201,7 +201,7 @@ describe('AITextTransformer', () => {
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
   });
 
   test('should handle network connectivity issues', async () => {
@@ -211,7 +211,7 @@ describe('AITextTransformer', () => {
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(result.text).toBe('sanitized text');
-    expect(result.metadata).toBe(null);
+    expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
   });
 
   test('should validate transformation type exists', async () => {

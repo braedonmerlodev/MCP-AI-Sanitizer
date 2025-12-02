@@ -118,21 +118,40 @@ class AITextTransformer {
         },
       };
     } catch (error) {
-      // Log the error
       const processingTime = Date.now() - startTime;
-      this.logger.error('AI transformation failed, falling back to sanitized input', {
-        type,
-        error: error.message,
-        inputLength: text.length,
-        processingTime,
-        stack: error.stack,
-      });
+
+      // Check for quota/rate limit errors
+      const isQuotaError =
+        error.message?.includes('quota') ||
+        error.message?.includes('rate limit') ||
+        error.status === 429 ||
+        error.code === 'RESOURCE_EXHAUSTED';
+
+      if (isQuotaError) {
+        this.logger.warn('Gemini API quota exceeded, using fallback strategy', {
+          type,
+          error: error.message,
+          inputLength: text.length,
+          processingTime,
+        });
+      } else {
+        this.logger.error('AI transformation failed, falling back to sanitized input', {
+          type,
+          error: error.message,
+          inputLength: text.length,
+          processingTime,
+          stack: error.stack,
+        });
+      }
 
       // Fallback: return the sanitized original text
       const fallbackOutput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
       return {
         text: fallbackOutput,
-        metadata: null,
+        metadata: {
+          fallback: true,
+          reason: isQuotaError ? 'quota_exceeded' : 'ai_error',
+        },
       };
     }
   }

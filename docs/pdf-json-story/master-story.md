@@ -1,4 +1,4 @@
-# Master Story: Integrated AI-Powered PDF Processing with Restricted Data Segregation and Trust Token Validation
+# Master Story: Integrated AI-Powered PDF Processing with Trust Token Validation
 
 **As a** Product Manager and Security Compliance Officer,  
 **I want** the system to process PDF text with automatic full sanitization, structure content into semantic JSON, and include trust tokens for cryptographic validation and smart caching,  
@@ -6,13 +6,13 @@
 
 ## Business Context
 
-This master story combines the AI-powered structuring and sanitization of PDFs (Story 2) with restricted data segregation (Story 1), while integrating trust tokens (from Story 5.3: Implement Trust Token System) to enable smart caching and cryptographic validation. The current system sanitizes and structures PDFs but does not segregate restricted data or include trust tokens in JSON outputs, leading to potential security risks and inefficient caching. Trust tokens will allow validation of previously sanitized content, reducing redundant processing by up to 42% (based on prior findings).
+This master story combines the AI-powered structuring and sanitization of PDFs with trust token integration to enable smart caching and cryptographic validation. The current system sanitizes and structures PDFs but does not include trust tokens in JSON outputs, leading to potential security risks and inefficient caching. Trust tokens will allow validation of previously sanitized content, reducing redundant processing by up to 42% (based on prior findings).
 
 ## Risk Assessment
 
 - **High Risk**: Missing trust tokens could lead to invalid caching and security bypasses; full sanitization ensures no malicious content exposure.
 - **Medium Risk**: AI structuring might lose semantic meaning if sanitization is too aggressive; trust token generation could impact performance.
-- **Mitigation**: Comprehensive testing for segregation, structuring, and token integration; performance benchmarks for token generation.
+- **Mitigation**: Comprehensive testing for structuring and token integration; performance benchmarks for token generation.
 
 ## Acceptance Criteria
 
@@ -63,9 +63,10 @@ This master story combines the AI-powered structuring and sanitization of PDFs (
 
 ## Change Log
 
-| Date       | Version | Description                                                                     | Author       |
-| ---------- | ------- | ------------------------------------------------------------------------------- | ------------ |
-| 2025-12-01 | 1.0     | Master story created by combining Stories 1 & 2, adding trust token integration | AI Assistant |
+| Date       | Version | Description                                                                     | Author             |
+| ---------- | ------- | ------------------------------------------------------------------------------- | ------------------ |
+| 2025-12-01 | 1.0     | Master story created by combining Stories 1 & 2, adding trust token integration | AI Assistant       |
+| 2025-12-01 | 1.1     | Removed references to restricted data segregation as per updated requirements   | Bob (Scrum Master) |
 
 ## QA Results
 

@@ -61,7 +61,7 @@ class SanitizationPipeline {
    */
   async sanitize(data, options = {}) {
     const startTime = Date.now();
-    const {
+    let {
       classification = 'unclear',
       riskLevel,
       skipValidation = false,
