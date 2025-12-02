@@ -145,9 +145,42 @@ def validate_file_type(file_content: bytes, filename: str) -> bool:
 
 
 def sanitize_input(text: str) -> str:
-    """Sanitize input text to prevent injection attacks"""
-    # Remove potentially dangerous characters
-    text = re.sub(r"[<>]", "", text)
+    """Sanitize input text using the full pipeline like Node.js"""
+    import unicodedata
+
+    # Ensure it's a string
+    if not isinstance(text, str):
+        text = str(text or '')
+
+    # 1. Unicode normalization
+    text = unicodedata.normalize('NFC', text)
+
+    # 2. Symbol stripping - remove zero-width and control characters
+    zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF'
+    control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
+    text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
+
+    # 3. Escape neutralization - remove ANSI escape sequences
+    text = re.sub(r'\x1B\[[0-9;]*[A-Za-z]', '', text)
+
+    # 4. Pattern redaction
+    # Remove script tags and content
+    text = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', text, flags=re.IGNORECASE)
+    # Remove HTML tags
+    text = re.sub(r'<[^>]*>', '', text)
+    # Remove javascript:
+    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+    # Remove event handlers
+    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+    # Remove data URLs
+    text = re.sub(r'data:\s*text\/html[^,]+,', '', text, flags=re.IGNORECASE)
+
+    # Remove specific bad characters and symbols
+    text = re.sub(r'[`©®™€£¥§¶†‡‹›Øß²³´]', '', text)
+
+    # Remove potential XSS keywords
+    text = re.sub(r'\b(alert|img|src|javascript|script|onerror|onload)\b', '', text, flags=re.IGNORECASE)
+
     # Limit length
     return text[:MAX_TEXT_LENGTH]
 
@@ -234,6 +267,31 @@ def validate_trust_token(trust_token: dict) -> bool:
     except Exception as e:
         logging.error(f"Trust token validation failed: {e}")
         return False
+
+
+def sanitize_dict(data):
+    """Recursively sanitize string values in a dict"""
+    if isinstance(data, dict):
+        return {k: sanitize_dict(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_dict(item) for item in data]
+    elif isinstance(data, str):
+        # Sanitize string
+        import re
+        sanitized = re.sub(r'[<>]', '', data)  # Remove < >
+        sanitized = re.sub(r'script', '', sanitized, flags=re.IGNORECASE)  # Remove script
+        sanitized = re.sub(r'on\w+=', '', sanitized, flags=re.IGNORECASE)  # Remove event handlers
+        sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)  # Remove javascript:
+        # Remove invisible/zero-width characters
+        sanitized = re.sub(r'[\u200B-\u200D\uFEFF]', '', sanitized)
+        # Remove control characters except common whitespace
+        sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', sanitized)
+        # Remove specific bad characters from the PDF
+        sanitized = re.sub(r'[þÿ]', '', sanitized)  # Remove þÿ
+        sanitized = re.sub(r'[‰°ÀÐï•]', '', sanitized)  # Remove other bad chars
+        return sanitized
+    else:
+        return data
 
 
 def update_system_metrics():
@@ -361,9 +419,20 @@ async def get_agent():
 
                 async def sanitize_content(self, **kwargs):
                     content = kwargs.get('content', '')
+                    # Simple sanitization for mock agent
+                    import re
+                    # Remove dangerous characters and patterns
+                    sanitized = re.sub(r'[<>]', '', content)  # Remove < >
+                    sanitized = re.sub(r'script', '', sanitized, flags=re.IGNORECASE)  # Remove script tags
+                    sanitized = re.sub(r'on\w+=', '', sanitized, flags=re.IGNORECASE)  # Remove event handlers
+                    sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)  # Remove javascript:
+                    # Remove invisible/zero-width characters
+                    sanitized = re.sub(r'[\u200B-\u200D\uFEFF]', '', sanitized)
+                    # Remove control characters except common whitespace
+                    sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', sanitized)
                     return {
                         "success": True,
-                        "sanitized_content": content,
+                        "sanitized_content": sanitized,
                         "processing_time": "0.001"
                     }
 
@@ -614,13 +683,20 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             # Add trust token to structured output if it exists
             if structured_output and isinstance(structured_output, dict):
                 structured_output["trustToken"] = trust_token
+                # Sanitize the structured output
+                structured_output = sanitize_dict(structured_output)
+
+        # Sanitize enhanced content
+        enhanced_content = enhance_result.get("enhanced_content")
+        if enhanced_content:
+            enhanced_content = sanitize_input(enhanced_content)
 
         # Update job with results
         processing_jobs[job_id]["status"] = "completed" if success else "failed"
         processing_jobs[job_id]["result"] = {
             "success": success,
             "sanitized_content": sanitize_result.get("sanitized_content"),
-            "enhanced_content": enhance_result.get("enhanced_content"),
+            "enhanced_content": enhanced_content,
             "structured_output": structured_output,
             "trustToken": trust_token,
             "processing_time": enhance_result.get("processing_metadata", {}).get(

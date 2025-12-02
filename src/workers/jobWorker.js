@@ -7,6 +7,28 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const pdfParse = require('pdf-parse');
 
+/**
+ * Recursively sanitizes string values in an object or array
+ */
+function sanitizeObject(data) {
+  if (typeof data === 'string') {
+    // Simple sanitization for strings
+    return data
+      .replace(/[<>\"']/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '');
+  } else if (Array.isArray(data)) {
+    return data.map(sanitizeObject);
+  } else if (data && typeof data === 'object') {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(data)) {
+      sanitized[key] = sanitizeObject(value);
+    }
+    return sanitized;
+  }
+  return data;
+}
+
 // Ensure config is loaded for environment variables
 const config = require('../config');
 
@@ -132,7 +154,8 @@ async function processJob(job) {
         const repairResult = jsonRepair.repair(result.sanitizedData);
 
         if (repairResult.success) {
-          result.sanitizedData = repairResult.data;
+          // Sanitize the structured data
+          result.sanitizedData = sanitizeObject(repairResult.data);
           if (repairResult.repairs.length > 0) {
             logger.info('JSON repair applied during PDF processing', {
               jobId,
