@@ -19,7 +19,7 @@ class AITextTransformer {
   constructor(options = {}) {
     this.gemini = new ChatGoogleGenerativeAI({
       apiKey: aiConfig.gemini.apiKey,
-      model: 'models/gemini-pro',
+      model: options.model ? `models/${options.model}` : 'models/gemini-pro',
       temperature: options.temperature ?? 0.1,
       maxOutputTokens: options.maxTokens ?? 2000,
     });

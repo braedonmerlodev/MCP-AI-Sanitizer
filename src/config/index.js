@@ -8,6 +8,15 @@ const getConfig = () => ({
     },
   },
 
+  // API rate limits (requests per minute per IP)
+  rateLimits: {
+    general: 100, // General API rate limit
+    gemini: {
+      requestsPerMinute: 60, // Gemini API calls per minute
+      requestsPerHour: 1000, // Gemini API calls per hour
+    },
+  },
+
   // Other config can be added here
 });
 

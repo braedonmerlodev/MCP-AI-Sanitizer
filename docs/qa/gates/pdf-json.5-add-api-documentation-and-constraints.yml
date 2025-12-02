@@ -1,0 +1,45 @@
+schema: 1
+story: pdf-json.5
+story_title: Add API Documentation and Constraints
+gate: CONCERNS
+status_reason: Missing test coverage for all acceptance criteria despite good implementation quality
+reviewer: Quinn (Test Architect)
+updated: 2025-12-01T00:00:00Z
+
+top_issues: []
+
+quality_score: 90
+expires: 2025-12-15T00:00:00Z
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 0
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: Trust token uses HMAC-SHA256, authentication documented
+  performance:
+    status: PASS
+    notes: Cost and processing time metrics logged, fallback prevents failures
+  reliability:
+    status: PASS
+    notes: Error handling and fallback strategies implemented
+  maintainability:
+    status: PASS
+    notes: Code is well-structured with clear documentation
+
+recommendations:
+  immediate:
+    - action: Add unit tests for trust token validation endpoint
+      refs: []
+    - action: Add integration tests for quota exceeded error handling
+      refs: []
+  future:
+    - action: Add tests for API documentation accuracy
+      refs: []
+    - action: Define explicit rate limits in configuration
+      refs: []

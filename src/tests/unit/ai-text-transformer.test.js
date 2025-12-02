@@ -207,11 +207,33 @@ describe('AITextTransformer', () => {
   test('should handle network connectivity issues', async () => {
     mockInvoke.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    const result = await transformer.transform('test input', 'structure');
+    const result = await transformer.transform('raw text', 'structure');
 
     expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
     expect(result.text).toBe('sanitized text');
     expect(result.metadata).toEqual({ fallback: true, reason: 'ai_error' });
+  });
+
+  test('should handle Gemini API quota exceeded errors', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('Quota exceeded for quota metric'));
+
+    const result = await transformer.transform('raw text', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toEqual({ fallback: true, reason: 'quota_exceeded' });
+  });
+
+  test('should handle Gemini API rate limit errors', async () => {
+    const rateLimitError = new Error('Rate limit exceeded');
+    rateLimitError.status = 429;
+    mockInvoke.mockRejectedValueOnce(rateLimitError);
+
+    const result = await transformer.transform('raw text', 'structure');
+
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2);
+    expect(result.text).toBe('sanitized text');
+    expect(result.metadata).toEqual({ fallback: true, reason: 'quota_exceeded' });
   });
 
   test('should validate transformation type exists', async () => {
@@ -235,7 +257,7 @@ describe('AITextTransformer', () => {
 
     expect(MockChatGoogleGenerativeAI).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelName: 'gemini-pro-vision',
+        model: 'models/gemini-pro-vision',
         temperature: 0.5,
         maxOutputTokens: 1000,
         apiKey: 'mock-api-key',
