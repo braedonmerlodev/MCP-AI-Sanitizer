@@ -29,9 +29,10 @@ This document defines the user experience goals, information architecture, user 
 
 ## Change Log
 
-| Date       | Version | Description            | Author        |
-| ---------- | ------- | ---------------------- | ------------- |
-| 2025-11-26 | 1.0     | Initial Draft from PRD | Analyst Agent |
+| Date       | Version | Description                              | Author        |
+| ---------- | ------- | ---------------------------------------- | ------------- |
+| 2025-11-26 | 1.0     | Initial Draft from PRD                   | Analyst Agent |
+| 2025-12-04 | 1.1     | Added Sanitization Summary Messages spec | PO            |
 
 ## Information Architecture (IA)
 
@@ -203,11 +204,42 @@ graph TD
 
 **Purpose:** Display user and agent messages.
 
-**Variants:** User (right-aligned), Agent (left-aligned).
+**Variants:** User (right-aligned), Agent (left-aligned), Sanitization Summary (left-aligned, amber-themed).
 
 **States:** Default, Loading (with typing indicator).
 
 **Usage Guidelines:** Support markdown rendering; include timestamps.
+
+#### Sanitization Summary Messages
+
+**Purpose:** Display security alerts when significant content sanitization occurs during message processing.
+
+**Trigger Conditions:**
+
+- Automatically shown when message sanitization impact exceeds 5% of original content
+- Impact calculated as: `(original_length - sanitized_length) / original_length > 0.05`
+
+**Visual Design:**
+
+- Amber color scheme (#F59E0B background, security shield icon)
+- Distinct from regular agent messages
+- Non-intrusive but clearly visible as security notifications
+
+**Content Structure:**
+
+- Header: "🛡️ Security Sanitization Alert"
+- Metrics: Original/sanitized length, characters removed, impact percentage
+- Advice: Contextual security recommendations based on what was removed
+- Examples: "JavaScript code removed - XSS attempt neutralized", "HTML tags removed - content cleaned"
+
+**Behavior:**
+
+- Appears immediately after user message when threshold exceeded
+- Precedes normal agent response
+- Cannot be dismissed (permanent security record)
+- Supports markdown formatting for detailed breakdowns
+
+**Performance Impact:** <5% additional processing overhead for threshold calculation.
 
 #### Progress Indicator
 
