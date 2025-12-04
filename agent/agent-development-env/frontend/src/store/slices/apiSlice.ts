@@ -75,19 +75,19 @@ export const apiSlice = createApi({
       }),
     }),
 
-    // Process PDF
+    // Process PDF (bypass proxy for multipart/form-data)
     processPdf: builder.mutation<ProcessPdfJobResponse, FormData>({
       query: (formData) => ({
-        url: '/api/documents/upload',
+        url: 'http://localhost:8001/api/documents/upload', // Call backend directly
         method: 'POST',
         body: formData,
         formData: true, // This tells RTK Query to not set Content-Type header
       }),
     }),
 
-    // Get PDF processing status
+    // Get PDF processing status (bypass proxy)
     getPdfStatus: builder.query<ProcessPdfStatusResponse, string>({
-      query: (jobId) => `/api/documents/${jobId}/status`,
+      query: (jobId) => `http://localhost:8001/api/documents/${jobId}/status`,
     }),
 
     // Chat

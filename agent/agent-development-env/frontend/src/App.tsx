@@ -12,6 +12,7 @@ import {
   ProgressIndicator,
   Toast,
   About,
+  TrustTokenDisplay,
 } from '@/components'
 import Marketplace from '@/pages/Marketplace'
 import {
@@ -224,6 +225,11 @@ function App() {
                       {pdfState.status === 'completed' && pdfState.result && (
                         <div className="max-w-4xl mx-auto">
                           <ChatInterface processingResult={pdfState.result} />
+                          {pdfState.result.trustToken && (
+                            <TrustTokenDisplay
+                              trustToken={pdfState.result.trustToken}
+                            />
+                          )}
                         </div>
                       )}
 
