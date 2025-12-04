@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from backend.api import sanitize_input
+from backend.api import sanitize_input, get_sanitization_metrics, generate_sanitization_advice
 
 
 class TestBleachSanitization:
@@ -104,3 +104,86 @@ class TestBleachSanitization:
             assert "onerror" not in result.lower()
             assert "onload" not in result.lower()
             assert "javascript:" not in result.lower()
+
+    def test_sanitization_metrics_basic(self):
+        """Test basic sanitization metrics calculation"""
+        # Test with no sanitization needed
+        metrics = get_sanitization_metrics("Hello world")
+        assert metrics['original_length'] == 11
+        assert metrics['final_length'] == 11
+        assert metrics['total_chars_removed'] == 0
+        assert metrics['sanitization_impact'] == 0.0
+        assert metrics['threshold_exceeded'] == False
+        assert metrics['bleach_applied'] == False
+
+    def test_sanitization_metrics_with_html(self):
+        """Test sanitization metrics with HTML content"""
+        input_text = "<b>Hello</b> <i>world</i>"
+        metrics = get_sanitization_metrics(input_text)
+
+        # Should have removed HTML tags
+        assert metrics['total_chars_removed'] > 0
+        assert metrics['sanitization_impact'] > 0
+        assert "Hello world" in metrics['sanitized_text']
+
+    def test_sanitization_metrics_threshold(self):
+        """Test threshold calculation for 5% impact"""
+        # Create input that will have exactly 5% impact when sanitized
+        # 20 chars input, remove 1 char = 5% impact
+        input_text = "Normal text<script>"  # 20 chars, script tag removed
+        metrics = get_sanitization_metrics(input_text)
+
+        assert metrics['original_length'] == len(input_text)
+        assert metrics['threshold_exceeded'] == (metrics['sanitization_impact'] > 0.05)
+
+    def test_sanitization_metrics_bleach_applied(self):
+        """Test metrics when bleach sanitization is applied"""
+        input_text = "<script>alert('xss')</script>Hello world"
+        metrics = get_sanitization_metrics(input_text)
+
+        assert metrics['bleach_applied'] == True
+        assert "Hello world" in metrics['sanitized_text']
+        assert "<script>" not in metrics['sanitized_text']
+
+    def test_generate_sanitization_advice_no_changes(self):
+        """Test advice generation when no sanitization occurred"""
+        metrics = get_sanitization_metrics("Safe content")
+        advice = generate_sanitization_advice(metrics)
+
+        assert "No sanitization needed" in advice or "already safe" in advice
+
+    def test_generate_sanitization_advice_script_removed(self):
+        """Test advice when script tags are removed"""
+        metrics = get_sanitization_metrics("<script>evil()</script>Good content")
+        advice = generate_sanitization_advice(metrics)
+
+        assert "JavaScript code removed" in advice
+        assert "XSS attempt neutralized" in advice
+
+    def test_generate_sanitization_advice_html_removed(self):
+        """Test advice when HTML tags are removed"""
+        metrics = get_sanitization_metrics("<b>Bold</b> and <i>italic</i>")
+        advice = generate_sanitization_advice(metrics)
+
+        assert "HTML tags removed" in advice
+
+    def test_generate_sanitization_advice_high_impact(self):
+        """Test advice for high impact sanitization"""
+        # Create high impact by having mostly removable content
+        input_text = "<script></script><style></style><div></div>" * 10  # Lots of tags
+        metrics = get_sanitization_metrics(input_text)
+        advice = generate_sanitization_advice(metrics)
+
+        if metrics['sanitization_impact'] > 0.2:
+            assert "Significant content sanitization detected" in advice
+
+    def test_sanitization_metrics_detailed_breakdown(self):
+        """Test detailed breakdown of removed characters by step"""
+        input_text = "Hello\x00<script>evil()</script>\u200B"
+        metrics = get_sanitization_metrics(input_text)
+
+        removed = metrics['removed_by_step']
+        assert isinstance(removed, dict)
+        assert 'symbol_stripping' in removed
+        assert 'script_tags' in removed
+        assert 'bleach_sanitization' in removed

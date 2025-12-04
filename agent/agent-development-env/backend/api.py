@@ -212,6 +212,218 @@ def sanitize_input(text: str) -> str:
     return text[:MAX_TEXT_LENGTH]
 
 
+def get_sanitization_metrics(text: str) -> dict:
+    """Get detailed sanitization metrics for input text
+
+    Args:
+        text: Input text to analyze
+
+    Returns:
+        Dict with sanitization metrics and impact analysis
+    """
+    import unicodedata
+
+    # Ensure it's a string
+    if not isinstance(text, str):
+        text = str(text or '')
+
+    original_length = len(text)
+    original_text = text
+
+    # Track what gets removed at each step
+    removed_chars = {
+        'unicode_normalization': 0,
+        'ansi_escapes': 0,
+        'symbol_stripping': 0,
+        'html_tags': 0,
+        'script_tags': 0,
+        'bleach_sanitization': 0,
+        'javascript_urls': 0,
+        'data_urls': 0,
+        'xss_keywords': 0,
+        'bad_chars': 0,
+        'pdf_artifacts': 0,
+        'length_limit': 0
+    }
+
+    # 1. Unicode normalization
+    text = unicodedata.normalize('NFC', text)
+    removed_chars['unicode_normalization'] = original_length - len(text)
+
+    # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
+    pre_escape_length = len(text)
+    text = ANSI_ESCAPE_PATTERN.sub('', text)
+    removed_chars['ansi_escapes'] = pre_escape_length - len(text)
+
+    # 3. Symbol stripping - remove zero-width, control characters, and soft hyphens
+    pre_symbol_length = len(text)
+    zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF\u00AD'
+    control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
+    text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
+    removed_chars['symbol_stripping'] = pre_symbol_length - len(text)
+
+    # 4. HTML sanitization - hybrid approach for performance
+    bleach_applied = False
+    pre_html_length = len(text)
+
+    if '<' in text and '>' in text:
+        # Use bleach only for content with script tags (most security-critical)
+        if '<script' in text.lower():
+            bleach_applied = True
+            # First remove script tags and content (critical for security)
+            pre_script_length = len(text)
+            text = SCRIPT_TAG_PATTERN.sub('', text)
+            removed_chars['script_tags'] = pre_script_length - len(text)
+
+            # Then use bleach for remaining HTML
+            pre_bleach_length = len(text)
+            text = BLEACH_CLEANER.clean(text)
+            removed_chars['bleach_sanitization'] = pre_bleach_length - len(text)
+        else:
+            # Use fast regex for non-script HTML
+            # Remove HTML tags
+            pre_tag_length = len(text)
+            text = HTML_TAG_PATTERN.sub('', text)
+            removed_chars['html_tags'] = pre_tag_length - len(text)
+
+            # Remove event handlers
+            text = EVENT_HANDLER_PATTERN.sub('', text)
+
+    # Always apply non-HTML XSS protection
+    # Remove javascript: URLs
+    pre_js_length = len(text)
+    text = JAVASCRIPT_URL_PATTERN.sub('', text)
+    removed_chars['javascript_urls'] = pre_js_length - len(text)
+
+    # Remove data URLs that might contain scripts
+    pre_data_length = len(text)
+    text = DATA_URL_PATTERN.sub('', text)
+    removed_chars['data_urls'] = pre_data_length - len(text)
+
+    # Remove potential XSS keywords
+    pre_xss_length = len(text)
+    text = XSS_KEYWORD_PATTERN.sub('', text)
+    removed_chars['xss_keywords'] = pre_xss_length - len(text)
+
+    # Remove specific bad characters and symbols
+    pre_bad_length = len(text)
+    text = BAD_CHARS_PATTERN.sub('', text)
+    removed_chars['bad_chars'] = pre_bad_length - len(text)
+
+    # Remove PDF-specific bad characters
+    pre_pdf_length = len(text)
+    text = PDF_ARTIFACTS_PATTERN.sub('', text)
+    removed_chars['pdf_artifacts'] = pre_pdf_length - len(text)
+
+    # Limit length
+    pre_limit_length = len(text)
+    sanitized_text = text[:MAX_TEXT_LENGTH]
+    removed_chars['length_limit'] = pre_limit_length - len(sanitized_text)
+
+    final_length = len(sanitized_text)
+    total_chars_removed = original_length - final_length
+    sanitization_impact = (total_chars_removed / original_length) if original_length > 0 else 0
+
+    return {
+        'original_length': original_length,
+        'final_length': final_length,
+        'total_chars_removed': total_chars_removed,
+        'sanitization_impact': sanitization_impact,
+        'threshold_exceeded': sanitization_impact > 0.05,
+        'bleach_applied': bleach_applied,
+        'removed_by_step': removed_chars,
+        'sanitized_text': sanitized_text
+    }
+
+
+def generate_sanitization_advice(metrics: dict) -> str:
+    """Generate contextual advice based on sanitization metrics
+
+    Args:
+        metrics: Sanitization metrics from get_sanitization_metrics()
+
+    Returns:
+        Human-readable advice string
+    """
+    advice_parts = []
+    removed = metrics['removed_by_step']
+
+    # High-impact warnings
+    if metrics['sanitization_impact'] > 0.2:
+        advice_parts.append("⚠️ Significant content sanitization detected - review input source for potential security issues")
+
+    # Specific security threats
+    if removed['script_tags'] > 0:
+        advice_parts.append("🛡️ JavaScript code removed - XSS attempt neutralized")
+
+    if removed['bleach_sanitization'] > 0:
+        advice_parts.append("🔧 Advanced HTML sanitization applied - malicious tags stripped")
+
+    if removed['html_tags'] > 0 and not metrics['bleach_applied']:
+        advice_parts.append("🏷️ HTML tags removed - content cleaned for safe display")
+
+    # URL and script threats
+    if removed['javascript_urls'] > 0:
+        advice_parts.append("🚫 JavaScript URLs removed - clickjacking protection applied")
+
+    if removed['data_urls'] > 0:
+        advice_parts.append("📄 Data URLs sanitized - potential script injection prevented")
+
+    # Control characters and symbols
+    if removed['ansi_escapes'] > 0:
+        advice_parts.append("🎨 ANSI escape sequences removed - terminal injection prevented")
+
+    if removed['symbol_stripping'] > 0:
+        advice_parts.append("🔤 Control characters and zero-width spaces removed - content normalized")
+
+    # Length and performance
+    if removed['length_limit'] > 0:
+        advice_parts.append("📏 Content truncated to maximum length - full content may be available elsewhere")
+
+    # Low impact summary
+    if metrics['sanitization_impact'] <= 0.05 and metrics['total_chars_removed'] > 0:
+        advice_parts.append("✅ Minor sanitization applied - content is safe for processing")
+
+    # If no specific advice, provide general summary
+    if not advice_parts:
+        if metrics['total_chars_removed'] == 0:
+            advice_parts.append("✅ No sanitization needed - content was already safe")
+        else:
+            advice_parts.append(f"🔍 {metrics['total_chars_removed']} characters sanitized for security")
+
+    return " | ".join(advice_parts)
+
+
+def create_sanitization_summary_message(metrics: dict) -> str:
+    """Create a formatted sanitization summary message for chat display
+
+    Args:
+        metrics: Sanitization metrics from get_sanitization_metrics()
+
+    Returns:
+        Formatted message string for chat display
+    """
+    advice = generate_sanitization_advice(metrics)
+
+    summary = f"""
+🛡️ **Sanitization Summary**
+- Original length: {metrics['original_length']} characters
+- Final length: {metrics['final_length']} characters
+- Characters removed: {metrics['total_chars_removed']} ({metrics['sanitization_impact']:.1%} impact)
+
+**Security Actions Taken:**
+{advice}
+
+**Detailed Breakdown:**
+- HTML/Script removal: {metrics['removed_by_step']['html_tags'] + metrics['removed_by_step']['script_tags'] + metrics['removed_by_step']['bleach_sanitization']} chars
+- URL sanitization: {metrics['removed_by_step']['javascript_urls'] + metrics['removed_by_step']['data_urls']} chars
+- Character normalization: {metrics['removed_by_step']['symbol_stripping'] + metrics['removed_by_step']['ansi_escapes']} chars
+- Other security measures: {metrics['removed_by_step']['xss_keywords'] + metrics['removed_by_step']['bad_chars'] + metrics['removed_by_step']['pdf_artifacts']} chars
+"""
+
+    return summary.strip()
+
+
 def check_rate_limit(client_ip: str) -> bool:
     """Check if client is within rate limits"""
     now = datetime.now()
@@ -971,7 +1183,8 @@ class ChatMessage(BaseModel):
     def validate_message(cls, v):
         if len(v) > MAX_TEXT_LENGTH:
             raise ValueError("Message too long")
-        return sanitize_input(v)
+        # Don't sanitize here - we'll do it in the endpoint after getting metrics
+        return v
 
 
 @app.websocket("/ws/chat")
@@ -1029,8 +1242,20 @@ async def websocket_chat(websocket: WebSocket):
                 )
                 continue
 
+            # Get sanitization metrics and check threshold
+            sanitization_metrics = get_sanitization_metrics(user_message)
+            should_send_summary = sanitization_metrics['threshold_exceeded']
+
             # Sanitize input
             user_message = sanitize_input(user_message)
+
+            # Send sanitization summary if threshold exceeded
+            if should_send_summary:
+                summary_message = create_sanitization_summary_message(sanitization_metrics)
+                await websocket.send_json({
+                    "type": "chunk",
+                    "content": summary_message + "\n\n"
+                })
 
             # Update connection context
             active_connections[connection_id]["context"] = context
@@ -1138,6 +1363,14 @@ async def http_chat(
         )
         raise HTTPException(status_code=413, detail="Message too long")
 
+    # Get sanitization metrics BEFORE sanitization
+    original_message = chat_request.message
+    sanitization_metrics = get_sanitization_metrics(original_message)
+    should_send_summary = sanitization_metrics['threshold_exceeded']
+
+    # Sanitize input
+    chat_request.message = sanitize_input(chat_request.message)
+
     # Sanitize input
     chat_request.message = sanitize_input(chat_request.message)
 
@@ -1182,11 +1415,18 @@ async def http_chat(
             client_ip,
         )
 
-        return {
+        # Include sanitization summary if threshold exceeded
+        response_data = {
             "success": True,
             "response": response,
             "timestamp": datetime.now().isoformat(),
         }
+
+        if should_send_summary:
+            summary_message = create_sanitization_summary_message(sanitization_metrics)
+            response_data["sanitization_summary"] = summary_message
+
+        return response_data
 
     except Exception as e:
         # Record error metrics

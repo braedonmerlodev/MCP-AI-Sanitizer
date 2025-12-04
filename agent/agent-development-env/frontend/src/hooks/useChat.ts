@@ -176,6 +176,18 @@ export const useChat = (context?: Record<string, any>) => {
       const data = await response.json()
 
       if (data.success) {
+        // Add sanitization summary message if present
+        if (data.sanitization_summary) {
+          const summaryMessage: Message = {
+            id: `summary-${Date.now()}`,
+            role: 'assistant',
+            content: data.sanitization_summary,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+          }
+          dispatch(addMessage(summaryMessage))
+        }
+
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',

@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Done - Agent Integration Pending
 
 ## Story
 
@@ -28,14 +28,14 @@ Draft
 
 ## Tasks / Subtasks
 
-- [ ] Analyze current bleach sanitization pipeline to identify capture points for stripped content
-- [ ] Implement performance threshold logic (5% sanitization impact calculation)
-- [ ] Design sanitization summary message format and advice logic
-- [ ] Modify backend agent to calculate sanitization impact and conditionally send summary messages
-- [ ] Update ChatInterface to handle and display sanitization summary messages
-- [ ] Add unit tests for summary generation logic and threshold calculations
-- [ ] Add integration tests for chat message display and threshold triggering
-- [ ] Update documentation with performance metrics and threshold behavior
+- [x] Analyze current bleach sanitization pipeline to identify capture points for stripped content
+- [x] Implement performance threshold logic (5% sanitization impact calculation)
+- [x] Design sanitization summary message format and advice logic
+- [x] Modify backend agent to calculate sanitization impact and conditionally send summary messages
+- [x] Update ChatInterface to handle and display sanitization summary messages
+- [x] Add unit tests for summary generation logic and threshold calculations
+- [x] Add integration tests for chat message display and threshold triggering
+- [x] Update documentation with performance metrics and threshold behavior
 
 ## Dev Notes
 

@@ -23,6 +23,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isSent = message.status === 'sent'
   const isDelivered = message.status === 'delivered'
   const isQueued = message.status === 'queued'
+  const isSanitizationSummary = message.id.startsWith('summary-')
 
   const markdownComponents = {
     code: ({
@@ -59,7 +60,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       ? isError
         ? 'bg-red-500 text-white'
         : 'bg-blue-500 text-white'
-      : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+      : isSanitizationSummary
+        ? 'bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
   } ${isSending ? 'opacity-70' : ''}`
 
   const containerClasses = `flex ${isUser ? 'justify-end' : 'justify-start'}`
@@ -92,6 +95,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <p className="text-sm whitespace-pre-wrap break-words">
             {message.content}
           </p>
+        ) : isSanitizationSummary ? (
+          <div className="text-sm space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs">🛡️</span>
+              </div>
+              <span className="font-semibold text-amber-800 dark:text-amber-200">
+                Security Sanitization Alert
+              </span>
+            </div>
+            <div className="bg-amber-100 dark:bg-amber-900 p-3 rounded border-l-4 border-amber-500 whitespace-pre-wrap break-words">
+              {message.content}
+            </div>
+          </div>
         ) : (
           <div className="text-sm prose prose-sm max-w-none dark:prose-invert break-words">
             <ReactMarkdown components={markdownComponents}>
