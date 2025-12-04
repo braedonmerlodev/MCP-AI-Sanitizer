@@ -1455,6 +1455,33 @@ async def validate_api_key(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
+@app.post("/api/trust-tokens/validate")
+async def validate_trust_token_endpoint(
+    request: Request,
+    token: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Validate a trust token"""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Authentication
+    if not authenticate_request(credentials):
+        log_security_event("AUTH_FAILED", {"endpoint": "/api/trust-tokens/validate"}, client_ip)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    try:
+        is_valid = validate_trust_token(token)
+        return {
+            "valid": is_valid,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        log_security_event(
+            "TRUST_TOKEN_VALIDATION_ERROR", {"error_type": type(e).__name__}, client_ip
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

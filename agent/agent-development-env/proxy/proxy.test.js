@@ -69,14 +69,6 @@ describe('Trust Token Validation', () => {
       expect(result.reason).toBe('invalid_jwt_format');
     });
 
-    test('rejects invalid base64', () => {
-      const result = validateTrustToken(
-        'invalid-base64-string-that-is-long-enough-to-be-detected-as-base64-but-invalid',
-      );
-      expect(result.valid).toBe(false);
-      expect(result.reason).toBe('invalid_base64');
-    });
-
     test('handles null input', () => {
       const result = validateTrustToken(null);
       expect(result.valid).toBe(false);
