@@ -102,6 +102,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Global error handling
+/* eslint-disable n/no-process-exit */
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   process.exit(1);
@@ -111,5 +112,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
+/* eslint-enable n/no-process-exit */
 
 module.exports = app;
