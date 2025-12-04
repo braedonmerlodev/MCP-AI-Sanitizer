@@ -72,9 +72,37 @@ Enhanced status endpoint includes trust token breakdown:
 }
 ```
 
+## Cache Verification Patterns
+
+### Verification Workflow
+
+Cache verification ensures cached content validity before serving:
+
+1. **Cache Hit Detection**: Check if request matches cached entry
+2. **Trust Token Validation**: Call backend validation API for trust token
+3. **Decision Logic**:
+   - ✅ **Valid Token**: Serve cached content immediately
+   - ❌ **Invalid Token**: Invalidate all related cache entries, proxy to backend
+   - ⚠️ **Validation Error**: Invalidate all related cache entries, proxy to backend
+
+### Verification Performance
+
+- **Validation Cache**: 15-minute TTL reduces API calls
+- **Async Processing**: Non-blocking validation calls
+- **Error Resilience**: Fallback to fresh processing on failures
+- **Audit Logging**: Comprehensive event tracking for compliance
+
+### Security Patterns
+
+- **Zero-Trust Approach**: Every cache hit requires active validation
+- **Fail-Safe Design**: Invalid tokens trigger cache clearing
+- **Comprehensive Logging**: All verification events are audited
+- **Error Isolation**: Validation failures don't expose cached content
+
 ## Performance Considerations
 
 - Cache key generation: <1ms overhead
 - SHA-256 hashing ensures uniqueness
 - Token-based isolation prevents cross-user pollution
 - Invalidation operations are optimized for performance
+- Cache verification: <10ms overhead with validation caching

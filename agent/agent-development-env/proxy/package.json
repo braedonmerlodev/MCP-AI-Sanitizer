@@ -5,7 +5,9 @@
   "main": "proxy.js",
   "scripts": {
     "start": "node proxy.js",
-    "test": "node test_trust_tokens.js"
+    "test": "jest",
+    "test:integration": "jest test_cache_verification_integration.js",
+    "test:unit": "node test_trust_tokens.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -15,5 +17,10 @@
     "express-rate-limit": "^7.1.5",
     "node-cache": "^5.1.2",
     "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "axios-mock-adapter": "^1.22.0",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   }
 }

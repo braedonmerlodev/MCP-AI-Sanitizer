@@ -248,20 +248,44 @@ const validateTrustTokenWithBackend = async (token) => {
 // Function to perform full backend validation (async)
 const performBackendValidation = async (trustToken) => {
   if (!trustToken) {
-    return { isValid: false, error: 'No token provided' };
+    return {
+      isValid: false,
+      error: 'No token provided',
+      validationType: 'missing_token',
+      statusCode: 400,
+    };
   }
 
-  // For now, we need a complete trust token object, not just a string
-  // This will be enhanced when we have the full token structure
-  if (typeof trustToken === 'string') {
-    // If we only have a token string, we can't validate it fully yet
-    // Return basic validation result
-    const basicValidation = validateTrustToken(trustToken);
+  // First do basic format validation
+  const basicValidation = validateTrustToken(trustToken);
+  if (!basicValidation.valid) {
     return {
-      isValid: basicValidation.valid,
-      error: basicValidation.valid ? null : basicValidation.reason,
-      validationType: 'basic',
+      isValid: false,
+      error: basicValidation.reason,
+      validationType: 'basic_format_check',
+      format: basicValidation.format,
+      statusCode: 400,
     };
+  }
+
+  // For strings, perform backend validation
+  if (typeof trustToken === 'string') {
+    try {
+      const result = await validateTrustTokenWithBackend(trustToken);
+      return {
+        ...result,
+        validationType: 'full_backend',
+        format: basicValidation.format,
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        error: `Backend validation failed: ${error.message}`,
+        validationType: 'backend_error',
+        format: basicValidation.format,
+        statusCode: 500,
+      };
+    }
   }
 
   // Perform full backend validation
@@ -269,13 +293,20 @@ const performBackendValidation = async (trustToken) => {
     const result = await validateTrustTokenWithBackend(trustToken);
     return {
       ...result,
-      validationType: 'full',
+      validationType: 'full_backend',
+      statusCode: result.statusCode || 200,
     };
   } catch (error) {
+    logger.warn('Backend validation service error', {
+      error: error.message,
+      tokenPresent: !!trustToken,
+      validationType: 'backend_error',
+    });
     return {
       isValid: false,
-      error: `Backend validation failed: ${error.message}`,
-      validationType: 'error',
+      error: `Backend validation service unavailable: ${error.message}`,
+      validationType: 'backend_service_error',
+      statusCode: error.response?.status || 503,
     };
   }
 };
@@ -517,8 +548,68 @@ app.post('/api/process-pdf', async (req, res) => {
     // Check cache first
     const cachedResponse = cache.get(cacheKey);
     if (cachedResponse) {
-      logger.info('Cache hit', { requestId });
-      return res.json(cachedResponse);
+      // Cache hit - verify trust token before serving cached content
+      logger.info('Cache hit - verifying trust token', { requestId });
+
+      try {
+        // Perform trust token validation with backend
+        const validationResult = await performBackendValidation(req.trustToken);
+
+        if (!validationResult.isValid) {
+          // Trust token is invalid - invalidate all cache entries for this token and proxy to backend
+          logger.warn(
+            'Invalid trust token for cached content - invalidating all related cache entries',
+            {
+              requestId,
+              cacheKey: cacheKey.substring(0, 16) + '...',
+              validationError: validationResult.error,
+              validationType: validationResult.validationType,
+            },
+          );
+          const clearedCount = invalidateCacheByTrustToken(
+            req.trustToken,
+            req.trustTokenValidation,
+          );
+          logger.info('Cache invalidation completed for invalid token', {
+            requestId,
+            entriesCleared: clearedCount,
+            tokenFormat: req.trustTokenValidation.format,
+          });
+          // Continue to backend proxy for fresh content
+        } else {
+          // Trust token is valid - serve cached content
+          logger.info('Trust token verified - serving cached content', {
+            requestId,
+            cacheKey: cacheKey.substring(0, 16) + '...',
+            validationType: validationResult.validationType,
+          });
+
+          // Mark request as validated for logging
+          req.trustTokenValidated = true;
+
+          return res.json(cachedResponse);
+        }
+      } catch (validationError) {
+        // Validation service error - log and invalidate all cache entries for this token for security
+        logger.error(
+          'Trust token validation service error - invalidating all related cache entries',
+          {
+            requestId,
+            error: validationError.message,
+            cacheKey: cacheKey.substring(0, 16) + '...',
+          },
+        );
+
+        // Remove all cached content for this token when validation service is unavailable
+        const clearedCount = invalidateCacheByTrustToken(req.trustToken, req.trustTokenValidation);
+        logger.info('Cache invalidation completed due to validation service error', {
+          requestId,
+          entriesCleared: clearedCount,
+          tokenFormat: req.trustTokenValidation.format,
+        });
+
+        // Continue to backend proxy for fresh content
+      }
     }
 
     // Proxy to backend
@@ -621,14 +712,16 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  logger.info('Proxy service started', {
-    port: PORT,
-    backend: BACKEND_URL,
-    rateLimit: `${RATE_LIMIT_REQUESTS} requests per ${RATE_LIMIT_WINDOW / 1000} seconds`,
+// Start server only if not in test environment
+if (require.main === module) {
+  app.listen(PORT, () => {
+    logger.info('Proxy service started', {
+      port: PORT,
+      backend: BACKEND_URL,
+      rateLimit: `${RATE_LIMIT_REQUESTS} requests per ${RATE_LIMIT_WINDOW / 1000} seconds`,
+    });
   });
-});
+}
 
 // Export functions for testing
 module.exports = {
@@ -639,4 +732,14 @@ module.exports = {
   generateTrustTokenCacheKey,
   invalidateCacheByTrustToken,
   getCacheStatsByTrustToken,
+  performBackendValidation,
+  validateTrustTokenWithBackend,
+  // Export cache instances for testing
+  cache,
+  validationCache,
+  // Test helper to clear caches
+  clearCaches: () => {
+    cache.flushAll();
+    validationCache.flushAll();
+  },
 };
