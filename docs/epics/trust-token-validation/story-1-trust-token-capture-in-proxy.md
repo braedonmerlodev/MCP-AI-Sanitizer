@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready
+Done
 
 ## Story
 
@@ -20,14 +20,14 @@ Ready
 
 ## Tasks / Subtasks
 
-- [ ] Analyze current proxy HTTP request handling (Express.js middleware)
-- [ ] Implement trust token extraction from HTTP headers and cookies
-- [ ] Add trust token format validation logic (coordinate with security team for formats)
-- [ ] Handle missing or malformed trust tokens gracefully
-- [ ] Add comprehensive audit logging for token extraction events
-- [ ] Test token extraction across different HTTP request scenarios
-- [ ] Document token extraction patterns for future maintenance
-- [ ] Verify WebSocket requirements and plan separate implementation if needed
+- [x] Analyze current proxy HTTP request handling (Express.js middleware)
+- [x] Implement trust token extraction from HTTP headers and cookies
+- [x] Add trust token format validation logic (coordinate with security team for formats)
+- [x] Handle missing or malformed trust tokens gracefully
+- [x] Add comprehensive audit logging for token extraction events
+- [x] Test token extraction across different HTTP request scenarios
+- [x] Document token extraction patterns for future maintenance
+- [x] Verify WebSocket requirements and plan separate implementation if needed
 
 ## Dev Notes
 

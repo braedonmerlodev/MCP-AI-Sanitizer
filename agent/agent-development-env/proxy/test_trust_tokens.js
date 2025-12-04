@@ -1,0 +1,195 @@
+const { validateTrustToken, getTokenFormat } = require('./proxy');
+
+// Test token validation logic
+describe('Trust Token Validation', () => {
+  test('validates basic token format', () => {
+    const result = validateTrustToken('valid-token-12345');
+
+    expect(result.valid).toBe(true);
+    expect(result.format).toBe('custom');
+  });
+
+  test('validates UUID format', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const result = validateTrustToken(uuid);
+
+    expect(result.valid).toBe(true);
+    expect(result.format).toBe('uuid');
+  });
+
+  test('rejects tokens that are too short', () => {
+    const result = validateTrustToken('short');
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('too_short');
+  });
+
+  test('rejects tokens with invalid characters', () => {
+    const result = validateTrustToken('invalid@token!');
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('invalid_characters');
+  });
+
+  test('rejects tokens that are too long', () => {
+    const longToken = 'a'.repeat(3000);
+    const result = validateTrustToken(longToken);
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('too_long');
+  });
+
+  test('handles null/undefined tokens', () => {
+    expect(validateTrustToken(null).valid).toBe(false);
+    expect(validateTrustToken(undefined).valid).toBe(false);
+    expect(validateTrustToken('').valid).toBe(false);
+  });
+});
+
+// Test token format detection
+describe('Token Format Detection', () => {
+  test('detects JWT format', () => {
+    expect(getTokenFormat('header.payload.signature')).toBe('jwt');
+  });
+
+  test('detects UUID format', () => {
+    expect(getTokenFormat('550e8400-e29b-41d4-a716-446655440000')).toBe('uuid');
+  });
+
+  test('detects base64 format', () => {
+    expect(getTokenFormat('SGVsbG8gV29ybGQ')).toBe('base64');
+  });
+
+  test('defaults to custom format', () => {
+    expect(getTokenFormat('some-custom-token')).toBe('custom');
+  });
+
+  test('handles empty input', () => {
+    expect(getTokenFormat(null)).toBe('none');
+    expect(getTokenFormat('')).toBe('none');
+  });
+});
+
+const createMockRes = () => ({
+  status: jest.fn().mockReturnThis(),
+  json: jest.fn(),
+});
+
+const createMockNext = () => jest.fn();
+
+// Test trust token extraction from various sources
+describe('Trust Token Extraction', () => {
+  test('extracts token from Authorization header', () => {
+    const req = createMockReq({
+      authorization: 'Bearer test-token-123',
+    });
+    const res = createMockRes();
+    const next = createMockNext();
+
+    extractTrustToken(req, res, next);
+
+    expect(req.trustToken).toBe('test-token-123');
+    expect(req.trustTokenValidation.valid).toBe(true);
+    expect(next).toHaveBeenCalled();
+  });
+
+  test('extracts token from X-Trust-Token header', () => {
+    const req = createMockReq({
+      'x-trust-token': 'custom-token-456',
+    });
+    const res = createMockRes();
+    const next = createMockNext();
+
+    extractTrustToken(req, res, next);
+
+    expect(req.trustToken).toBe('custom-token-456');
+    expect(req.trustTokenValidation.valid).toBe(true);
+  });
+
+  test('extracts token from cookie', () => {
+    const req = createMockReq(
+      {},
+      {
+        trust_token: 'cookie-token-789',
+      },
+    );
+    const res = createMockRes();
+    const next = createMockNext();
+
+    extractTrustToken(req, res, next);
+
+    expect(req.trustToken).toBe('cookie-token-789');
+    expect(req.trustTokenValidation.valid).toBe(true);
+  });
+
+  test('handles missing token gracefully', () => {
+    const req = createMockReq();
+    const res = createMockRes();
+    const next = createMockNext();
+
+    extractTrustToken(req, res, next);
+
+    expect(req.trustToken).toBeNull();
+    expect(req.trustTokenValidation.valid).toBe(false);
+    expect(next).toHaveBeenCalled();
+  });
+});
+
+// Test token validation logic
+describe('Trust Token Validation', () => {
+  test('validates JWT format', () => {
+    const jwt =
+      'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ0ZXN0IiwiaWF0IjoxNjgzNjQ5NjAwLCJleHAiOjE2ODM2NTMyMDAsImF1ZCI6Ind3dy5leGFtcGxlLmNvbSIsInN1YiI6InVzZXJAeGFtcGxlLmNvbSJ9.signature';
+    const result = validateTrustToken(jwt);
+
+    expect(result.valid).toBe(true);
+    expect(result.format).toBe('jwt');
+  });
+
+  test('validates UUID format', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const result = validateTrustToken(uuid);
+
+    expect(result.valid).toBe(true);
+    expect(result.format).toBe('uuid');
+  });
+
+  test('rejects tokens that are too short', () => {
+    const result = validateTrustToken('short');
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('too_short');
+  });
+
+  test('rejects tokens with invalid characters', () => {
+    const result = validateTrustToken('invalid@token!');
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('invalid_characters');
+  });
+
+  test('handles null/undefined tokens', () => {
+    expect(validateTrustToken(null).valid).toBe(false);
+    expect(validateTrustToken(undefined).valid).toBe(false);
+    expect(validateTrustToken('').valid).toBe(false);
+  });
+});
+
+// Test token format detection
+describe('Token Format Detection', () => {
+  test('detects JWT format', () => {
+    expect(getTokenFormat('header.payload.signature')).toBe('jwt');
+  });
+
+  test('detects UUID format', () => {
+    expect(getTokenFormat('550e8400-e29b-41d4-a716-446655440000')).toBe('uuid');
+  });
+
+  test('detects base64 format', () => {
+    expect(getTokenFormat('SGVsbG8gV29ybGQ')).toBe('base64');
+  });
+
+  test('defaults to custom format', () => {
+    expect(getTokenFormat('some-custom-token')).toBe('custom');
+  });
+});

@@ -4,6 +4,14 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const NodeCache = require('node-cache');
 const winston = require('winston');
+const cookieParser = require('cookie-parser');
+
+// Export functions for testing
+module.exports = {
+  validateTrustToken,
+  getTokenFormat,
+  extractTrustToken,
+};
 
 const app = express();
 
@@ -28,8 +36,177 @@ const logger = winston.createLogger({
   ],
 });
 
+// Trust token validation function
+const validateTrustToken = (token) => {
+  if (!token || typeof token !== 'string') {
+    return { valid: false, reason: 'missing_or_invalid_type' };
+  }
+
+  // Check minimum length (reasonable security threshold)
+  if (token.length < 8) {
+    return { valid: false, reason: 'too_short' };
+  }
+
+  // Check maximum length (prevent DoS)
+  if (token.length > 2048) {
+    return { valid: false, reason: 'too_long' };
+  }
+
+  // Check for basic format validity
+  // Allow alphanumeric, dots, dashes, underscores, plus, slash (for JWT/base64)
+  const validChars = /^[A-Za-z0-9._\-+/=]+$/;
+  if (!validChars.test(token)) {
+    return { valid: false, reason: 'invalid_characters' };
+  }
+
+  // Additional format checks based on detected type
+  const format = getTokenFormat(token);
+  switch (format) {
+    case 'jwt':
+      // JWT should have exactly 2 dots (header.payload.signature)
+      const dotCount = (token.match(/\./g) || []).length;
+      if (dotCount !== 2) {
+        return { valid: false, reason: 'invalid_jwt_format' };
+      }
+      break;
+
+    case 'uuid':
+      // UUID format already validated in getTokenFormat
+      break;
+
+    case 'base64':
+      // Should be valid base64
+      try {
+        atob(token.replace(/-/g, '+').replace(/_/g, '/'));
+      } catch (e) {
+        return { valid: false, reason: 'invalid_base64' };
+      }
+      break;
+
+    default:
+      // For custom formats, basic validation is sufficient
+      break;
+  }
+
+  return { valid: true, format };
+};
+
+// Helper function to detect basic token format (for logging only)
+const getTokenFormat = (token) => {
+  if (!token) return 'none';
+
+  // JWT format (has dots)
+  if (token.includes('.')) return 'jwt';
+
+  // UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(token)) return 'uuid';
+
+  // Base64-like format
+  if (token.length > 20 && /^[A-Za-z0-9+/=]+$/.test(token)) return 'base64';
+
+  // Default to custom
+  return 'custom';
+};
+
+// Trust token extraction middleware
+const extractTrustToken = (req, res, next) => {
+  const requestId = Math.random().toString(36).substring(7);
+
+  // Extract trust token from various sources
+  let trustToken = null;
+
+  // Check Authorization header (Bearer token)
+  const authHeader = req.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    trustToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+  }
+
+  // Check X-Trust-Token header
+  if (!trustToken) {
+    trustToken = req.get('X-Trust-Token');
+  }
+
+  // Check trust_token cookie
+  if (!trustToken && req.cookies) {
+    trustToken = req.cookies.trust_token;
+  }
+
+  // Check custom headers (coordinate with security team)
+  if (!trustToken) {
+    trustToken = req.get('X-Security-Token') || req.get('X-Auth-Token');
+  }
+
+  // Validate the extracted token
+  const validation = validateTrustToken(trustToken);
+
+  // Store extracted token and validation on request object
+  req.trustToken = trustToken;
+  req.trustTokenValidation = validation;
+  req.requestId = requestId;
+
+  // Handle missing or invalid tokens gracefully with comprehensive audit logging
+  if (!trustToken) {
+    // No token found - comprehensive audit logging
+    logger.warn('TRUST_TOKEN_MISSING', {
+      eventType: 'trust_token_extraction',
+      requestId,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString(),
+      checkedSources: [
+        'Authorization',
+        'X-Trust-Token',
+        'cookie',
+        'X-Security-Token',
+        'X-Auth-Token',
+      ],
+      severity: 'medium',
+      action: 'logged_and_continued',
+    });
+  } else if (!validation.valid) {
+    // Invalid token found - detailed security audit logging
+    logger.warn('TRUST_TOKEN_INVALID', {
+      eventType: 'trust_token_validation',
+      requestId,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString(),
+      tokenLength: trustToken.length,
+      tokenFormat: getTokenFormat(trustToken),
+      validationFailureReason: validation.reason,
+      severity: 'high',
+      action: 'logged_and_continued',
+      recommendation: 'review_token_format_requirements',
+    });
+
+    // For security-critical endpoints, we might want to add additional handling
+    // For now, we log extensively and continue to maintain backward compatibility
+  } else {
+    // Valid token - success audit logging
+    logger.info('TRUST_TOKEN_VALID', {
+      eventType: 'trust_token_validation',
+      requestId,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      timestamp: new Date().toISOString(),
+      tokenFormat: validation.format,
+      severity: 'low',
+      action: 'validation_successful',
+    });
+  }
+
+  next();
+};
+
 // Middleware
 app.use(cors());
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting
@@ -57,10 +234,13 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Trust token extraction middleware
+app.use('/api/', extractTrustToken);
+
 // Request logging middleware (no sensitive data)
 app.use('/api/', (req, res, next) => {
   const start = Date.now();
-  const requestId = Math.random().toString(36).substring(7);
+  const requestId = req.requestId || Math.random().toString(36).substring(7);
 
   logger.info('API Request', {
     requestId,
@@ -69,6 +249,7 @@ app.use('/api/', (req, res, next) => {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
     contentLength: req.get('content-length'),
+    trustTokenPresent: !!req.trustToken,
   });
 
   // Override res.json to log response
@@ -80,6 +261,7 @@ app.use('/api/', (req, res, next) => {
       statusCode: res.statusCode,
       duration,
       hasData: !!data,
+      trustTokenValidated: req.trustTokenValidated || false,
     });
     return originalJson.call(this, data);
   };
