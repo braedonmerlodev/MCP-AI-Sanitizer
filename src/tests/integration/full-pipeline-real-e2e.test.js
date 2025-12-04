@@ -81,6 +81,6 @@ describe('Full Pipeline Integration: PDF Upload → Trust Token Generation', () 
       // The trust token ensures content integrity through cryptographic validation
 
       console.log('✅ Full pipeline test passed - trust tokens generated and validated');
-    }, 60000); // 60 second timeout for async processing
+    }, 60_000); // 60 second timeout for async processing
   });
 });

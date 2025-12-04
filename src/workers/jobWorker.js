@@ -7,8 +7,27 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const pdfParse = require('pdf-parse');
 
-// Ensure config is loaded for environment variables
-const config = require('../config');
+/**
+ * Recursively sanitizes string values in an object or array
+ */
+function sanitizeObject(data) {
+  if (typeof data === 'string') {
+    // Simple sanitization for strings
+    return data
+      .replaceAll(/[<>"']/g, '')
+      .replaceAll(/javascript:/gi, '')
+      .replaceAll(/on\w+=/gi, '');
+  } else if (Array.isArray(data)) {
+    return data.map((item) => sanitizeObject(item));
+  } else if (data && typeof data === 'object') {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(data)) {
+      sanitized[key] = sanitizeObject(value);
+    }
+    return sanitized;
+  }
+  return data;
+}
 
 const logger = winston.createLogger({
   level: 'info',
@@ -45,11 +64,7 @@ async function processJob(job) {
       try {
         const data = await pdfParse(buffer);
         // Ensure extractedText is a string
-        if (typeof data.text === 'string') {
-          extractedText = data.text;
-        } else {
-          extractedText = String(data.text || '');
-        }
+        extractedText = typeof data.text === 'string' ? data.text : String(data.text || '');
         metadata = {
           pages: data.numpages,
           title: data.info?.Title || null,
@@ -120,11 +135,10 @@ async function processJob(job) {
       const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
 
       // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
-      if (typeof sanitized === 'object' && sanitized.sanitizedData) {
-        result = sanitized; // Includes trustToken
-      } else {
-        result = { sanitizedData: sanitized };
-      }
+      result =
+        typeof sanitized === 'object' && sanitized.sanitizedData
+          ? sanitized // Includes trustToken
+          : { sanitizedData: sanitized };
 
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
@@ -132,7 +146,8 @@ async function processJob(job) {
         const repairResult = jsonRepair.repair(result.sanitizedData);
 
         if (repairResult.success) {
-          result.sanitizedData = repairResult.data;
+          // Sanitize the structured data
+          result.sanitizedData = sanitizeObject(repairResult.data);
           if (repairResult.repairs.length > 0) {
             logger.info('JSON repair applied during PDF processing', {
               jobId,

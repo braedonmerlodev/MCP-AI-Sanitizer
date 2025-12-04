@@ -32,6 +32,7 @@ from agent.security_agent import SecurityAgent
 import logging
 from datetime import datetime, timedelta
 import re
+import bleach
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 import psutil
 from monitoring.alerting import alert_manager
@@ -125,6 +126,20 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
+# Pre-compiled regex patterns for performance
+ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[^A-Za-z]*[A-Za-z]')
+SCRIPT_TAG_PATTERN = re.compile(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', re.IGNORECASE)
+HTML_TAG_PATTERN = re.compile(r'<[^>]*>')
+EVENT_HANDLER_PATTERN = re.compile(r'on\w+\s*=', re.IGNORECASE)
+JAVASCRIPT_URL_PATTERN = re.compile(r'javascript:', re.IGNORECASE)
+DATA_URL_PATTERN = re.compile(r'data:\s*text\/html[^,]+,', re.IGNORECASE)
+XSS_KEYWORD_PATTERN = re.compile(r'\b(alert|img|src|javascript|script|onerror|onload)\b', re.IGNORECASE)
+BAD_CHARS_PATTERN = re.compile(r'[`©®™€£¥§¶†‡‹›Øß²³´]')
+PDF_ARTIFACTS_PATTERN = re.compile(r'[þÿ‰°ÀÐï•]')
+
+# Initialize globally to avoid re-creation overhead
+BLEACH_CLEANER = bleach.sanitizer.Cleaner(tags=[], strip=True)
+
 # Security functions
 def validate_file_type(file_content: bytes, filename: str) -> bool:
     """Validate file type by checking magic bytes and extension"""
@@ -145,9 +160,54 @@ def validate_file_type(file_content: bytes, filename: str) -> bool:
 
 
 def sanitize_input(text: str) -> str:
-    """Sanitize input text to prevent injection attacks"""
-    # Remove potentially dangerous characters
-    text = re.sub(r"[<>]", "", text)
+    """Sanitize input text using the full pipeline like Node.js"""
+    import unicodedata
+
+    # Ensure it's a string
+    if not isinstance(text, str):
+        text = str(text or '')
+
+    # 1. Unicode normalization
+    text = unicodedata.normalize('NFC', text)
+
+    # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
+    text = ANSI_ESCAPE_PATTERN.sub('', text)
+
+    # 3. Symbol stripping - remove zero-width, control characters, and soft hyphens
+    zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF\u00AD'
+    control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
+    text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
+
+    # 4. HTML sanitization - hybrid approach for performance
+    # Use fast regex for most cases, bleach only for complex content
+    if '<' in text and '>' in text:
+        # Use bleach only for content with script tags (most security-critical)
+        if '<script' in text.lower():
+            # First remove script tags and content (critical for security)
+            text = SCRIPT_TAG_PATTERN.sub('', text)
+            # Then use bleach for remaining HTML
+            text = BLEACH_CLEANER.clean(text)
+        else:
+            # Use fast regex for non-script HTML
+            # Remove HTML tags
+            text = HTML_TAG_PATTERN.sub('', text)
+            # Remove event handlers
+            text = EVENT_HANDLER_PATTERN.sub('', text)
+
+    # Always apply non-HTML XSS protection
+    # Remove javascript: URLs
+    text = JAVASCRIPT_URL_PATTERN.sub('', text)
+    # Remove data URLs that might contain scripts
+    text = DATA_URL_PATTERN.sub('', text)
+    # Remove potential XSS keywords
+    text = XSS_KEYWORD_PATTERN.sub('', text)
+
+    # Remove specific bad characters and symbols
+    text = BAD_CHARS_PATTERN.sub('', text)
+
+    # Remove PDF-specific bad characters
+    text = PDF_ARTIFACTS_PATTERN.sub('', text)
+
     # Limit length
     return text[:MAX_TEXT_LENGTH]
 
@@ -197,7 +257,7 @@ def log_security_event(
 def generate_trust_token(content: str, rules_applied: list = None) -> dict:
     """Generate a trust token for sanitized content"""
     if rules_applied is None:
-        rules_applied = ["UnicodeNormalization", "SymbolStripping"]
+        rules_applied = ["UnicodeNormalization", "SymbolStripping", "BleachSanitization"]
 
     # Generate content hash
     content_hash = hashlib.sha256(content.encode('utf-8')).digest().hex()
@@ -234,6 +294,20 @@ def validate_trust_token(trust_token: dict) -> bool:
     except Exception as e:
         logging.error(f"Trust token validation failed: {e}")
         return False
+
+
+def sanitize_dict(data):
+    """Recursively sanitize string values (and keys) in a dict using the main sanitize_input function"""
+    if isinstance(data, dict):
+        # Sanitize both keys and values
+        return {sanitize_input(k): sanitize_dict(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_dict(item) for item in data]
+    elif isinstance(data, str):
+        # Use the main sanitize_input function for consistent sanitization
+        return sanitize_input(data)
+    else:
+        return data
 
 
 def update_system_metrics():
@@ -361,9 +435,12 @@ async def get_agent():
 
                 async def sanitize_content(self, **kwargs):
                     content = kwargs.get('content', '')
+                    # Use bleach for consistent sanitization with main implementation
+                    import bleach
+                    sanitized = bleach.clean(content, tags=[], strip=True)
                     return {
                         "success": True,
-                        "sanitized_content": content,
+                        "sanitized_content": sanitized,
                         "processing_time": "0.001"
                     }
 
@@ -610,17 +687,24 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
         trust_token = None
         structured_output = enhance_result.get("structured_output")
         if success and enhance_result.get("enhanced_content"):
-            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement"])
+            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement", "BleachSanitization"])
             # Add trust token to structured output if it exists
             if structured_output and isinstance(structured_output, dict):
                 structured_output["trustToken"] = trust_token
+                # Sanitize the structured output
+                structured_output = sanitize_dict(structured_output)
+
+        # Sanitize enhanced content
+        enhanced_content = enhance_result.get("enhanced_content")
+        if enhanced_content:
+            enhanced_content = sanitize_input(enhanced_content)
 
         # Update job with results
         processing_jobs[job_id]["status"] = "completed" if success else "failed"
         processing_jobs[job_id]["result"] = {
             "success": success,
             "sanitized_content": sanitize_result.get("sanitized_content"),
-            "enhanced_content": enhance_result.get("enhanced_content"),
+            "enhanced_content": enhanced_content,
             "structured_output": structured_output,
             "trustToken": trust_token,
             "processing_time": enhance_result.get("processing_metadata", {}).get(
