@@ -7,12 +7,16 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "lint": "eslint src",
+    "monitor:health": "node scripts/agent-message-health-monitor.js",
     "start": "node src/app.js",
     "test": "jest",
     "test:coverage": "jest --coverage && npm run test:coverage:verify && npm run test:performance",
     "test:coverage:verify": "node scripts/verify-coverage.js",
+    "test:edge-cases": "node scripts/run-edge-case-tests.js",
     "test:integration": "jest src/tests/integration",
+    "test:load": "node scripts/load-test-agent-messages.js",
     "test:performance": "node scripts/measure-performance.js",
+    "test:regression": "node scripts/run-regression-tests.js",
     "test:unit": "jest src/tests/unit"
   },
   "jest": {
@@ -59,6 +63,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",
+    "artillery": "^2.0.27",
     "better-queue-sql": "^1.0.6",
     "eslint": "^9.38.0",
     "eslint-config-prettier": "^10.1.8",
