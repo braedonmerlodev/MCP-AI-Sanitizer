@@ -12,46 +12,46 @@ Pending
 
 ## Acceptance Criteria
 
-1. **Cache Content Verification**: Cached PDFs are verified against current trust token status
-2. **Automatic Invalidation**: Stale/invalid cached content is automatically invalidated
-3. **Efficient Verification**: Cache verification happens without full reprocessing
-4. **Fresh Content Serving**: Invalid cache entries trigger fresh processing
-5. **Performance Optimization**: Verification adds minimal overhead to cache hits
-6. **Audit Trail**: Cache verification events are logged for monitoring
-
-## Dependencies
-
-- Cache key integration with trust tokens (Story 2)
-- Trust token validation logic (Story 3)
-- Existing caching infrastructure
-- Audit logging system
+1. **Cache Content Verification**: Cached PDFs are verified against current trust token status on cache hit
+2. **Automatic Invalidation**: Stale/invalid cached content is automatically invalidated and removed
+3. **Efficient Verification**: Cache verification happens without full reprocessing (<10ms overhead)
+4. **Fresh Content Serving**: Invalid cache entries trigger fresh processing from backend
+5. **Performance Optimization**: Verification adds minimal overhead (<5% impact on cache hit rate)
+6. **Audit Trail**: Cache verification events are logged for monitoring and compliance
+7. **Error Handling**: Network failures during verification fall back to cache invalidation
+8. **Concurrent Safety**: Multiple requests can safely trigger verification without race conditions
 
 ## Tasks / Subtasks
 
-- [ ] Design cache verification workflow
-- [ ] Implement trust token status checking for cached items
-- [ ] Add automatic cache invalidation logic
-- [ ] Optimize verification to minimize performance impact
-- [ ] Implement fresh processing triggers for invalid cache
-- [ ] Add comprehensive logging for verification events
-- [ ] Test verification accuracy and performance
-- [ ] Document cache verification patterns
+- [ ] Design cache verification workflow (AC: 1, 3, 4)
+- [ ] Implement trust token status checking for cached items (AC: 1, 2)
+- [ ] Add automatic cache invalidation logic (AC: 2, 4)
+- [ ] Optimize verification to minimize performance impact (AC: 3, 5)
+- [ ] Implement fresh processing triggers for invalid cache (AC: 4)
+- [ ] Add comprehensive logging for verification events (AC: 6)
+- [ ] Implement error handling for verification failures (AC: 7)
+- [ ] Add concurrent safety measures (AC: 8)
+- [ ] Test verification accuracy and performance (AC: 1-8)
+- [ ] Document cache verification patterns (AC: 6)
 
 ## Dev Notes
 
 ### Relevant Source Tree Info
 
-- **Caching**: node-cache implementation in proxy
-- **Cache Keys**: Trust token integrated keys from Story 2
-- **Validation**: Trust token validation from Story 3
-- **Performance**: Cache hit/miss performance monitoring
+- **Caching**: node-cache implementation in `agent/agent-development-env/proxy/proxy.js`
+- **Cache Keys**: Trust token integrated keys from Story 2 implementation
+- **Validation**: Trust token validation from Story 3 (`validateTrustTokenWithBackend` function)
+- **Performance**: Cache hit/miss performance monitoring via Winston logging
+- **Epic Reference**: Trust Token PDF Caching Verification Epic (`docs/epics/trust-token-pdf-caching-verification-epic.md`)
+- **Dependencies**: Stories 2 & 3 provide cache keys and validation logic
 
 ### Technical Constraints
 
-- Cache verification should not slow down cache hits significantly
-- Verification logic should be lightweight
-- Automatic invalidation should be reliable
-- Fresh processing should not cause infinite loops
+- Cache verification should not slow down cache hits significantly (<10ms overhead)
+- Verification logic should be lightweight and non-blocking
+- Automatic invalidation should be reliable and atomic
+- Fresh processing should not cause infinite loops (circuit breaker pattern)
+- Must integrate with existing proxy-sanitizer.js cache implementation
 
 ### Security Considerations
 
@@ -64,10 +64,11 @@ Pending
 
 ### Testing Strategy
 
-- **Unit Tests**: Test verification logic with mock cache entries
-- **Integration Tests**: Test end-to-end cache verification workflows
-- **Performance Tests**: Verify verification overhead is minimal
-- **Security Tests**: Test handling of tampered cache entries
+- **Unit Tests**: Test verification logic with mock cache entries (Jest framework)
+- **Integration Tests**: Test end-to-end cache verification workflows (Supertest)
+- **Performance Tests**: Verify verification overhead is minimal (k6/load testing)
+- **Security Tests**: Test handling of tampered cache entries and concurrent access
+- **Concurrency Tests**: Test race condition handling and thread safety
 
 ## Dev Agent Record
 
@@ -91,6 +92,7 @@ Pending
 
 | Date       | Version | Description                                                    | Author |
 | ---------- | ------- | -------------------------------------------------------------- | ------ | ---------- |
-| 2025-12-04 | v1.0    | Initial story creation for cache verification and invalidation | PO     | </content> |
+| 2025-12-04 | v1.0    | Initial story creation for cache verification and invalidation | PO     |
+| 2025-12-04 | v1.1    | Fixed template compliance and added detailed specifications    | PO     | </content> |
 
 <parameter name="filePath">docs/epics/trust-token-validation/story-4-cache-verification-and-invalidation.md
