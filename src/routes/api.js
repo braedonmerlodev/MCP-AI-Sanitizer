@@ -557,6 +557,41 @@ router.post(
 );
 
 /**
+ * POST /api/chat
+ * Handles chat messages with AI processing and sanitization.
+ */
+router.post('/chat', accessValidationMiddleware, destinationTracking, async (req, res) => {
+  try {
+    const { message, context } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Use AI transformer for chat response
+    const aiResponse = await aiTransformer.transform(message, 'chat', {
+      context: context || [],
+      sanitizerOptions: {
+        classification: req.destinationTracking.classification,
+      },
+    });
+
+    // Sanitize the response
+    const sanitizedResponse = await proxySanitizer.sanitize(aiResponse.text, {
+      classification: req.destinationTracking.classification,
+    });
+
+    res.json({
+      response: sanitizedResponse,
+      metadata: aiResponse.metadata,
+    });
+  } catch (error) {
+    logger.error('Chat processing error', { error: error.message });
+    res.status(500).json({ error: 'Chat processing failed' });
+  }
+});
+
+/**
  * POST /api/webhook/n8n
  * Handles n8n webhook requests with automatic sanitization.
  */

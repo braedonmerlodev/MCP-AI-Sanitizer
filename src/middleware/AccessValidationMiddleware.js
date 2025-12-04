@@ -44,7 +44,8 @@ function accessValidationMiddleware(req, res, next) {
     if (
       (req.path === '/sanitize/json' && req.method === 'POST') ||
       (req.path === '/export/training-data' && req.method === 'POST') ||
-      (req.path === '/documents/upload' && req.method === 'POST')
+      (req.path === '/documents/upload' && req.method === 'POST') ||
+      (req.path === '/chat' && req.method === 'POST')
     ) {
       return next();
     }

@@ -158,7 +158,7 @@ export function getEnvironmentConfig() {
   const env = getEnvironment()
   const configs = {
     development: {
-      backendUrl: 'http://localhost:8000',
+      backendUrl: 'http://localhost:3000',
       requireApiKey: false,
     },
     staging: {

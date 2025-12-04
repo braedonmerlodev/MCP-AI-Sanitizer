@@ -46,9 +46,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [hasNewMessages, setHasNewMessages] = useState(false)
   const prevMessagesLengthRef = useRef(0)
+  const hasSentInitialMessageRef = useRef(false)
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      container.scrollTop = container.scrollHeight
+    }
   }, [])
 
   const handleScroll = useCallback(() => {
@@ -97,6 +101,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     scrollToBottom()
   }, [scrollToBottom])
+
+  // Send initial analysis message when processing result is available
+  useEffect(() => {
+    if (processingResult && !hasSentInitialMessageRef.current) {
+      hasSentInitialMessageRef.current = true
+      console.log(
+        'Sending automatic analysis message for processing result:',
+        processingResult
+      )
+      const analysisMessage =
+        "I've successfully processed and sanitized the PDF document. Here's a high-level security analysis of the content:"
+      sendMessage(analysisMessage)
+    }
+  }, [processingResult, sendMessage])
 
   // Add initial message when processing is complete
   useEffect(() => {
@@ -181,11 +199,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent
+        className="flex flex-col p-0"
+        style={{ height: 'calc(100% - 80px)' }}
+      >
         {/* Messages Area */}
         <div
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 relative bg-gradient-to-b from-background/50 to-muted/10"
+          style={{ height: 'calc(100% - 120px)' }}
           role="log"
           aria-live="polite"
           aria-label="Chat messages"
@@ -219,7 +241,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-border/50 p-4 sm:p-6 bg-card/30">
+        <div
+          className="border-t border-border/50 p-4 sm:p-6 bg-card/30 flex-shrink-0"
+          style={{ height: '120px' }}
+        >
           {error && (
             <div className="mb-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
               <p className="text-sm text-destructive font-medium">{error}</p>

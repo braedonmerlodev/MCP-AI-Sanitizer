@@ -53,7 +53,7 @@ async function processJob(job) {
 
     let result;
 
-    if (job.data.type === 'upload-pdf') {
+    if (job.data.type === 'pdf_processing') {
       // Handle PDF upload processing
       await jobStatus.updateProgress(10, 'Parsing PDF file');
 

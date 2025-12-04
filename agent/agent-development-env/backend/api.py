@@ -976,6 +976,7 @@ async def startup_event():
 
 async def process_pdf_background(job_id: str, file_content: bytes, filename: str, client_ip: str):
     """Background task to process PDF"""
+    print(f"Starting background processing for job {job_id}")
     processing_stages = []
     file_size = len(file_content)
     start_time = time.time()
@@ -1253,6 +1254,7 @@ async def process_pdf(
         # Generate job ID
         job_id = f"pdf_{secrets.token_hex(8)}"
         filename = file.filename or "unknown.pdf"
+        print(f"Created job {job_id} for file {filename}")
 
         # Initialize job
         processing_jobs[job_id] = {
@@ -1458,10 +1460,20 @@ async def websocket_chat(websocket: WebSocket):
 
     log_security_event("WEBSOCKET_CONNECT", {"connection_id": connection_id}, client_ip)
 
+    agent = None
     try:
-        # Initialize agent for this connection
-        agent = await get_agent()
-        active_connections[connection_id]["agent"] = agent
+        # Initialize agent for this connection (don't fail connection if agent init fails)
+        try:
+            agent = await get_agent()
+            active_connections[connection_id]["agent"] = agent
+        except Exception as agent_error:
+            logging.error(f"Failed to initialize agent for connection {connection_id}: {agent_error}")
+            # Send error message but keep connection alive for basic functionality
+            await websocket.send_json({
+                "type": "error",
+                "error": "Agent initialization failed - basic connectivity maintained"
+            })
+            # Continue without agent for now
 
         while True:
             # Receive message from client
@@ -1524,7 +1536,14 @@ async def websocket_chat(websocket: WebSocket):
             active_connections[connection_id]["context"] = context
 
             # Generate streaming response
-            await stream_chat_response(websocket, agent, user_message, context)
+            if agent:
+                await stream_chat_response(websocket, agent, user_message, context)
+            else:
+                # Send basic response when agent is not available
+                await websocket.send_json({
+                    "type": "error",
+                    "error": "Agent not available - please check server configuration"
+                })
 
     except WebSocketDisconnect:
         logging.info(f"WebSocket disconnected: {connection_id}")
