@@ -21,43 +21,49 @@ Draft
 7. **Testing Coverage**: Integration tests verify message display and ordering
 8. **Documentation**: Update agent documentation with sanitization summary message handling
 
-## Dependencies
-
-- Story: Sanitization Summary in HITL Chat (docs/stories/sanitization-summary-in-hitl-chat.md) - Provides backend sanitization logic
-- Agent Chat System: Existing agent message routing and display system
-
 ## Tasks / Subtasks
 
-- [ ] Analyze current agent message flow and routing system
-- [ ] Modify backend to send sanitization summaries as agent messages instead of response fields
-- [ ] Update message type identification for sanitization summaries
+- [ ] Verify agent message system architecture and routing patterns
+- [ ] Analyze current message flow in useChat hook and MessageBubble component
+- [ ] Design agent message format for sanitization summaries
+- [ ] Modify backend to send sanitization summaries as agent messages
+- [ ] Update message type identification in frontend components
 - [ ] Ensure proper message ordering (summary before normal response)
 - [ ] Test WebSocket message flow for sanitization summaries
-- [ ] Update frontend message handling for agent-sent sanitization summaries
-- [ ] Add integration tests for agent message display
-- [ ] Update agent documentation
+- [ ] Add integration tests for agent message display and ordering
+- [ ] Update agent documentation with message handling patterns
 
 ## Dev Notes
 
 ### Relevant Source Tree Info
 
-- **Agent Message System**: agent/agent-development-env/backend/ - Agent response handling
-- **Message Routing**: WebSocket and HTTP response paths
-- **Frontend Display**: MessageBubble component message type handling
-- **Chat Flow**: useChat hook message processing
+- **Frontend Components**: Verified components in agent/agent-development-env/frontend/
+  - MessageBubble component for message display
+  - useChat hook for message state management
+  - ChatInterface for UI integration
+- **Backend Integration**: api.py contains HTTP/WebSocket endpoints
+- **Dependencies**: Story: Sanitization Summary in HITL Chat provides sanitization logic
 
 ### Technical Constraints
 
-- Agent messages must follow existing message format and routing
-- Summary messages should be distinguishable from normal responses
-- Message ordering must be preserved in chat history
-- Performance impact should remain minimal
+- Message display must integrate with existing MessageBubble component patterns
+- Chat state management must work with useChat hook architecture
+- Performance impact should remain minimal (<5% overhead)
+- Must support both WebSocket streaming and HTTP response formats
+- Agent message routing to be determined during implementation
 
 ### Security Considerations
 
-- Sanitization summary messages should be properly validated
+- Sanitization summary messages should be properly validated before sending
 - No sensitive information leakage through agent messages
 - Message content should be sanitized before display
+- Follow existing security patterns from sanitization pipeline
+
+### Implementation Notes
+
+- Agent message system architecture needs verification during development
+- Message routing patterns to be confirmed with existing agent implementation
+- WebSocket message handling to be validated against current streaming implementation
 
 ## Testing
 
@@ -67,10 +73,32 @@ Draft
 - **UI Tests**: Verify message display and styling
 - **Ordering Tests**: Ensure correct message sequence
 
+## Dev Agent Record
+
+| Date | Agent | Task                              | Status  | Notes                                                       |
+| ---- | ----- | --------------------------------- | ------- | ----------------------------------------------------------- |
+| TBD  | TBD   | Verify agent message architecture | Pending | Confirm agent message system exists and routing patterns    |
+| TBD  | TBD   | Analyze frontend message handling | Pending | Review useChat hook and MessageBubble component integration |
+| TBD  | TBD   | Design agent message format       | Pending | Define message structure for sanitization summaries         |
+| TBD  | TBD   | Implement backend message sending | Pending | Modify backend to route summaries as agent messages         |
+| TBD  | TBD   | Update frontend message display   | Pending | Add support for agent-sent sanitization summary messages    |
+| TBD  | TBD   | Test message ordering             | Pending | Ensure summary appears before normal response               |
+| TBD  | TBD   | Add comprehensive tests           | Pending | Integration tests for message flow and WebSocket handling   |
+
+## QA Results
+
+| Date       | QA Agent | Test Type           | Status      | Issues Found                              | Resolution                                                                       |
+| ---------- | -------- | ------------------- | ----------- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| 2025-12-04 | PO       | Story validation    | In Progress | Agent message system documentation gaps   | Updated story with verified architecture references and conservative assumptions |
+| TBD        | TBD      | Integration testing | Pending     | Message ordering and display verification | Implement comprehensive test suite during development                            |
+| TBD        | TBD      | Security testing    | Pending     | Message validation and sanitization       | Ensure no information leakage through agent messages                             |
+
 ## Change Log
 
-| Date       | Version | Description                                 | Author |
-| ---------- | ------- | ------------------------------------------- | ------ | ---------- |
-| 2025-12-04 | v1.0    | Initial story for agent message integration | PO     | </content> |
+| Date       | Version | Description                                          | Author |
+| ---------- | ------- | ---------------------------------------------------- | ------ | ---------- |
+| 2025-12-04 | v1.0    | Initial story for agent message integration          | PO     |
+| 2025-12-04 | v1.1    | Fixed template compliance and added missing sections | PO     |
+| 2025-12-04 | v1.2    | Updated with conservative architecture assumptions   | PO     | </content> |
 
 <parameter name="filePath">docs/stories/agent-message-integration-sanitization-summary.md
