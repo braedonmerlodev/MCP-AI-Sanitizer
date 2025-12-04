@@ -5,13 +5,7 @@ const rateLimit = require('express-rate-limit');
 const NodeCache = require('node-cache');
 const winston = require('winston');
 const cookieParser = require('cookie-parser');
-
-// Export functions for testing
-module.exports = {
-  validateTrustToken,
-  getTokenFormat,
-  extractTrustToken,
-};
+const crypto = require('crypto');
 
 const app = express();
 
@@ -25,6 +19,78 @@ const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
 // Initialize cache
 const cache = new NodeCache({ stdTTL: CACHE_TTL / 1000 });
+
+// Trust token-based cache management functions
+const invalidateCacheByTrustToken = (trustToken, validation) => {
+  if (!trustToken || !validation.valid) {
+    // For invalid tokens, clear all 'no_token' entries
+    const keys = cache.keys();
+    let clearedCount = 0;
+    keys.forEach((key) => {
+      try {
+        const cacheData = JSON.parse(key);
+        if (cacheData.trustToken === 'no_token') {
+          cache.del(key);
+          clearedCount++;
+        }
+      } catch (e) {
+        // Skip invalid JSON keys
+      }
+    });
+    logger.info('Cache invalidation completed', {
+      type: 'trust_token_invalidation',
+      tokenStatus: 'invalid_or_missing',
+      entriesCleared: clearedCount,
+    });
+    return clearedCount;
+  }
+
+  // For valid tokens, clear entries with matching token hash
+  const tokenKey = generateTrustTokenCacheKey(trustToken, validation);
+  const keys = cache.keys();
+  let clearedCount = 0;
+  keys.forEach((key) => {
+    try {
+      const cacheData = JSON.parse(key);
+      if (cacheData.trustToken === tokenKey) {
+        cache.del(key);
+        clearedCount++;
+      }
+    } catch (e) {
+      // Skip invalid JSON keys
+    }
+  });
+
+  logger.info('Cache invalidation completed', {
+    type: 'trust_token_invalidation',
+    tokenHash: tokenKey,
+    tokenFormat: validation.format,
+    entriesCleared: clearedCount,
+  });
+
+  return clearedCount;
+};
+
+// Get cache statistics by trust token
+const getCacheStatsByTrustToken = () => {
+  const keys = cache.keys();
+  const stats = {};
+
+  keys.forEach((key) => {
+    try {
+      const cacheData = JSON.parse(key);
+      const tokenKey = cacheData.trustToken || 'no_token';
+      if (!stats[tokenKey]) {
+        stats[tokenKey] = 0;
+      }
+      stats[tokenKey]++;
+    } catch (e) {
+      // Skip invalid JSON keys
+    }
+  });
+
+  return stats;
+};
 
 // Configure logging (no sensitive data)
 const logger = winston.createLogger({
@@ -107,6 +173,20 @@ const getTokenFormat = (token) => {
 
   // Default to custom
   return 'custom';
+};
+
+// Generate secure cache key component from trust token
+const generateTrustTokenCacheKey = (trustToken, validation) => {
+  if (!trustToken || !validation.valid) {
+    // For invalid or missing tokens, use a consistent key component
+    return 'no_token';
+  }
+
+  // Create a hash of the token for cache key uniqueness without exposing sensitive data
+  const crypto = require('crypto');
+  const tokenHash = crypto.createHash('sha256').update(trustToken).digest('hex').substring(0, 16); // Use first 16 chars for reasonable key size
+
+  return `${validation.format}_${tokenHash}`;
 };
 
 // Trust token extraction middleware
@@ -281,6 +361,7 @@ app.get('/health', (req, res) => {
 // Status endpoint
 app.get('/api/status', (req, res) => {
   const stats = cache.getStats();
+  const trustTokenStats = getCacheStatsByTrustToken();
   res.json({
     status: 'operational',
     rateLimit: {
@@ -291,9 +372,47 @@ app.get('/api/status', (req, res) => {
       keys: stats.keys,
       hits: stats.hits,
       misses: stats.misses,
+      trustTokenBreakdown: trustTokenStats,
     },
     backend: BACKEND_URL,
   });
+});
+
+// Cache invalidation endpoint (admin use)
+app.post('/api/cache/invalidate-trust-token', (req, res) => {
+  try {
+    const { trustToken } = req.body;
+
+    if (!trustToken) {
+      return res.status(400).json({
+        error: 'Missing trust token',
+        message: 'trustToken field is required in request body',
+      });
+    }
+
+    // Validate the token format
+    const validation = validateTrustToken(trustToken);
+    const clearedCount = invalidateCacheByTrustToken(trustToken, validation);
+
+    res.json({
+      success: true,
+      message: `Cache invalidation completed for trust token`,
+      tokenFormat: validation.format,
+      tokenValid: validation.valid,
+      entriesCleared: clearedCount,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Cache invalidation error', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    res.status(500).json({
+      error: 'Cache invalidation failed',
+      message: error.message,
+    });
+  }
 });
 
 // Main proxy endpoint for PDF processing
@@ -301,11 +420,13 @@ app.post('/api/process-pdf', async (req, res) => {
   try {
     const requestId = Math.random().toString(36).substring(7);
 
-    // Create cache key from request (excluding timestamps)
+    // Create cache key from request including trust token for proper isolation
+    const trustTokenKey = generateTrustTokenCacheKey(req.trustToken, req.trustTokenValidation);
     const cacheKey = JSON.stringify({
       method: 'POST',
       path: '/api/process-pdf',
       body: req.body,
+      trustToken: trustTokenKey, // Include trust token component for cache isolation
     });
 
     // Check cache first
@@ -424,4 +545,13 @@ app.listen(PORT, () => {
   });
 });
 
-module.exports = app;
+// Export functions for testing
+module.exports = {
+  app,
+  validateTrustToken,
+  getTokenFormat,
+  extractTrustToken,
+  generateTrustTokenCacheKey,
+  invalidateCacheByTrustToken,
+  getCacheStatsByTrustToken,
+};
