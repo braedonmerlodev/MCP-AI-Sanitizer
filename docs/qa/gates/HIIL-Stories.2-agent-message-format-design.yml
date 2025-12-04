@@ -1,0 +1,41 @@
+schema: 1
+story: 'HIIL-Stories.2'
+story_title: 'Agent Message Format Design'
+gate: PASS
+status_reason: 'Comprehensive design story with all acceptance criteria met, validation tests passing, and thorough documentation provided for agent message implementation.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-04T12:00:00Z'
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 95
+expires: '2025-12-18T12:00:00Z'
+
+evidence:
+  tests_reviewed: 7
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Design incorporates message validation, authentication, and injection prevention'
+  performance:
+    status: PASS
+    notes: 'Performance impact constrained to <5% overhead with TTL and priority routing'
+  reliability:
+    status: PASS
+    notes: 'Delivery guarantees (best-effort/at-least-once/exactly-once) and error handling specified'
+  maintainability:
+    status: PASS
+    notes: 'Comprehensive documentation with TypeScript interfaces and implementation guidelines'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Consider implementing feature flags for gradual rollout of agent message types'
+      refs: ['docs/epics/HIIL-Stories/story-2-agent-message-format-design.md']
