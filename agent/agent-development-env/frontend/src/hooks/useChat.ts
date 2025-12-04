@@ -21,7 +21,7 @@ export const useChat = (context?: Record<string, any>) => {
   const [currentUserMessageId, setCurrentUserMessageId] = useState<
     string | null
   >(null)
-  const [useWebSocketEnabled, setUseWebSocketEnabled] = useState(true)
+  const [useWebSocketEnabled, setUseWebSocketEnabled] = useState(false)
   const [messageQueue, setMessageQueue] = useState<any[]>([])
   const [isOnline, setIsOnline] = useState(navigator.onLine)
 
@@ -110,23 +110,29 @@ export const useChat = (context?: Record<string, any>) => {
     isConnected,
     isReconnecting,
     sendMessage: wsSendMessage,
-  } = useWebSocket({
-    url: `ws://localhost:8001/ws/chat`,
-    onMessage: useCallback(
-      (message: WebSocketMessage) => {
-        handleWebSocketMessage(message)
-      },
-      [handleWebSocketMessage]
-    ),
-    onError: useCallback(() => {
-      // Fallback to HTTP polling on WebSocket error
-      setUseWebSocketEnabled(false)
-    }, []),
-    reconnectAttempts: 10,
-    reconnectInterval: 1000,
-    maxReconnectInterval: 30000,
-    heartbeatInterval: 30000,
-  })
+  } = useWebSocketEnabled
+    ? useWebSocket({
+        url: `/ws/chat`,
+        onMessage: useCallback(
+          (message: WebSocketMessage) => {
+            handleWebSocketMessage(message)
+          },
+          [handleWebSocketMessage]
+        ),
+        onError: useCallback(() => {
+          // Fallback to HTTP polling on WebSocket error
+          setUseWebSocketEnabled(false)
+        }, []),
+        reconnectAttempts: 10,
+        reconnectInterval: 1000,
+        maxReconnectInterval: 30000,
+        heartbeatInterval: 30000,
+      })
+    : {
+        isConnected: false,
+        isReconnecting: false,
+        sendMessage: () => false,
+      }
 
   const sendMessageViaWebSocket = useCallback(
     async (content: string) => {

@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 // const winston = require('winston');
 const apiRoutes = require('./routes/api');
-// const jobStatusRoutes = require('./routes/jobStatus');
+const jobStatusRoutes = require('./routes/jobStatus');
 const responseValidationMiddleware = require('./middleware/response-validation');
 const apiContractValidationMiddleware = require('./middleware/ApiContractValidationMiddleware');
 const { requestSchemas, responseSchemas } = require('./schemas/api-contract-schemas');
@@ -38,7 +38,7 @@ app.use(responseValidationMiddleware);
 
 // Routes
 app.use('/api', apiRoutes);
-// app.use('/api/jobs', jobStatusRoutes);
+app.use('/api/jobs', jobStatusRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -100,5 +100,18 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`Server running on port ${PORT}`);
   });
 }
+
+// Global error handling
+/* eslint-disable n/no-process-exit */
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+/* eslint-enable n/no-process-exit */
 
 module.exports = app;

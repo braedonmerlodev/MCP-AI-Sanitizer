@@ -72,7 +72,7 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
     if (pdfState.error) return pdfState.error
     if (pdfState.status === 'uploading') return 'Uploading PDF file...'
     if (pdfState.status === 'processing') {
-      const activeStage = pdfState.stages.find(
+      const activeStage = pdfState.stages?.find(
         (s) => s.status === 'in_progress'
       )
       if (activeStage) {
@@ -185,7 +185,7 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
       )}
 
       {/* Stages */}
-      {pdfState.stages.length > 0 && (
+      {pdfState.stages && pdfState.stages.length > 0 && (
         <div className="space-y-2 mb-4">
           {pdfState.stages.map((stage) => (
             <div key={stage.stage} className="flex items-center gap-2 text-sm">

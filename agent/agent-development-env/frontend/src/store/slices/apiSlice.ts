@@ -78,7 +78,7 @@ export const apiSlice = createApi({
     // Process PDF (bypass proxy for multipart/form-data)
     processPdf: builder.mutation<ProcessPdfJobResponse, FormData>({
       query: (formData) => ({
-        url: 'http://localhost:8001/api/documents/upload', // Call backend directly
+        url: 'http://localhost:8001/api/documents/upload',
         method: 'POST',
         body: formData,
         formData: true, // This tells RTK Query to not set Content-Type header

@@ -6,7 +6,9 @@ const router = express.Router();
 
 // Validation schema for job ID
 const jobIdSchema = Joi.object({
-  taskId: Joi.string().pattern(/^\d+$/).required(),
+  taskId: Joi.string()
+    .pattern(/^[a-zA-Z0-9_]+$/)
+    .required(),
 });
 
 // Middleware to validate taskId parameter

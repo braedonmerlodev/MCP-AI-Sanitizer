@@ -40,13 +40,14 @@ function App() {
     pollingInterval: pdfState.status === 'processing' ? 2000 : 0,
     skip:
       !pdfState.jobId ||
-      pdfState.status === 'completed' ||
-      pdfState.status === 'failed',
+      pdfState.status === 'failed' ||
+      (pdfState.status === 'completed' && pdfState.result),
   })
 
   // Update processing status when status data changes
   useEffect(() => {
     if (statusData && pdfState.jobId) {
+      console.log('Status update:', statusData)
       dispatch(
         updateProcessingStatus({
           status: statusData.status,
