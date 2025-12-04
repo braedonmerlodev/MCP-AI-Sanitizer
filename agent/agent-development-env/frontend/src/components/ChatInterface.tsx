@@ -111,7 +111,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         processingResult
       )
       const analysisMessage =
-        "I've successfully processed and sanitized the PDF document. Here's a high-level security analysis of the content:"
+        'Show me only the characters that were sanitized from the PDF document:'
       sendMessage(analysisMessage)
     }
   }, [processingResult, sendMessage])

@@ -694,7 +694,57 @@ class SecurityAgent(Agent):
 
                 system_context = ""
                 if context and context.get("processed_data"):
-                    system_context = f"You have access to processed PDF data: {json.dumps(context['processed_data'])}. Use this to answer questions about the content."
+                    processed_data = context['processed_data']
+
+                    # Extract sanitized characters from the data
+                    sanitized_chars = set()
+
+                    # Parse structured output for original content
+                    structured = processed_data.get('structured_output', {})
+                    original_content = ""
+                    if isinstance(structured, dict):
+                        # Extract text from structured output
+                        for key, value in structured.items():
+                            if isinstance(value, str):
+                                original_content += value + " "
+                            elif isinstance(value, dict):
+                                for sub_key, sub_value in value.items():
+                                    if isinstance(sub_value, str):
+                                        original_content += sub_value + " "
+
+                    # Get sanitized content
+                    sanitized_content = processed_data.get('sanitized_content', '')
+
+                    # Common HTML entity mappings (reverse lookup)
+                    entity_to_char = {
+                        '&quot;': '"',
+                        '&lt;': '<',
+                        '&gt;': '>',
+                        '&amp;': '&',
+                        '&#x27;': "'",
+                        '&apos;': "'",
+                        '&nbsp;': ' ',
+                        '&copy;': '©',
+                        '&reg;': '®',
+                        '&trade;': '™',
+                    }
+
+                    # Find entities in sanitized content
+                    for entity, char in entity_to_char.items():
+                        if entity in sanitized_content:
+                            sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+
+                    # Also check for other patterns like escaped quotes
+                    if '\\"' in sanitized_content and '"' in original_content:
+                        sanitized_chars.add('Original: " → Sanitized: \\"')
+
+                    sanitized_list = sorted(list(sanitized_chars))
+
+                    system_context = f"""Sanitized characters from PDF processing:
+
+{chr(10).join(f"- {item}" for item in sanitized_list) if sanitized_list else "No character sanitization detected."}
+
+INSTRUCTIONS: Only output the list of sanitized characters as shown above. Do not add any explanations, analysis, or additional text."""
 
                 prompt = PromptTemplate(
                     template="""{system_context}
