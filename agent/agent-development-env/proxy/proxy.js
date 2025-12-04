@@ -17,8 +17,9 @@ const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW) || 3600000; //
 const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 3600000; // 1 hour
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
-// Initialize cache
+// Initialize caches
 const cache = new NodeCache({ stdTTL: CACHE_TTL / 1000 });
+const validationCache = new NodeCache({ stdTTL: 900 }); // 15 minutes TTL for validation results
 
 // Trust token-based cache management functions
 const invalidateCacheByTrustToken = (trustToken, validation) => {
@@ -189,6 +190,96 @@ const generateTrustTokenCacheKey = (trustToken, validation) => {
   return `${validation.format}_${tokenHash}`;
 };
 
+// Trust token validation function - calls backend API with caching
+const validateTrustTokenWithBackend = async (token) => {
+  try {
+    // Create cache key from token signature (if available)
+    const cacheKey = token.signature || JSON.stringify(token);
+
+    // Check cache first
+    const cachedResult = validationCache.get(cacheKey);
+    if (cachedResult) {
+      logger.debug('Trust token validation cache hit', {
+        cacheKey: cacheKey.substring(0, 16) + '...',
+        isValid: cachedResult.isValid,
+      });
+      return cachedResult;
+    }
+
+    const response = await axios.post(`${BACKEND_URL}/api/trust-tokens/validate`, token, {
+      timeout: 30000, // 30 second timeout
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxy-Request-ID': Math.random().toString(36).substring(7),
+      },
+    });
+
+    const result = {
+      isValid: response.data.valid,
+      error: response.data.valid ? null : response.data.error,
+      statusCode: response.status,
+    };
+
+    // Cache the result
+    validationCache.set(cacheKey, result);
+
+    logger.debug('Trust token validation completed', {
+      cacheKey: cacheKey.substring(0, 16) + '...',
+      isValid: result.isValid,
+      cached: true,
+    });
+
+    return result;
+  } catch (error) {
+    logger.error('Trust token validation API error', {
+      error: error.message,
+      statusCode: error.response?.status,
+      tokenPresent: !!token,
+    });
+
+    return {
+      isValid: false,
+      error: `Validation service error: ${error.message}`,
+      statusCode: error.response?.status || 500,
+    };
+  }
+};
+
+// Function to perform full backend validation (async)
+const performBackendValidation = async (trustToken) => {
+  if (!trustToken) {
+    return { isValid: false, error: 'No token provided' };
+  }
+
+  // For now, we need a complete trust token object, not just a string
+  // This will be enhanced when we have the full token structure
+  if (typeof trustToken === 'string') {
+    // If we only have a token string, we can't validate it fully yet
+    // Return basic validation result
+    const basicValidation = validateTrustToken(trustToken);
+    return {
+      isValid: basicValidation.valid,
+      error: basicValidation.valid ? null : basicValidation.reason,
+      validationType: 'basic',
+    };
+  }
+
+  // Perform full backend validation
+  try {
+    const result = await validateTrustTokenWithBackend(trustToken);
+    return {
+      ...result,
+      validationType: 'full',
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      error: `Backend validation failed: ${error.message}`,
+      validationType: 'error',
+    };
+  }
+};
+
 // Trust token extraction middleware
 const extractTrustToken = (req, res, next) => {
   const requestId = Math.random().toString(36).substring(7);
@@ -217,12 +308,9 @@ const extractTrustToken = (req, res, next) => {
     trustToken = req.get('X-Security-Token') || req.get('X-Auth-Token');
   }
 
-  // Validate the extracted token
-  const validation = validateTrustToken(trustToken);
-
-  // Store extracted token and validation on request object
+  // Store extracted token and basic validation on request object
   req.trustToken = trustToken;
-  req.trustTokenValidation = validation;
+  req.trustTokenValidation = validateTrustToken(trustToken);
   req.requestId = requestId;
 
   // Handle missing or invalid tokens gracefully with comprehensive audit logging
@@ -246,7 +334,7 @@ const extractTrustToken = (req, res, next) => {
       severity: 'medium',
       action: 'logged_and_continued',
     });
-  } else if (!validation.valid) {
+  } else if (!req.trustTokenValidation.valid) {
     // Invalid token found - detailed security audit logging
     logger.warn('TRUST_TOKEN_INVALID', {
       eventType: 'trust_token_validation',
@@ -258,14 +346,11 @@ const extractTrustToken = (req, res, next) => {
       timestamp: new Date().toISOString(),
       tokenLength: trustToken.length,
       tokenFormat: getTokenFormat(trustToken),
-      validationFailureReason: validation.reason,
+      validationFailureReason: req.trustTokenValidation.reason,
       severity: 'high',
       action: 'logged_and_continued',
       recommendation: 'review_token_format_requirements',
     });
-
-    // For security-critical endpoints, we might want to add additional handling
-    // For now, we log extensively and continue to maintain backward compatibility
   } else {
     // Valid token - success audit logging
     logger.info('TRUST_TOKEN_VALID', {
@@ -275,7 +360,7 @@ const extractTrustToken = (req, res, next) => {
       path: req.path,
       ip: req.ip,
       timestamp: new Date().toISOString(),
-      tokenFormat: validation.format,
+      tokenFormat: req.trustTokenValidation.format,
       severity: 'low',
       action: 'validation_successful',
     });

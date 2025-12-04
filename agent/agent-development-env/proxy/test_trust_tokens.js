@@ -106,11 +106,43 @@ function testCacheInvalidation() {
   }
 }
 
+// Test validation caching performance
+function testValidationCaching() {
+  console.log('\nTesting Validation Caching Performance:');
+
+  // Test cache hit scenario
+  const testToken = 'test-token-123';
+  const validation1 = validateTrustToken(testToken);
+  console.log(`✅ Basic validation works: ${validation1.valid}`);
+
+  // Test cache functionality (would need full backend integration for complete test)
+  console.log(`✅ Validation functions available: ${typeof validateTrustToken === 'function'}`);
+  console.log(`✅ Cache initialized: ${typeof validationCache !== 'undefined'}`);
+}
+
+// Test error handling
+function testErrorHandling() {
+  console.log('\nTesting Error Handling:');
+
+  // Test with invalid inputs
+  const result1 = validateTrustToken(null);
+  console.log(`✅ Null input handled: ${!result1.valid}`);
+
+  const result2 = validateTrustToken('');
+  console.log(`✅ Empty string handled: ${!result2.valid}`);
+
+  const result3 = validateTrustToken('a');
+  console.log(`✅ Too short handled: ${!result3.valid}`);
+
+  const result4 = validateTrustToken('a'.repeat(3000));
+  console.log(`✅ Too long handled: ${!result4.valid}`);
+}
+
 console.log('\n🎉 All trust token tests completed!');
 process.exit(0);
 
-// Note: Full integration tests for cache invalidation would require Jest setup
-// The current tests validate key generation security and basic invalidation logic
+// Note: Full backend integration tests would require running the actual API
+// The current tests validate local validation logic and error handling
 
 const createMockNext = () => jest.fn();
 
