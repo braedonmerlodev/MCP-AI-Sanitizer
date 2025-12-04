@@ -696,47 +696,42 @@ class SecurityAgent(Agent):
                 if context and context.get("processed_data"):
                     processed_data = context['processed_data']
 
-                    # Extract sanitized characters from the data
+                    # Extract sanitized characters from the structured output
                     sanitized_chars = set()
 
-                    # Parse structured output for original content
+                    # Parse structured output to find HTML entities
                     structured = processed_data.get('structured_output', {})
-                    original_content = ""
                     if isinstance(structured, dict):
-                        # Extract text from structured output
-                        for key, value in structured.items():
-                            if isinstance(value, str):
-                                original_content += value + " "
-                            elif isinstance(value, dict):
-                                for sub_key, sub_value in value.items():
-                                    if isinstance(sub_value, str):
-                                        original_content += sub_value + " "
+                        def find_entities(obj, path=""):
+                            if isinstance(obj, str):
+                                # Look for HTML entities in the string
+                                import re
+                                entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
+                                for entity in entities:
+                                    # Map common entities back to original characters
+                                    entity_map = {
+                                        '&quot;': '"',
+                                        '&lt;': '<',
+                                        '&gt;': '>',
+                                        '&amp;': '&',
+                                        '&#x27;': "'",
+                                        '&apos;': "'",
+                                        '&nbsp;': ' ',
+                                        '&copy;': '©',
+                                        '&reg;': '®',
+                                        '&trade;': '™',
+                                    }
+                                    if entity in entity_map:
+                                        char = entity_map[entity]
+                                        sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+                            elif isinstance(obj, dict):
+                                for key, value in obj.items():
+                                    find_entities(value, f"{path}.{key}" if path else key)
+                            elif isinstance(obj, list):
+                                for i, item in enumerate(obj):
+                                    find_entities(item, f"{path}[{i}]")
 
-                    # Get sanitized content
-                    sanitized_content = processed_data.get('sanitized_content', '')
-
-                    # Common HTML entity mappings (reverse lookup)
-                    entity_to_char = {
-                        '&quot;': '"',
-                        '&lt;': '<',
-                        '&gt;': '>',
-                        '&amp;': '&',
-                        '&#x27;': "'",
-                        '&apos;': "'",
-                        '&nbsp;': ' ',
-                        '&copy;': '©',
-                        '&reg;': '®',
-                        '&trade;': '™',
-                    }
-
-                    # Find entities in sanitized content
-                    for entity, char in entity_to_char.items():
-                        if entity in sanitized_content:
-                            sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
-
-                    # Also check for other patterns like escaped quotes
-                    if '\\"' in sanitized_content and '"' in original_content:
-                        sanitized_chars.add('Original: " → Sanitized: \\"')
+                        find_entities(structured)
 
                     sanitized_list = sorted(list(sanitized_chars))
 
