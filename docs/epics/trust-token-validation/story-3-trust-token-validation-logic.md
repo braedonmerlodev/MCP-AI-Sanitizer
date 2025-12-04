@@ -22,9 +22,9 @@ Pending
 ## Dependencies
 
 - Trust token capture system (Story 1)
-- Backend trust token validation API
-- Caching infrastructure for validation results
-- Audit logging system
+- Backend trust token validation API (/api/trust-tokens/validate from Story 5.3)
+- Proxy caching infrastructure (node-cache in proxy-sanitizer.js)
+- Winston audit logging system
 
 ## Tasks / Subtasks
 
@@ -41,17 +41,21 @@ Pending
 
 ### Relevant Source Tree Info
 
-- **Validation API**: Backend trust token validation endpoints
-- **Caching**: node-cache integration for validation results
-- **Logging**: Winston logging for audit events
-- **Error Handling**: Existing error handling patterns in proxy
+- **Validation API**: `/api/trust-tokens/validate` endpoint (Story 5.3)
+- **Proxy Implementation**: `src/components/proxy-sanitizer.js`
+- **Trust Token System**: `src/components/TrustTokenGenerator.js`
+- **Caching**: node-cache integration in proxy for validation results
+- **Logging**: Winston logging infrastructure for audit events
+- **Error Handling**: Existing error patterns in proxy-sanitizer.js
+- **Related Stories**: Story 5.3 (trust token system), Story 7.2 (API standardization)
 
 ### Technical Constraints
 
-- Validation should not significantly impact response times
-- Cache TTL should balance performance and security
-- Network calls to validation service should have timeouts
-- Validation failures should fail securely (deny access)
+- Validation should not significantly impact response times (<50ms per NFR6)
+- Cache TTL should balance performance and security (recommend 5-15 minutes)
+- Network calls to validation service should have timeouts (30 seconds max)
+- Validation failures should fail securely (deny cache access, log security events)
+- Must integrate with existing proxy-sanitizer.js architecture
 
 ### Security Considerations
 
@@ -89,8 +93,9 @@ Pending
 
 ## Change Log
 
-| Date       | Version | Description                                             | Author |
-| ---------- | ------- | ------------------------------------------------------- | ------ | ---------- |
-| 2025-12-04 | v1.0    | Initial story creation for trust token validation logic | PO     | </content> |
+| Date       | Version | Description                                              | Author |
+| ---------- | ------- | -------------------------------------------------------- | ------ | ---------- |
+| 2025-12-04 | v1.0    | Initial story creation for trust token validation logic  | PO     |
+| 2025-12-04 | v1.1    | Fixed technical references and added accurate file paths | PO     | </content> |
 
 <parameter name="filePath">docs/epics/trust-token-validation/story-3-trust-token-validation-logic.md
