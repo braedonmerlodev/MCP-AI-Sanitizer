@@ -144,7 +144,7 @@ const validateTrustToken = (token) => {
     case 'base64':
       // Should be valid base64
       try {
-        atob(token.replace(/-/g, '+').replace(/_/g, '/'));
+        Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
       } catch (e) {
         return { valid: false, reason: 'invalid_base64' };
       }
@@ -326,17 +326,17 @@ const extractTrustToken = (req, res, next) => {
 
   // Check X-Trust-Token header
   if (!trustToken) {
-    trustToken = req.get('X-Trust-Token');
+    trustToken = req.get('X-Trust-Token') || null;
   }
 
   // Check trust_token cookie
   if (!trustToken && req.cookies) {
-    trustToken = req.cookies.trust_token;
+    trustToken = req.cookies.trust_token || null;
   }
 
   // Check custom headers (coordinate with security team)
   if (!trustToken) {
-    trustToken = req.get('X-Security-Token') || req.get('X-Auth-Token');
+    trustToken = req.get('X-Security-Token') || req.get('X-Auth-Token') || null;
   }
 
   // Store extracted token and basic validation on request object
