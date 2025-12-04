@@ -1,4 +1,4 @@
-# MCP Security: Sanitization API for Agentic AI Systems
+# Model Context Protocol Security for Agentic AI Systems
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
