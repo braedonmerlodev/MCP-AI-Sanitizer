@@ -7,39 +7,42 @@ Pending
 ## Story
 
 **As a** developer implementing agent message integration,
-**I want to** design the message format and routing system for agent-sent sanitization summaries,
-**so that** sanitization alerts can be delivered as proper agent messages with consistent structure and routing.
+**I want to** design comprehensive message formats and routing for agent-generated content (sanitization summaries, security alerts, processing status),
+**so that** agent messages can be properly delivered through existing chat infrastructure with appropriate handling and user experience.
 
 ## Acceptance Criteria
 
-1. **Message Schema Defined**: Complete message structure specification for agent messages
-2. **Message Type System**: Clear type identification system for different agent message subtypes
-3. **Routing Logic Specified**: Detailed routing logic for agent messages through existing chat protocols
-4. **Integration Points Documented**: Clear documentation of how agent messages integrate with existing chat flow
-5. **Backward Compatibility**: Design maintains compatibility with existing message formats
+1. **Agent Message Schema**: Complete type system for sanitization summaries, security alerts, and processing status messages
+2. **Message Metadata Design**: Priority levels, TTL, delivery guarantees, and source identification
+3. **Routing Logic Specification**: Agent message routing vs user message routing with priority handling
+4. **Frontend Integration**: UI treatment for different agent message types (banners, alerts, status updates)
+5. **Backward Compatibility**: Migration strategy maintaining existing message format compatibility
+6. **Performance Impact**: <5% overhead with message size limits and frequency controls
 
 ## Dependencies
 
-- Story 1: Agent Message System Architecture Analysis (provides architectural context)
+- **Story 1: Agent Message System Architecture Analysis (MUST BE COMPLETED FIRST)** - provides foundation analysis and architectural context
 - Existing chat message formats and protocols
+- Agent message integration points identified in Story 1
 
 ## Tasks / Subtasks
 
-- [ ] Analyze existing message formats in chat system
-- [ ] Design agent message schema with metadata support
-- [ ] Define message type constants and identification system
-- [ ] Create routing logic specification for HTTP and WebSocket
-- [ ] Document integration points with existing chat endpoints
-- [ ] Specify backward compatibility requirements
-- [ ] Create message format documentation
+- [ ] Analyze existing message formats and agent message integration points
+- [ ] Design agent message type system (sanitization, security, status, error)
+- [ ] Create message schema with metadata support (priority, TTL, routing)
+- [ ] Define routing logic for agent messages (priority queues, delivery guarantees)
+- [ ] Specify frontend handling for different agent message types
+- [ ] Document backward compatibility and migration strategy
+- [ ] Create comprehensive message format specification
 
 ## Dev Notes
 
 ### Relevant Source Tree Info
 
-- **Existing Messages**: Review current message structures in useChat hook and MessageBubble
-- **Chat Protocols**: Examine HTTP /api/chat and WebSocket message handling
-- **Message Types**: Document existing message type patterns
+- **Existing Messages**: Review current message structures in useChat hook, MessageBubble, and chatSlice
+- **Chat Protocols**: Examine HTTP /api/chat and WebSocket message handling in backend/api.py
+- **Message Types**: Document existing message type patterns and WebSocket message schemas
+- **Agent Integration**: Review sanitization summary handling in frontend and backend
 
 ### Technical Constraints
 
@@ -47,30 +50,44 @@ Pending
 - Message format should be extensible for future agent message types
 - Maintain performance requirements (<5% overhead)
 - Ensure proper message ordering and sequencing
+- Message size limits and frequency controls for agent messages
+- Agent message priority handling without disrupting user chat flow
 
 ### Security Considerations
 
 - Message format should not allow injection attacks
-- Agent messages should be properly validated
+- Agent messages should be properly validated and authenticated
 - Sensitive data should not be exposed in message metadata
+- Agent message source verification and integrity checks
+- Rate limiting for agent message generation to prevent abuse
 
 ## Testing
 
 ### Testing Strategy
 
-- **Design Review**: Validate message schema against requirements
-- **Integration Testing**: Test message format compatibility
-- **Performance Testing**: Verify overhead remains within limits
+- **Design Review**: Validate message schema against requirements and Story 1 findings
+- **Integration Testing**: Test message format compatibility with existing chat system
+- **Performance Testing**: Verify overhead remains within limits (<5%)
+- **Security Testing**: Validate agent message authentication and validation
+- **Backward Compatibility Testing**: Ensure existing messages still work
 
 ## Dev Agent Record
 
-| Date | Agent | Task                             | Status  | Notes                                             |
-| ---- | ----- | -------------------------------- | ------- | ------------------------------------------------- |
-| TBD  | TBD   | Analyze existing message formats | Pending | Review current chat message structures            |
-| TBD  | TBD   | Design agent message schema      | Pending | Create comprehensive message format specification |
-| TBD  | TBD   | Define message type system       | Pending | Establish type identification and constants       |
-| TBD  | TBD   | Specify routing logic            | Pending | Document HTTP/WebSocket routing requirements      |
-| TBD  | TBD   | Document integration points      | Pending | Detail how messages integrate with chat flow      |
+| Date | Agent | Task                                    | Status  | Notes                                                               |
+| ---- | ----- | --------------------------------------- | ------- | ------------------------------------------------------------------- |
+| TBD  | TBD   | Analyze existing message formats        | Pending | Review current chat message structures and agent integration points |
+| TBD  | TBD   | Design agent message type system        | Pending | Define sanitization, security, status, and error message types      |
+| TBD  | TBD   | Create message schema with metadata     | Pending | Design priority, TTL, routing, and source identification            |
+| TBD  | TBD   | Define routing logic for agent messages | Pending | Specify priority queues and delivery guarantees                     |
+| TBD  | TBD   | Specify frontend handling               | Pending | Define UI treatment for different agent message types               |
+| TBD  | TBD   | Document backward compatibility         | Pending | Create migration strategy for existing messages                     |
+| TBD  | TBD   | Create comprehensive specification      | Pending | Document complete message format system                             |
+
+## Priority Assessment
+
+**HIGH PRIORITY**: Update story to include specific agent message types and integration requirements. The current generic approach won't support the complex agent message ecosystem needed.
+
+**RECOMMENDATION**: Transform this from a generic "message format" story to a specific "agent message ecosystem" design that addresses the unique requirements of agent-generated content.
 
 ## QA Results
 
@@ -80,8 +97,9 @@ Pending
 
 ## Change Log
 
-| Date       | Version | Description                                      | Author |
-| ---------- | ------- | ------------------------------------------------ | ------ | ---------- |
-| 2025-12-04 | v1.0    | Initial story creation for message format design | PO     | </content> |
+| Date       | Version | Description                                                                                                            | Author    |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------- | --------- |
+| 2025-12-04 | v1.1    | Major revision: Enhanced to include specific agent message types, comprehensive schema design, and priority assessment | Dev Agent |
+| 2025-12-04 | v1.0    | Initial story creation for message format design                                                                       | PO        |
 
 <parameter name="filePath">docs/stories/story-2-agent-message-format-design.md
