@@ -661,6 +661,48 @@ app.post('/api/process-pdf', async (req, res) => {
   }
 });
 
+// Specific handler for PDF uploads (handles multipart/form-data)
+app.post('/api/documents/upload', async (req, res) => {
+  try {
+    const url = `${BACKEND_URL}/api/documents/upload`;
+    const config = {
+      method: 'POST',
+      url,
+      headers: {
+        ...req.headers,
+        'X-Forwarded-For': req.ip,
+      },
+      timeout: 30000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    };
+
+    // For multipart/form-data, we need to handle it differently
+    // Use a stream to pipe the request
+    const { PassThrough } = require('stream');
+    const stream = new PassThrough();
+    req.pipe(stream);
+    config.data = stream;
+
+    // Remove hop-by-hop headers
+    delete config.headers['host'];
+    delete config.headers['connection'];
+
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    logger.error('PDF upload proxy error', {
+      error: error.message,
+    });
+
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Proxy error' });
+    }
+  }
+});
+
 // Generic proxy for other endpoints (optional)
 app.all('/api/*', async (req, res) => {
   try {

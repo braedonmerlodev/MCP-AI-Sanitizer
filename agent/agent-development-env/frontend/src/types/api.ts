@@ -39,11 +39,23 @@ export interface ProcessPdfStatusResponse {
   error?: string
 }
 
+export interface TrustToken {
+  contentHash: string
+  originalHash: string
+  sanitizationVersion: string
+  rulesApplied: string[]
+  timestamp: string
+  expiresAt: string
+  signature: string
+  nonce: string
+}
+
 export interface ProcessPdfResult {
   success: boolean
   sanitized_content?: string
   enhanced_content?: string
   structured_output?: Record<string, any>
+  trustToken?: TrustToken
   processing_time?: string
   error?: string
   extracted_text_length?: number
