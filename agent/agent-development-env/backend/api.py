@@ -74,6 +74,18 @@ CHAT_REQUESTS = Counter(
 CHAT_DURATION = Histogram(
     "chat_request_duration_seconds", "Chat request duration", ["type"]
 )
+AGENT_MESSAGES_CREATED = Counter(
+    "agent_messages_created_total", "Total agent messages created", ["type", "priority"]
+)
+AGENT_MESSAGES_DELIVERED = Counter(
+    "agent_messages_delivered_total", "Total agent messages delivered", ["type", "status"]
+)
+AGENT_MESSAGES_EXPIRED = Counter(
+    "agent_messages_expired_total", "Total agent messages expired", ["type"]
+)
+AGENT_MESSAGE_QUEUES_SIZE = Gauge(
+    "agent_message_queues_size", "Current size of agent message queues", ["queue"]
+)
 SYSTEM_CPU_USAGE = Gauge("system_cpu_usage_percent", "Current CPU usage percentage")
 SYSTEM_MEMORY_USAGE = Gauge(
     "system_memory_usage_percent", "Current memory usage percentage"
@@ -728,6 +740,240 @@ class ProcessPdfJobResponse(BaseModel):
     message: str
 
 
+class AgentMessage(BaseModel):
+    """Agent message with metadata for routing and delivery"""
+    id: str
+    role: str = "assistant"
+    content: str
+    timestamp: str
+    agentType: str  # "sanitization" | "security" | "status" | "error"
+    priority: str   # "low" | "medium" | "high" | "critical"
+    ttl: int        # Time to live in milliseconds
+    deliveryGuarantee: str  # "best-effort" | "at-least-once" | "exactly-once"
+    source: str     # Agent component identifier
+
+    @field_validator('agentType')
+    @classmethod
+    def validate_agent_type(cls, v):
+        allowed_types = ["sanitization", "security", "status", "error"]
+        if v not in allowed_types:
+            raise ValueError(f'agentType must be one of {allowed_types}')
+        return v
+
+    @field_validator('priority')
+    @classmethod
+    def validate_priority(cls, v):
+        allowed_priorities = ["low", "medium", "high", "critical"]
+        if v not in allowed_priorities:
+            raise ValueError(f'priority must be one of {allowed_priorities}')
+        return v
+
+    @field_validator('deliveryGuarantee')
+    @classmethod
+    def validate_delivery_guarantee(cls, v):
+        allowed_guarantees = ["best-effort", "at-least-once", "exactly-once"]
+        if v not in allowed_guarantees:
+            raise ValueError(f'deliveryGuarantee must be one of {allowed_guarantees}')
+        return v
+
+    @field_validator('ttl')
+    @classmethod
+    def validate_ttl(cls, v):
+        if v <= 0:
+            raise ValueError('ttl must be positive')
+        return v
+
+
+def validate_agent_message(message: AgentMessage) -> bool:
+    """Validate agent message content and metadata"""
+    try:
+        # Validate message doesn't contain sensitive data in metadata
+        sensitive_patterns = [
+            r'password', r'token', r'key', r'secret', r'auth',
+            r'api[_-]?key', r'credential'
+        ]
+        metadata_str = f"{message.source} {message.agentType} {message.priority}"
+
+        for pattern in sensitive_patterns:
+            if re.search(pattern, metadata_str, re.IGNORECASE):
+                log_security_event("SENSITIVE_DATA_IN_AGENT_MESSAGE", {
+                    "message_id": message.id,
+                    "source": message.source
+                }, "system")
+                return False
+
+        # Validate content length
+        if len(message.content) > MAX_TEXT_LENGTH:
+            return False
+
+        # Validate timestamp is reasonable (not too far in future/past)
+        try:
+            msg_time = datetime.fromisoformat(message.timestamp.replace('Z', '+00:00'))
+            now = datetime.now(msg_time.tzinfo)
+            time_diff = abs((msg_time - now).total_seconds())
+            if time_diff > 300:  # 5 minutes
+                return False
+        except (ValueError, AttributeError):
+            return False
+
+        return True
+    except Exception as e:
+        logging.error(f"Agent message validation error: {e}")
+        return False
+
+
+# Agent Message Routing System
+agent_message_queues = {
+    "immediate": [],  # High/critical priority
+    "background": []  # Low/medium priority
+}
+
+AGENT_MESSAGE_RATE_LIMITS = {
+    "sanitization": 10,  # messages per minute
+    "security": 5,
+    "status": 30,
+    "error": 10
+}
+
+agent_message_counts = {}  # Track rate limiting per minute
+
+def get_message_priority_level(message: AgentMessage) -> str:
+    """Determine queue priority for message"""
+    if message.priority in ["high", "critical"]:
+        return "immediate"
+    else:
+        return "background"
+
+def check_agent_message_rate_limit(message: AgentMessage) -> bool:
+    """Check if message type is within rate limits"""
+    current_minute = int(time.time() / 60)
+    key = f"{message.agentType}_{current_minute}"
+
+    if key not in agent_message_counts:
+        agent_message_counts[key] = 0
+
+    limit = AGENT_MESSAGE_RATE_LIMITS.get(message.agentType, 10)
+    if agent_message_counts[key] >= limit:
+        return False
+
+    agent_message_counts[key] += 1
+    return True
+
+def enqueue_agent_message(message: AgentMessage) -> bool:
+    """Add agent message to appropriate queue with validation"""
+    if not validate_agent_message(message):
+        logging.error(f"Invalid agent message: {message.id}")
+        return False
+
+    if not check_agent_message_rate_limit(message):
+        logging.warning(f"Rate limit exceeded for {message.agentType} message")
+        return False
+
+    priority_level = get_message_priority_level(message)
+    agent_message_queues[priority_level].append({
+        "message": message,
+        "enqueued_at": time.time(),
+        "retry_count": 0
+    })
+
+    # Update metrics
+    AGENT_MESSAGES_CREATED.labels(type=message.agentType, priority=message.priority).inc()
+    AGENT_MESSAGE_QUEUES_SIZE.labels(queue=priority_level).set(len(agent_message_queues[priority_level]))
+
+    logging.info(f"Enqueued agent message {message.id} to {priority_level} queue")
+    return True
+
+def dequeue_agent_message(priority_level: str = None) -> Optional[Dict]:
+    """Get next message from queue, respecting priority"""
+    # Check immediate queue first
+    if agent_message_queues["immediate"]:
+        return agent_message_queues["immediate"].pop(0)
+
+    # Then background queue
+    if agent_message_queues["background"]:
+        return agent_message_queues["background"].pop(0)
+
+    return None
+
+def cleanup_expired_messages():
+    """Remove expired messages from queues"""
+    current_time = time.time()
+
+    for queue_name, queue in agent_message_queues.items():
+        expired_count = 0
+        active_items = []
+
+        for item in queue:
+            if (current_time - item["enqueued_at"]) * 1000 < item["message"].ttl:
+                active_items.append(item)
+            else:
+                expired_count += 1
+                AGENT_MESSAGES_EXPIRED.labels(type=item["message"].agentType).inc()
+
+        agent_message_queues[queue_name] = active_items
+        AGENT_MESSAGE_QUEUES_SIZE.labels(queue=queue_name).set(len(active_items))
+
+
+async def process_agent_message_queues():
+    """Background task to process agent message queues and handle delivery guarantees"""
+    while True:
+        try:
+            # Clean up expired messages
+            cleanup_expired_messages()
+
+            # Process messages with delivery guarantees
+            for queue_name in ["immediate", "background"]:
+                queue = agent_message_queues[queue_name]
+                i = 0
+                while i < len(queue):
+                    item = queue[i]
+                    message = item["message"]
+
+                    # For exactly-once and at-least-once, implement retry logic
+                    if message.deliveryGuarantee in ["exactly-once", "at-least-once"]:
+                        if item["retry_count"] < 3:  # Max retries
+                            # Try to deliver to all active connections
+                            delivered = False
+                            for conn_id, conn_data in active_connections.items():
+                                try:
+                                    ws = conn_data.get("websocket")
+                                    if ws:
+                                        await ws.send_json({
+                                            "type": "agent_message",
+                                            "message": message.dict()
+                                        })
+                                        delivered = True
+                                except Exception as e:
+                                    logging.error(f"Failed to deliver agent message to {conn_id}: {e}")
+
+                            if delivered:
+                                # Remove from queue on successful delivery
+                                queue.pop(i)
+                                continue
+                            else:
+                                # Increment retry count
+                                item["retry_count"] += 1
+                                if item["retry_count"] >= 3:
+                                    logging.error(f"Failed to deliver agent message {message.id} after 3 retries")
+                                    queue.pop(i)
+                                    continue
+
+                    i += 1
+
+            await asyncio.sleep(1)  # Process every second
+
+        except Exception as e:
+            logging.error(f"Error processing agent message queues: {e}")
+            await asyncio.sleep(5)  # Wait longer on error
+
+
+# Start agent message processing task
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background tasks on startup"""
+    asyncio.create_task(process_agent_message_queues())
+
+
 async def process_pdf_background(job_id: str, file_content: bytes, filename: str, client_ip: str):
     """Background task to process PDF"""
     processing_stages = []
@@ -1249,13 +1495,30 @@ async def websocket_chat(websocket: WebSocket):
             # Sanitize input
             user_message = sanitize_input(user_message)
 
-            # Send sanitization summary if threshold exceeded
+            # Send sanitization agent message if threshold exceeded
             if should_send_summary:
-                summary_message = create_sanitization_summary_message(sanitization_metrics)
+                summary_content = create_sanitization_summary_message(sanitization_metrics)
+                sanitization_message = AgentMessage(
+                    id=f"sanitization-{secrets.token_hex(8)}",
+                    role="assistant",
+                    content=summary_content,
+                    timestamp=datetime.now().isoformat(),
+                    agentType="sanitization",
+                    priority="medium",
+                    ttl=300000,  # 5 minutes
+                    deliveryGuarantee="at-least-once",
+                    source="sanitization-pipeline"
+                )
+
+                # Send as chunk for backward compatibility
                 await websocket.send_json({
                     "type": "chunk",
-                    "content": summary_message + "\n\n"
+                    "content": sanitization_message.content + "\n\n",
+                    "agentMessage": sanitization_message.dict()
                 })
+
+                # Enqueue for guaranteed delivery if needed
+                enqueue_agent_message(sanitization_message)
 
             # Update connection context
             active_connections[connection_id]["context"] = context
@@ -1415,16 +1678,34 @@ async def http_chat(
             client_ip,
         )
 
-        # Include sanitization summary if threshold exceeded
+        # Include agent messages in response
         response_data = {
             "success": True,
             "response": response,
             "timestamp": datetime.now().isoformat(),
+            "agent_messages": []
         }
 
         if should_send_summary:
-            summary_message = create_sanitization_summary_message(sanitization_metrics)
-            response_data["sanitization_summary"] = summary_message
+            # Create sanitization agent message
+            summary_content = create_sanitization_summary_message(sanitization_metrics)
+            sanitization_message = AgentMessage(
+                id=f"sanitization-{secrets.token_hex(8)}",
+                role="assistant",
+                content=summary_content,
+                timestamp=datetime.now().isoformat(),
+                agentType="sanitization",
+                priority="medium",
+                ttl=300000,  # 5 minutes
+                deliveryGuarantee="at-least-once",
+                source="sanitization-pipeline"
+            )
+
+            # Add to response
+            response_data["agent_messages"].append(sanitization_message.dict())
+
+            # Also enqueue for potential WebSocket delivery
+            enqueue_agent_message(sanitization_message)
 
         return response_data
 
