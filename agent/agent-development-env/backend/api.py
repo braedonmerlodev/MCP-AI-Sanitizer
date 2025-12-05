@@ -650,9 +650,57 @@ async def get_agent():
 
                     async def chat_response(self, **kwargs):
                         message = kwargs.get('message', 'unknown')
+                        context = kwargs.get('context', {})
+
+                        # Check if this is about PDF processing results
+                        if context and context.get('processed_data'):
+                            processed_data = context['processed_data']
+
+                            # Extract sanitized characters from the structured output
+                            sanitized_chars = set()
+
+                            # Parse structured output to find HTML entities
+                            structured = processed_data.get('structured_output', {})
+                            if isinstance(structured, dict):
+                                def find_entities(obj, path=""):
+                                    if isinstance(obj, str):
+                                        # Look for HTML entities in the string
+                                        import re
+                                        entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
+                                        for entity in entities:
+                                            # Map common entities back to original characters
+                                            entity_map = {
+                                                '&quot;': '"',
+                                                '&lt;': '<',
+                                                '&gt;': '>',
+                                                '&amp;': '&',
+                                                '&#x27;': "'",
+                                                '&apos;': "'",
+                                            }
+                                            if entity in entity_map:
+                                                char = entity_map[entity]
+                                                sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+                                    elif isinstance(obj, dict):
+                                        for key, value in obj.items():
+                                            find_entities(value, f"{path}.{key}" if path else key)
+                                    elif isinstance(obj, list):
+                                        for i, item in enumerate(obj):
+                                            find_entities(item, f"{path}[{i}]")
+
+                                find_entities(structured)
+
+                            sanitized_list = sorted(list(sanitized_chars))
+
+                            if sanitized_list:
+                                response = f"Sanitized characters from PDF processing:\n\n{chr(10).join(f'- {item}' for item in sanitized_list)}"
+                            else:
+                                response = "No character sanitization detected."
+                        else:
+                            response = f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize."
+
                         return {
                             "success": True,
-                            "response": f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize.",
+                            "response": response,
                             "processing_time": "0.001"
                         }
 
