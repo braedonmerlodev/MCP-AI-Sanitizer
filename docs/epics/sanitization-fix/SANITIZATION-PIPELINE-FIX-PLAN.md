@@ -15,30 +15,32 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 
 ## **PHASE 1: FOUNDATION - BLEACH INFRASTRUCTURE**
 
-### **Substory 1.1: Bleach Library Research & Selection**
+### **Substory 1.1: Node.js Sanitization Library Research & Selection**
 
 **Owner**: Security Engineer
 **Effort**: 2-3 days
 **Tasks**:
 
-- Research Node.js bleach-equivalent libraries (DOMPurify, sanitize-html, etc.)
-- Compare feature sets with Python bleach
-- Select optimal library for comprehensive sanitization
+- Research Node.js HTML sanitization libraries (DOMPurify, sanitize-html, etc.)
+- Compare feature sets with Python bleach capabilities
+- Select optimal library for comprehensive threat removal
 - Document library capabilities and limitations
 - Create proof-of-concept sanitization examples
+- Validate async processing compatibility
 
-### **Substory 1.2: BleachSanitizer Utility Class**
+### **Substory 1.2: ComprehensiveSanitizer Utility Class**
 
-**Owner**: Backend Developer  
+**Owner**: Backend Developer
 **Effort**: 3-4 days
 **Tasks**:
 
-- Create `src/utils/bleach-sanitizer.js` class
-- Implement `sanitizeComprehensive()` method for HTML/script/attribute/URL stripping
+- Create `src/utils/comprehensive-sanitizer.js` class
+- Implement `sanitizeComprehensive()` method using selected Node.js library
 - Add `sanitizeStructuredData()` for JSON object cleaning
 - Implement `analyzeThreats()` for detailed threat reporting
 - Add `validateClean()` for post-sanitization verification
 - Create comprehensive unit tests
+- Ensure async processing optimization
 
 ### **Substory 1.3: Threat Analysis Framework**
 
@@ -47,10 +49,10 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 **Tasks**:
 
 - Design threat classification system (XSS, injection, metadata, etc.)
-- Implement threat reporting structure
+- Implement threat reporting structure for ComprehensiveSanitizer
 - Create risk level assessment logic
 - Add audit logging integration points
-- Test threat detection accuracy
+- Test threat detection accuracy with Node.js sanitization
 
 ## **PHASE 2: PIPELINE REORDERING**
 
@@ -61,7 +63,7 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 **Tasks**:
 
 - Document current jobWorker.js processing order
-- Identify all sanitization insertion points
+- Identify ComprehensiveSanitizer insertion points
 - Map data flow through PDF processing pipeline
 - Analyze AI transformation dependencies
 - Create pipeline flowchart documentation
@@ -73,6 +75,7 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 **Tasks**:
 
 - Move sanitization logic before AI transformation in jobWorker.js
+- Integrate ComprehensiveSanitizer into pipeline
 - Update progress tracking (70% → Sanitizing, then AI)
 - Modify data flow to pass sanitized content to AI
 - Add pre-AI threat logging
@@ -213,7 +216,7 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 ### **PHASE 1: FOUNDATION (Week 1)**
 
 ```
-1.1 Bleach Library Research → 1.2 BleachSanitizer Class → 1.3 Threat Analysis Framework
+1.1 Node.js Library Research → 1.2 ComprehensiveSanitizer Class → 1.3 Threat Analysis Framework
 ```
 
 **Parallel**: Research can happen concurrently with initial class development.
@@ -262,15 +265,15 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 
 ## **📊 TOTAL EFFORT ESTIMATE**
 
-| Phase                    | Duration | Effort (Person-Days)  | Key Deliverables                        |
-| ------------------------ | -------- | --------------------- | --------------------------------------- |
-| **Foundation**           | Week 1   | 7-10                  | BleachSanitizer class, threat analysis  |
-| **Pipeline Reordering**  | Week 2   | 4-7                   | Reordered jobWorker.js, AI validation   |
-| **Python Integration**   | Week 3   | 5-7                   | Python bleach integration, coordination |
-| **Response Enhancement** | Week 4   | 4-6                   | Enhanced cleanup, response coverage     |
-| **Testing & Validation** | Week 5   | 8-11                  | Security tests, performance benchmarks  |
-| **Deployment**           | Week 6   | 4-6                   | Rollout strategy, monitoring            |
-| **TOTAL**                | 6 weeks  | **32-47 person-days** | Complete sanitization pipeline fix      |
+| Phase                    | Duration | Effort (Person-Days)  | Key Deliverables                              |
+| ------------------------ | -------- | --------------------- | --------------------------------------------- |
+| **Foundation**           | Week 1   | 7-10                  | ComprehensiveSanitizer class, threat analysis |
+| **Pipeline Reordering**  | Week 2   | 4-7                   | Reordered jobWorker.js, AI validation         |
+| **Python Integration**   | Week 3   | 5-7                   | Python bleach integration, coordination       |
+| **Response Enhancement** | Week 4   | 4-6                   | Enhanced cleanup, response coverage           |
+| **Testing & Validation** | Week 5   | 8-11                  | Security tests, performance benchmarks        |
+| **Deployment**           | Week 6   | 4-6                   | Rollout strategy, monitoring                  |
+| **TOTAL**                | 6 weeks  | **32-47 person-days** | Complete sanitization pipeline fix            |
 
 ---
 
