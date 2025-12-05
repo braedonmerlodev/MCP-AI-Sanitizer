@@ -22,13 +22,12 @@ In Progress
 - [x] Analyze current test failures in jobWorker.test.js
 - [x] Identify job type mismatches (upload-pdf → pdf_processing)
 - [x] Update progress percentage assertions (55% → 70% for AI transformation)
-- [x] Diagnose result structure issues (result undefined in tests)
-- [ ] **ALTERNATIVE APPROACH**: Replace rewire mocks with direct integration tests
-- [ ] **ALTERNATIVE APPROACH**: Create end-to-end pipeline verification tests
-- [ ] Update test expectations for result.sanitizedData vs result.sanitizedContent (once mocks fixed)
-- [ ] Fix mock objects to match new pipeline flow (or replace with integration tests)
-- [ ] Verify all test scenarios work with reordered pipeline
-- [ ] Add regression tests for pipeline reordering
+- [x] Attempt integration testing approach (completed - revealed rewire issues)
+- [ ] Return to unit test fixes with simplified mocking strategy
+- [ ] Update test expectations for result structure (sanitizedContent)
+- [ ] Fix mock objects using standard Jest patterns
+- [ ] Add proper mock cleanup (afterEach)
+- [ ] Verify reordered pipeline works with corrected tests
 
 ## Dev Notes
 
@@ -80,6 +79,23 @@ jobWorker.js now sanitizes first, then applies AI transformation.
 - Must maintain test coverage levels
 - Cannot break existing test infrastructure
 - Need to support both pipeline orders during transition
+
+### Updated Implementation Strategy
+
+**Integration testing attempted but rewire complexity blocking progress. Returning to enhanced unit testing:**
+
+1. **Simplify Mock Strategy**: Use standard Jest mocks instead of rewire
+2. **Direct Test Updates**: Fix existing unit tests with corrected expectations
+3. **Mock Cleanup**: Add proper afterEach cleanup to prevent async leaks
+4. **Incremental Validation**: Test basic functionality first, then complex scenarios
+5. **Manual Verification**: Use manual testing to verify pipeline reordering works
+
+**Expected Outcomes:**
+
+- ✅ **Working Unit Tests**: Reliable test suite for reordered pipeline
+- ✅ **Verified Functionality**: Confirmed sanitization → AI ordering
+- ✅ **Maintainable Tests**: Standard mocking patterns for future development
+- ✅ **Progress Foundation**: Solid base for remaining validation substories
 
 ### Recommended Alternative Approach
 
