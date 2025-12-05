@@ -701,13 +701,22 @@ class SecurityAgent(Agent):
                     sanitization_report = None
                     structured = processed_data.get('structured_output', {})
                     
-                    for key in ['sanitizationTests', 'sanitizationTargets', 'sanitizationReport', 'securityReport']:
-                        if isinstance(structured, dict) and key in structured:
-                            sanitization_report = structured[key]
-                            break
-                        if key in processed_data:
-                            sanitization_report = processed_data[key]
-                            break
+                    # New Logic: Check for `securityReport` which contains recursively extracted threats
+                    if processed_data.get('result') and isinstance(processed_data['result'], dict) and 'securityReport' in processed_data['result']:
+                            sanitization_report = processed_data['result']['securityReport']
+                    elif 'securityReport' in processed_data:
+                        sanitization_report = processed_data['securityReport']
+                    elif isinstance(structured, dict) and 'securityReport' in structured:
+                        sanitization_report = structured['securityReport']
+                    else:
+                        # Fallback to old key checking if securityReport is missing
+                        for key in ['sanitizationTests', 'sanitizationTargets', 'sanitizationReport', 'securityReport']:
+                            if isinstance(structured, dict) and key in structured:
+                                sanitization_report = structured[key]
+                                break
+                            if key in processed_data:
+                                sanitization_report = processed_data[key]
+                                break
 
                     if sanitization_report:
                         # Format based on report content
