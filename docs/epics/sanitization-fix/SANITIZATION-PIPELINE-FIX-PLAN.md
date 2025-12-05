@@ -2,6 +2,14 @@
 
 ## 📋 Analysis of Sanitization Epics
 
+### **🔧 Async Compatibility Clarification**
+
+Both Python bleach and Node.js sanitization libraries work perfectly with async operations:
+
+- **Python Bleach**: Would work via async Python service calls (like current AI transformer)
+- **Node.js Libraries**: Work natively with async/await (DOMPurify, sanitize-html, etc.)
+- **Current Pipeline**: Already async-capable with job queues and concurrent processing
+
 After reviewing all sanitization epics, I've identified the core issues and created a comprehensive breakdown of substories needed to fix the sanitization pipeline.
 
 ### **🎯 Core Problems Identified**
@@ -229,13 +237,14 @@ After reviewing all sanitization epics, I've identified the core issues and crea
 
 **Dependencies**: Must complete foundation before reordering.
 
-### **PHASE 3: PYTHON INTEGRATION (Week 3)**
+### **PHASE 3: PYTHON INTEGRATION (Optional - Week 3)**
 
 ```
 3.1 Python Bleach Integration → 3.2 Python-Node.js Coordination
 ```
 
 **Parallel**: Can run parallel with Phase 2 completion.
+**Note**: Optional if single-layer Node.js sanitization provides sufficient security.
 
 ### **PHASE 4: RESPONSE ENHANCEMENT (Week 4)**
 
