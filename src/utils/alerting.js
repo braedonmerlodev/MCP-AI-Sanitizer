@@ -13,6 +13,11 @@ const alertConfig = {
       p95Time: { warning: 150, critical: 200 },
       slaCompliance: { warning: 90, critical: 95 },
     },
+    metadataLeakage: {
+      incidentsPerHour: { warning: 5, critical: 10 },
+      criticalIncidentsPerDay: { warning: 3, critical: 5 },
+      highSeverityIncidentsPerDay: { warning: 10, critical: 20 },
+    },
   },
   channels: {
     slack: process.env.SLACK_WEBHOOK_URL,
@@ -66,6 +71,10 @@ class PerformanceAlerting {
       now,
     );
     alerts.push(...tokenAlerts);
+
+    // Check metadata leakage metrics
+    const leakageAlerts = this.checkMetadataLeakage(metrics, now);
+    alerts.push(...leakageAlerts);
 
     // Send alerts
     for (const alert of alerts) this.sendAlert(alert);
@@ -206,6 +215,78 @@ class PerformanceAlerting {
           thresholds.slaCompliance.warning,
           now,
           true,
+        ),
+      );
+    }
+
+    return alerts;
+  }
+
+  /**
+   * Check metadata leakage metrics against thresholds
+   * @param {Object} metrics - Current metrics from monitoring
+   * @param {number} now - Current timestamp
+   * @returns {Array} Array of alerts
+   */
+  checkMetadataLeakage(metrics, now) {
+    const alerts = [];
+    const thresholds = this.config.thresholds.metadataLeakage;
+
+    // Get leakage statistics from sanitization monitor if available
+    const leakageStats = metrics.aiInputSanitization || {};
+
+    // Check incidents per hour (simplified - would need time-windowed data)
+    // For now, we'll check against total incidents as a proxy
+    if (
+      leakageStats.totalProcessed &&
+      leakageStats.totalProcessed > thresholds.incidentsPerHour.critical
+    ) {
+      alerts.push(
+        this.createAlert(
+          'critical',
+          'metadataLeakage.incidentsPerHour',
+          leakageStats.totalProcessed,
+          thresholds.incidentsPerHour.critical,
+          now,
+        ),
+      );
+    } else if (
+      leakageStats.totalProcessed &&
+      leakageStats.totalProcessed > thresholds.incidentsPerHour.warning
+    ) {
+      alerts.push(
+        this.createAlert(
+          'warning',
+          'metadataLeakage.incidentsPerHour',
+          leakageStats.totalProcessed,
+          thresholds.incidentsPerHour.warning,
+          now,
+        ),
+      );
+    }
+
+    // Check for sanitization failures (indicates potential leakage issues)
+    if (leakageStats.sanitizationFailures && leakageStats.sanitizationFailures > 0) {
+      alerts.push(
+        this.createAlert(
+          'warning',
+          'metadataLeakage.sanitizationFailures',
+          leakageStats.sanitizationFailures,
+          0, // Any sanitization failure is concerning
+          now,
+        ),
+      );
+    }
+
+    // Check for validation failures (indicates metadata leakage detection)
+    if (leakageStats.validationFailures && leakageStats.validationFailures > 0) {
+      alerts.push(
+        this.createAlert(
+          'critical',
+          'metadataLeakage.validationFailures',
+          leakageStats.validationFailures,
+          0, // Any validation failure indicates leakage
+          now,
         ),
       );
     }

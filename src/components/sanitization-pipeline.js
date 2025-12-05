@@ -49,8 +49,41 @@ class SanitizationPipeline {
   }
 
   /**
+   * Recursively sanitizes string values in an object or array (similar to jobWorker sanitizeObject)
+   * @param {any} data - The data to sanitize
+   * @returns {any} - The sanitized data
+   */
+  sanitizeObject(data) {
+    if (typeof data === 'string') {
+      // Apply string sanitization using pipeline steps
+      let result = data;
+      for (const step of this.steps) {
+        result = step.sanitize(result);
+      }
+      return result;
+    } else if (Array.isArray(data)) {
+      return data.map((item) => this.sanitizeObject(item));
+    } else if (data && typeof data === 'object') {
+      const sanitized = {};
+      for (const [key, value] of Object.entries(data)) {
+        // Skip sanitizing certain metadata fields that should remain intact
+        if (
+          ['trustToken', 'timestamp', 'requestId', 'correlationId', 'validationId'].includes(key)
+        ) {
+          sanitized[key] = value;
+        } else {
+          sanitized[key] = this.sanitizeObject(value);
+        }
+      }
+      return sanitized;
+    }
+    return data;
+  }
+
+  /**
    * Sanitizes the input data by running it through all pipeline steps with integrity validation.
-   * @param {string} data - The input string to sanitize.
+   * Handles both string and structured JSON data.
+   * @param {string|Object} data - The input data to sanitize.
    * @param {Object} options - Sanitization options
    * @param {string} options.classification - Destination classification ('llm', 'non-llm', 'unclear')
    * @param {string} options.riskLevel - Risk level ('low', 'medium', 'high')
@@ -74,41 +107,21 @@ class SanitizationPipeline {
     const trustTokensEnabled = config.features.trustTokens.enabled;
     generateTrustToken = generateTrustToken && trustTokensEnabled;
 
-    // Check for valid trust token and return cached result if available
+    // Zero-trust: Always perform full sanitization, trust tokens are for validation only
+    // Note: Trust tokens can still be generated for future validation, but we never skip sanitization
     if (trustToken && trustTokensEnabled) {
       if (!this.trustTokenGenerator) {
         this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
       }
       const validation = this.trustTokenGenerator.validateToken(trustToken);
       if (validation.isValid) {
-        // Check cache for sanitized content
-        const cached = this.trustTokenCache.get(trustToken.contentHash);
-        if (cached && cached.timestamp + this.cacheTTL > Date.now()) {
-          // Move to end for LRU
-          const index = this.cacheOrder.indexOf(trustToken.contentHash);
-          if (index !== -1) {
-            this.cacheOrder.splice(index, 1);
-            this.cacheOrder.push(trustToken.contentHash);
-          }
-          logger.info('Returning cached sanitized content via trust token', {
-            contentHash: trustToken.contentHash,
-            cacheAge: Date.now() - cached.timestamp,
-          });
-          // Log audit for cached sanitization
-          await this.auditLogger.logRiskAssessmentDecision(
-            'cached',
-            'Low',
-            { riskScore: 0, triggers: ['trust_token_valid'] },
-            {
-              userId: options.userId,
-              resourceId: options.resourceId || 'unknown',
-              stage: 'trust-token-cache',
-            },
-          );
-          return cached.sanitizedData;
-        }
+        logger.info('Trust token validated, proceeding with full sanitization', {
+          contentHash: trustToken.contentHash,
+        });
       } else {
-        logger.warn('Invalid trust token provided', { error: validation.error });
+        logger.warn('Invalid trust token provided, proceeding with sanitization anyway', {
+          error: validation.error,
+        });
       }
     }
 
@@ -181,10 +194,42 @@ class SanitizationPipeline {
     logger.info('Applying full sanitization pipeline', {
       classification,
       riskLevel,
-      dataLength: data.length,
+      dataLength: typeof data === 'string' ? data.length : JSON.stringify(data).length,
+      dataType: typeof data,
     });
 
     let result = data;
+
+    // Try to parse string data as JSON first
+    let isJsonString = false;
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        if (typeof parsed === 'object' && parsed !== null) {
+          result = parsed;
+          isJsonString = true;
+          logger.info('Detected JSON string, applying recursive sanitization');
+        }
+      } catch (e) {
+        // Not JSON, proceed as string
+      }
+    }
+
+    // Handle JSON data by recursively sanitizing object structure
+    let isJsonData = false;
+    if (typeof result === 'object' && result !== null) {
+      isJsonData = true;
+      if (!isJsonString) {
+        logger.info('Detected JSON data, applying recursive sanitization');
+      }
+      result = this.sanitizeObject(result);
+
+      if (isJsonString) {
+        result = JSON.stringify(result);
+        // Note: isJsonData remains true so we skip the string sanitization loop
+        // but result is now a string.
+      }
+    }
 
     // Pre-validation hook
     if (this.enableValidation && !skipValidation) {
@@ -206,10 +251,15 @@ class SanitizationPipeline {
     // Track applied rules for trust token
     const appliedRules = [];
 
-    // Apply sanitization steps
-    for (const step of this.steps) {
-      result = step.sanitize(result);
-      appliedRules.push(step.constructor.name);
+    // Apply sanitization steps (skip for already sanitized JSON data)
+    if (!isJsonData) {
+      for (const step of this.steps) {
+        result = step.sanitize(result);
+        appliedRules.push(step.constructor.name);
+      }
+    } else {
+      // For JSON data, we've already applied sanitization via sanitizeObject
+      appliedRules.push('RecursiveObjectSanitization');
     }
 
     // Post-validation hook
@@ -228,7 +278,8 @@ class SanitizationPipeline {
     }
 
     // Cache the sanitized result
-    const contentHash = crypto.createHash('sha256').update(result).digest('hex');
+    const contentToHash = typeof result === 'string' ? result : JSON.stringify(result);
+    const contentHash = crypto.createHash('sha256').update(contentToHash).digest('hex');
     this.trustTokenCache.set(contentHash, {
       sanitizedData: result,
       timestamp: Date.now(),
@@ -252,7 +303,7 @@ class SanitizationPipeline {
     const inputDataForLength = typeof data === 'string' ? data : JSON.stringify(data);
     const contextMetadata = {
       inputLength: inputDataForLength.length,
-      outputLength: result.length,
+      outputLength: typeof result === 'string' ? result.length : JSON.stringify(result).length,
       processingTime,
     };
     const processingSteps = appliedRules;
@@ -274,7 +325,11 @@ class SanitizationPipeline {
         this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
       }
       const startTime = process.hrtime.bigint();
-      const trustToken = this.trustTokenGenerator.generateToken(result, data, appliedRules);
+      // Ensure trust token generator gets a string if it expects one
+      const tokenContent = typeof result === 'string' ? result : JSON.stringify(result);
+      // But wait, if result is object, we probably want to hash the object content.
+      // Assuming generator uses update(content), we should pass string.
+      const trustToken = this.trustTokenGenerator.generateToken(tokenContent, data, appliedRules);
       const endTime = process.hrtime.bigint();
       const durationMs = Number(endTime - startTime) / 1_000_000;
       recordTokenGeneration(durationMs);

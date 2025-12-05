@@ -46,9 +46,15 @@ class ProxySanitizer {
       trustToken,
     } = options;
     const riskLevel = sanitizationConfig.getRiskLevel(classification);
-    const sanitizationLevel = riskLevel === 'low' ? 'bypassed' : 'full';
+    // Zero-trust: Always apply full sanitization regardless of risk level
+    const sanitizationLevel = 'full';
 
-    logger.info('Starting sanitization process', { classification, riskLevel, operation });
+    logger.info('Starting sanitization process (zero-trust mode)', {
+      classification,
+      riskLevel,
+      sanitizationLevel,
+      operation,
+    });
 
     const startTime = Date.now();
     const sanitized = await this.pipeline.sanitize(data, { ...options, riskLevel });

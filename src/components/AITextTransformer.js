@@ -4,6 +4,7 @@ const winston = require('winston');
 const SanitizationPipeline = require('./sanitization-pipeline');
 const aiConfig = require('../config/aiConfig');
 const config = require('../config');
+const { recordAIInputSanitization } = require('../utils/monitoring');
 
 // Simple in-memory rate limiter for Gemini API
 class RateLimiter {
@@ -75,6 +76,53 @@ class AITextTransformer {
   }
 
   /**
+   * Validates that input sanitization was successful by checking for dangerous patterns.
+   * @param {string} original - Original input text
+   * @param {string} sanitized - Sanitized input text
+   * @returns {boolean} - True if sanitization appears successful
+   */
+  validateSanitization(original, sanitized) {
+    // Check for common dangerous patterns that should be sanitized
+    const dangerousPatterns = [
+      /<script[^>]*>[\s\S]*?<\/script>/i,
+      /javascript:/i,
+      /on\w+\s*=/i,
+      /<iframe[^>]*>/i,
+      /<object[^>]*>/i,
+      /<embed[^>]*>/i,
+      /<form[^>]*>/i,
+      /<input[^>]*>/i,
+      /<meta[^>]*>/i,
+      /expression\s*\(/i,
+      /vbscript:/i,
+      /data:text\/html/i,
+    ];
+
+    // If original contained dangerous patterns but sanitized doesn't, validation passes
+    const originalHasDanger = dangerousPatterns.some((pattern) => pattern.test(original));
+    const sanitizedHasDanger = dangerousPatterns.some((pattern) => pattern.test(sanitized));
+
+    if (originalHasDanger && !sanitizedHasDanger) {
+      // Successfully sanitized dangerous content
+      recordAIInputSanitization('dangerousContentBlocked', {
+        originalLength: original.length,
+        sanitizedLength: sanitized.length,
+      });
+      return true;
+    } else if (!originalHasDanger && !sanitizedHasDanger) {
+      return true; // No dangerous content to begin with
+    } else if (originalHasDanger && sanitizedHasDanger) {
+      this.logger.warn('Sanitization validation failed: dangerous content still present', {
+        originalLength: original.length,
+        sanitizedLength: sanitized.length,
+      });
+      return false; // Dangerous content still present
+    }
+
+    return true; // Default pass
+  }
+
+  /**
    * Transforms text using AI with double sanitization.
    * @param {string} text - The input text to transform
    * @param {string} type - Transformation type: 'structure', 'summarize', 'extract_entities', 'json_schema'
@@ -90,10 +138,27 @@ class AITextTransformer {
       throw new Error(`Unknown transformation type: ${type}`);
     }
 
-    try {
-      // Sanitize input before AI processing
-      const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
+    // Sanitize input before AI processing
+    const sanitizedInput = await this.sanitizer.sanitize(text, options.sanitizerOptions || {});
 
+    // Validate that sanitization was successful
+    const sanitizationValid = this.validateSanitization(text, sanitizedInput);
+    if (!sanitizationValid) {
+      this.logger.error('Input sanitization validation failed, rejecting AI processing', {
+        type,
+        inputLength: text.length,
+        sanitizedLength: sanitizedInput.length,
+      });
+      // Record security event for monitoring
+      recordAIInputSanitization('validationFailure', {
+        type,
+        inputLength: text.length,
+        sanitizedLength: sanitizedInput.length,
+      });
+      throw new Error('Input sanitization validation failed - potential security risk');
+    }
+
+    try {
       // Check rate limits before calling Gemini API
       if (!geminiRateLimiter.canMakeRequest()) {
         this.logger.warn('Gemini API rate limit exceeded, using fallback strategy', {

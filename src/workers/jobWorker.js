@@ -7,6 +7,8 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const pdfParse = require('pdf-parse');
+const { performance } = require('node:perf_hooks');
+const { recordPipelinePerformance, updateConcurrencyMetrics } = require('../utils/monitoring');
 
 /**
  * Recursively sanitizes string values in an object or array
@@ -197,16 +199,25 @@ async function processJob(job) {
       // SANITIZE FIRST: Apply sanitization before AI processing
       await jobStatus.updateProgress(40, 'Sanitizing content');
 
+      // Start sanitization performance timing
+      const sanitizeStartTime = performance.now();
+
       const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
       const sanitizeOptions = { ...job.options, generateTrustToken: true };
       const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
 
+      const sanitizeEndTime = performance.now();
+      const sanitizationTime = sanitizeEndTime - sanitizeStartTime;
+
       // Apply AI transformation if specified (now on sanitized input)
+      let aiProcessingTime = 0;
       if (job.options?.aiTransformType) {
         await jobStatus.updateProgress(
           70,
           `Applying AI ${job.options.aiTransformType} transformation`,
         );
+
+        const aiStartTime = performance.now();
 
         const aiTransformer = new AITextTransformer();
         try {
@@ -232,6 +243,9 @@ async function processJob(job) {
               ? sanitized.sanitizedData
               : sanitized;
         }
+
+        const aiEndTime = performance.now();
+        aiProcessingTime = aiEndTime - aiStartTime;
       } else {
         // No AI transformation - use sanitized text
         processedText =
@@ -239,6 +253,16 @@ async function processJob(job) {
             ? sanitized.sanitizedData
             : sanitized;
       }
+
+      // Record pipeline performance metrics
+      const totalPipelineTime = sanitizationTime + aiProcessingTime;
+      recordPipelinePerformance(sanitizationTime, aiProcessingTime, totalPipelineTime, {
+        jobId,
+        jobType: job.data.type,
+        aiTransformType: job.options?.aiTransformType || 'none',
+        inputSize: processedText.length,
+        outputSize: result?.sanitizedData?.length || processedText.length,
+      });
 
       // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
       result =
@@ -250,6 +274,21 @@ async function processJob(job) {
       result.status = 'processed';
       result.fileName = job.data.fileName;
       result.metadata = metadata;
+
+      // FINAL SANITIZATION: Ensure entire result object is properly sanitized
+      logger.info('Applying final sanitization to complete result object', { jobId });
+      result.sanitizedData = sanitizeObject(result.sanitizedData);
+      result.metadata = sanitizeObject(result.metadata);
+
+      // Record final pipeline performance
+      recordPipelinePerformance(sanitizationTime, aiProcessingTime, totalPipelineTime, {
+        jobId,
+        jobType: job.data.type,
+        aiTransformType: job.options?.aiTransformType || 'none',
+        inputSize: JSON.stringify(result.sanitizedData).length,
+        outputSize: JSON.stringify(result).length,
+        finalSanitization: true,
+      });
 
       // Set consistent result structure for PDF processing
       result.status = 'processed';
@@ -474,6 +513,10 @@ async function processJob(job) {
             }
           }
         }
+
+        // FINAL SECURITY CHECK: Sanitize the complete result object before returning
+        logger.info('Applying final security sanitization to result object', { jobId });
+        result = sanitizeObject(result);
 
         // Format result to match sync response
         // If sanitizedData is an object (structured response), stringify it for backward compatibility

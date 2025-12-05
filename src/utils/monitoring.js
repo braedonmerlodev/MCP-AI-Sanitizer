@@ -27,6 +27,29 @@ let metrics = {
     failedValidations: 0,
     authFailures: 0,
     suspiciousRequests: 0,
+    aiInputSanitization: {
+      totalProcessed: 0,
+      sanitizationFailures: 0,
+      validationFailures: 0,
+      dangerousContentBlocked: 0,
+    },
+  },
+  pipeline: {
+    totalProcessed: 0,
+    sanitizationTime: [],
+    aiProcessingTime: [],
+    totalPipelineTime: [],
+    concurrencyMetrics: {
+      activeJobs: 0,
+      queueDepth: 0,
+      throughput: 0,
+    },
+    performanceBreakdown: {
+      sanitizationVsAI: {
+        sanitizationPortion: 0,
+        aiPortion: 0,
+      },
+    },
   },
   stability: {
     errors: 0,
@@ -109,6 +132,83 @@ const recordSecurityEvent = (type) => {
   if (type === 'suspiciousRequest') metrics.security.suspiciousRequests++;
 };
 
+const recordAIInputSanitization = (eventType, details = {}) => {
+  metrics.security.aiInputSanitization.totalProcessed++;
+
+  if (eventType === 'sanitizationFailure') {
+    metrics.security.aiInputSanitization.sanitizationFailures++;
+  } else if (eventType === 'validationFailure') {
+    metrics.security.aiInputSanitization.validationFailures++;
+  } else if (eventType === 'dangerousContentBlocked') {
+    metrics.security.aiInputSanitization.dangerousContentBlocked++;
+  }
+
+  // Log the event for monitoring
+  console.log(`AI Input Sanitization Event: ${eventType}`, {
+    ...details,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+const recordPipelinePerformance = (sanitizationTime, aiProcessingTime, totalTime, details = {}) => {
+  metrics.pipeline.totalProcessed++;
+
+  // Track timing metrics (keep last 1000 measurements)
+  metrics.pipeline.sanitizationTime.push(sanitizationTime);
+  metrics.pipeline.aiProcessingTime.push(aiProcessingTime);
+  metrics.pipeline.totalPipelineTime.push(totalTime);
+
+  // Maintain rolling window
+  const maxMetrics = 1000;
+  if (metrics.pipeline.sanitizationTime.length > maxMetrics) {
+    metrics.pipeline.sanitizationTime.shift();
+    metrics.pipeline.aiProcessingTime.shift();
+    metrics.pipeline.totalPipelineTime.shift();
+  }
+
+  // Update performance breakdown
+  const totalTimeSum = metrics.pipeline.totalPipelineTime.reduce((a, b) => a + b, 0);
+  if (totalTimeSum > 0) {
+    const sanitizationPortion =
+      (metrics.pipeline.sanitizationTime.reduce((a, b) => a + b, 0) / totalTimeSum) * 100;
+    const aiPortion =
+      (metrics.pipeline.aiProcessingTime.reduce((a, b) => a + b, 0) / totalTimeSum) * 100;
+
+    metrics.pipeline.performanceBreakdown.sanitizationVsAI.sanitizationPortion =
+      sanitizationPortion;
+    metrics.pipeline.performanceBreakdown.sanitizationVsAI.aiPortion = aiPortion;
+  }
+
+  // Log performance metrics
+  console.log('Pipeline Performance Recorded', {
+    sanitizationTime: `${sanitizationTime.toFixed(2)}ms`,
+    aiProcessingTime: `${aiProcessingTime.toFixed(2)}ms`,
+    totalTime: `${totalTime.toFixed(2)}ms`,
+    efficiency:
+      totalTime > 0
+        ? (((sanitizationTime + aiProcessingTime) / totalTime) * 100).toFixed(1) + '%'
+        : 'N/A',
+    ...details,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+const updateConcurrencyMetrics = (activeJobs, queueDepth) => {
+  metrics.pipeline.concurrencyMetrics.activeJobs = activeJobs;
+  metrics.pipeline.concurrencyMetrics.queueDepth = queueDepth;
+
+  // Calculate throughput (operations per minute, based on recent activity)
+  const recentProcessed = Math.min(metrics.pipeline.totalProcessed, 60); // Last minute approximation
+  metrics.pipeline.concurrencyMetrics.throughput = recentProcessed;
+
+  console.log('Concurrency Metrics Updated', {
+    activeJobs,
+    queueDepth,
+    throughput: `${metrics.pipeline.concurrencyMetrics.throughput} ops/min`,
+    timestamp: new Date().toISOString(),
+  });
+};
+
 const recordError = () => {
   metrics.stability.errors++;
   metrics.stability.errorRate =
@@ -157,7 +257,34 @@ const resetMetrics = () => {
       slaCompliance: 100,
     },
     tokenGeneration: { times: [], avgTime: 0, p50: 0, p95: 0, p99: 0, slaCompliance: 100 },
-    security: { failedValidations: 0, authFailures: 0, suspiciousRequests: 0 },
+    security: {
+      failedValidations: 0,
+      authFailures: 0,
+      suspiciousRequests: 0,
+      aiInputSanitization: {
+        totalProcessed: 0,
+        sanitizationFailures: 0,
+        validationFailures: 0,
+        dangerousContentBlocked: 0,
+      },
+    },
+    pipeline: {
+      totalProcessed: 0,
+      sanitizationTime: [],
+      aiProcessingTime: [],
+      totalPipelineTime: [],
+      concurrencyMetrics: {
+        activeJobs: 0,
+        queueDepth: 0,
+        throughput: 0,
+      },
+      performanceBreakdown: {
+        sanitizationVsAI: {
+          sanitizationPortion: 0,
+          aiPortion: 0,
+        },
+      },
+    },
     stability: { errors: 0, errorRate: 0 },
   };
 };
@@ -166,6 +293,9 @@ module.exports = {
   recordRequest,
   recordTokenGeneration,
   recordSecurityEvent,
+  recordAIInputSanitization,
+  recordPipelinePerformance,
+  updateConcurrencyMetrics,
   recordError,
   getMetrics,
   resetMetrics,

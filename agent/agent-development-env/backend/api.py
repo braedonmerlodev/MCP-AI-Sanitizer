@@ -26,6 +26,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
 import PyPDF2
+import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.security_agent import SecurityAgent
@@ -149,6 +150,11 @@ DATA_URL_PATTERN = re.compile(r'data:\s*text\/html[^,]+,', re.IGNORECASE)
 XSS_KEYWORD_PATTERN = re.compile(r'\b(alert|img|src|javascript|script|onerror|onload)\b', re.IGNORECASE)
 BAD_CHARS_PATTERN = re.compile(r'[`©®™€£¥§¶†‡‹›Øß²³´]')
 PDF_ARTIFACTS_PATTERN = re.compile(r'[þÿ‰°ÀÐï•]')
+EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+# Improved patterns with lookbehind/lookahead to catch attached PII
+PHONE_PATTERN = re.compile(r'(?<!\d)\d{3}[-.]?\d{3}[-.]?\d{4}(?!\d)')
+SSN_PATTERN = re.compile(r'(?<!\d)\d{3}[-]?\d{2}[-]?\d{4}(?!\d)')
+MATH_SYMBOLS_PATTERN = re.compile(r'[∀∃∄∅∆∇∈∉∊∋∌∍∎∏∐∑−∓∔∕∖∗∘∙√∝∞∟∠∡∢∣∤∥∦∧∨∩∪∫∬∭∮∯∰∱∲∳∴∵∶∷∸∹∺∻∼∽∾∿≀≁≂≃≄≅≆≇≈≉≊≋≌≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟≠≡≢≣≤≥≦≧≨≩≪≫≬≭≮≯≰≱≲≳≴≵≶≷≸≹≺≻≼≽≾≿⊀⊁⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊌⊍⊎⊏⊐⊑⊒⊓⊔⊕⊖⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯⊰⊱⊲⊳⊴⊵⊶⊷⊸⊹⊺⊻⊼⊽⊾⊿⋀⋁⋂⋃⋄⋅⋆⋇⋈⋉⋊⋋⋌⋍⋎⋏⋐⋑⋒⋓⋔⋕⋖⋗⋘⋙⋚⋛⋜⋝⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭⋮⋯⋰⋱⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿]')
 
 # Initialize globally to avoid re-creation overhead
 BLEACH_CLEANER = bleach.sanitizer.Cleaner(tags=[], strip=True)
@@ -172,8 +178,8 @@ def validate_file_type(file_content: bytes, filename: str) -> bool:
         return False
 
 
-def sanitize_input(text: str) -> str:
-    """Sanitize input text using the full pipeline like Node.js"""
+def _sanitize_string_impl(text: str) -> str:
+    """Core string sanitization logic (internal use)"""
     import unicodedata
 
     # Ensure it's a string
@@ -183,12 +189,20 @@ def sanitize_input(text: str) -> str:
     # 1. Unicode normalization
     text = unicodedata.normalize('NFC', text)
 
+    # Normalize non-breaking spaces
+    text = text.replace('\u00A0', ' ')
+
     # 2. Escape neutralization - remove ANSI escape sequences (before symbol stripping)
     text = ANSI_ESCAPE_PATTERN.sub('', text)
 
     # 3. Symbol stripping - remove zero-width, control characters, and soft hyphens
     zero_width_chars = '\u200B\u200C\u200D\u200E\u200F\u2028\u2029\uFEFF\u00AD'
-    control_chars = ''.join(chr(i) for i in range(0, 32)) + ''.join(chr(i) for i in range(127, 160))
+    
+    # Define control characters but exclude standard whitespace (Tab, LF, VT, FF, CR)
+    # 9: \t, 10: \n, 11: \v, 12: \f, 13: \r
+    whitelist = {9, 10, 11, 12, 13}
+    control_chars = ''.join(chr(i) for i in range(0, 32) if i not in whitelist) + ''.join(chr(i) for i in range(127, 160))
+    
     text = re.sub(f'[{re.escape(zero_width_chars + control_chars)}]', '', text)
 
     # 4. HTML sanitization - hybrid approach for performance
@@ -218,11 +232,51 @@ def sanitize_input(text: str) -> str:
     # Remove specific bad characters and symbols
     text = BAD_CHARS_PATTERN.sub('', text)
 
+    # Remove mathematical symbols
+    text = MATH_SYMBOLS_PATTERN.sub('', text)
+
     # Remove PDF-specific bad characters
     text = PDF_ARTIFACTS_PATTERN.sub('', text)
 
+    # PII Redaction (before symbol stripping to catch valid patterns)
+    text = EMAIL_PATTERN.sub('EMAIL_REDACTED', text)
+    text = PHONE_PATTERN.sub('PHONE_REDACTED', text)
+    text = SSN_PATTERN.sub('SSN_REDACTED', text)
+
+    # Remove HTML entities
+    text = re.sub(r'&(lt|gt|quot|apos|amp);', '', text, flags=re.IGNORECASE)
+
+    # Aggressive symbol stripping (Zero Trust)
+    # Remove: < > ( ) { } [ ] \ | ~ ` " ' ; : = ? ! @ # $ % ^ & * + ,
+    text = re.sub(r'[<>(){}[\]\\|~`"\';:=?!@#$%^&*+,]', '', text)
+
     # Limit length
     return text[:MAX_TEXT_LENGTH]
+
+
+def sanitize_input(text: str) -> str:
+    """Sanitize input text using the full pipeline like Node.js.
+    Handles JSON strings by parsing and recursing.
+    """
+    # Ensure it's a string
+    if not isinstance(text, str):
+        text = str(text or '')
+
+    # Try to parse as JSON first (only if it looks like JSON)
+    stripped = text.strip()
+    if (stripped.startswith('{') and stripped.endswith('}')) or \
+       (stripped.startswith('[') and stripped.endswith(']')):
+        try:
+            data = json.loads(text)
+            if isinstance(data, (dict, list)):
+                # Recursively sanitize
+                sanitized_data = sanitize_dict(data)
+                return json.dumps(sanitized_data)
+        except (json.JSONDecodeError, TypeError):
+            # Not valid JSON, proceed as string
+            pass
+
+    return _sanitize_string_impl(text)
 
 
 def sanitize_input_with_tracking(text: str) -> tuple[str, dict]:
@@ -1822,11 +1876,27 @@ async def http_chat(
     sanitization_metrics = get_sanitization_metrics(original_message)
     should_send_summary = sanitization_metrics['threshold_exceeded']
 
-    # Sanitize input
-    chat_request.message = sanitize_input(chat_request.message)
-
-    # Sanitize input
-    chat_request.message = sanitize_input(chat_request.message)
+    # Sanitize input using Node.js sanitization service
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "http://localhost:3000/api/sanitize/json",
+                json={
+                    "content": chat_request.message,
+                    "classification": "llm"
+                }
+            )
+            if response.status_code == 200:
+                result = response.json()
+                chat_request.message = result.get("sanitizedContent", chat_request.message)
+                logging.info(f"Node.js sanitization successful: {len(chat_request.message)} chars")
+            else:
+                logging.warning(f"Node.js sanitization failed: {response.status_code}, falling back to Python sanitization")
+                chat_request.message = sanitize_input(chat_request.message)
+    except Exception as e:
+        logging.warning(f"Node.js sanitization unavailable: {e}, falling back to Python sanitization")
+        chat_request.message = sanitize_input(chat_request.message)
 
     try:
         agent = await get_agent()

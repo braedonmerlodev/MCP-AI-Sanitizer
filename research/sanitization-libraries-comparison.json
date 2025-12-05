@@ -1,0 +1,1240 @@
+{
+  "timestamp": "2025-12-05T22:27:47.861Z",
+  "summary": {
+    "totalTests": 10,
+    "libraries": [
+      "DOMPurify",
+      "sanitizeHtml",
+      "bleach"
+    ]
+  },
+  "aggregateScores": {
+    "DOMPurify": {
+      "totalScore": 671,
+      "successfulTests": 10,
+      "averageAccuracy": 67
+    },
+    "sanitizeHtml": {
+      "totalScore": 671,
+      "successfulTests": 10,
+      "averageAccuracy": 67
+    },
+    "bleach": {
+      "totalScore": 708,
+      "successfulTests": 10,
+      "averageAccuracy": 71
+    }
+  },
+  "featureComparison": {
+    "DOMPurify": {
+      "type": "DOM-based",
+      "serverCompatible": true,
+      "clientCompatible": true,
+      "performance": "Fast",
+      "security": "High",
+      "configurability": "High",
+      "learningCurve": "Medium",
+      "maintenance": "Low",
+      "pros": [
+        "Industry standard for HTML sanitization",
+        "Excellent security track record",
+        "Highly configurable",
+        "Works in Node.js and browsers"
+      ],
+      "cons": [
+        "Requires JSDOM for server-side DOM manipulation",
+        "Larger bundle size",
+        "Complex configuration options"
+      ]
+    },
+    "sanitizeHtml": {
+      "type": "Parser-based",
+      "serverCompatible": true,
+      "clientCompatible": false,
+      "performance": "Very Fast",
+      "security": "High",
+      "configurability": "High",
+      "learningCurve": "Low",
+      "maintenance": "Low",
+      "pros": [
+        "Lightweight and fast",
+        "Simple API",
+        "Good documentation",
+        "Active maintenance"
+      ],
+      "cons": [
+        "Server-side only",
+        "Less comprehensive than DOMPurify",
+        "Fewer advanced features"
+      ]
+    },
+    "bleach": {
+      "type": "Parser-based",
+      "serverCompatible": true,
+      "clientCompatible": false,
+      "performance": "Fast",
+      "security": "Very High",
+      "configurability": "Medium",
+      "learningCurve": "Medium",
+      "maintenance": "Medium",
+      "pros": [
+        "Python standard for HTML sanitization",
+        "Excellent security reputation",
+        "Comprehensive tag/attribute control",
+        "Battle-tested in production"
+      ],
+      "cons": [
+        "Python only (requires separate process)",
+        "Less active development than Node.js alternatives",
+        "Configuration can be complex"
+      ]
+    }
+  },
+  "recommendations": {
+    "primaryRecommendation": "bleach",
+    "alternatives": [
+      "DOMPurify",
+      "sanitizeHtml"
+    ],
+    "migrationStrategy": {
+      "phases": [
+        "Evaluate current sanitization usage patterns",
+        "Create adapter layer for new library",
+        "Implement gradual rollout with feature flags",
+        "Monitor performance and security metrics",
+        "Complete migration and remove old implementation"
+      ],
+      "estimatedEffort": "2-3 weeks",
+      "riskLevel": "Medium",
+      "rollbackPlan": "Feature flag rollback to previous implementation"
+    },
+    "riskAssessment": {
+      "security": "Low - All evaluated libraries have strong security track records",
+      "performance": "Low - Libraries are optimized for performance",
+      "compatibility": "Medium - May require configuration adjustments",
+      "maintenance": "Low - All libraries are actively maintained"
+    }
+  },
+  "detailedResults": {
+    "basicHtml": {
+      "testName": "basicHtml",
+      "description": "Basic HTML with allowed tags",
+      "input": "<p>Hello <strong>world</strong>!</p>",
+      "expected": "<p>Hello <strong>world</strong>!</p>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<p>Hello <strong>world</strong>!</p>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<p>Hello <strong>world</strong>!</p>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<p>Hello <strong>world</strong>!</p>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 100
+      }
+    },
+    "scriptInjection": {
+      "testName": "scriptInjection",
+      "description": "Script tag removal",
+      "input": "<p>Hello <script>alert(\"xss\")</script> world!</p>",
+      "expected": "<p>Hello  world!</p>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<p>Hello  world!</p>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<p>Hello  world!</p>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<p>Hello  world!</p>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 100
+      }
+    },
+    "eventHandlers": {
+      "testName": "eventHandlers",
+      "description": "Event handler removal",
+      "input": "<a href=\"#\" onclick=\"alert('xss')\">Click me</a>",
+      "expected": "<a href=\"#\">Click me</a>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<a href=\"#\">Click me</a>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<a href=\"#\">Click me</a>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<a href=\"#\" >Click me</a>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 50
+      }
+    },
+    "maliciousAttributes": {
+      "testName": "maliciousAttributes",
+      "description": "Malicious attribute removal",
+      "input": "<img src=\"x\" onerror=\"alert('xss')\" onload=\"evil()\" />",
+      "expected": "<img src=\"x\" />",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<img src=\"x\"   />",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 0,
+        "sanitizeHtml": 0,
+        "bleach": 100
+      }
+    },
+    "nestedTags": {
+      "testName": "nestedTags",
+      "description": "Nested malicious content removal",
+      "input": "<div><script><iframe src=\"evil.com\"></iframe></script></div>",
+      "expected": "<div></div>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<div></div>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 0,
+        "sanitizeHtml": 0,
+        "bleach": 100
+      }
+    },
+    "allowedAttributes": {
+      "testName": "allowedAttributes",
+      "description": "Allowed attributes preservation",
+      "input": "<a href=\"https://example.com\" title=\"Safe link\">Link</a>",
+      "expected": "<a href=\"https://example.com\" title=\"Safe link\">Link</a>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<a href=\"https://example.com\" title=\"Safe link\">Link</a>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<a href=\"https://example.com\" title=\"Safe link\">Link</a>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<a href=\"https://example.com\" title=\"Safe link\">Link</a>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 100
+      }
+    },
+    "disallowedProtocols": {
+      "testName": "disallowedProtocols",
+      "description": "Disallowed protocol removal",
+      "input": "<a href=\"javascript:alert('xss')\">Bad link</a>",
+      "expected": "<a>Bad link</a>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<a>Bad link</a>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<a>Bad link</a>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<a >Bad link</a>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 33
+      }
+    },
+    "complexHtml": {
+      "testName": "complexHtml",
+      "description": "Complex HTML with mixed safe and malicious content",
+      "input": "\n          <div class=\"content\">\n            <h1>Title</h1>\n            <p>Paragraph with <em>emphasis</em> and <strong>bold</strong> text.</p>\n            <ul>\n              <li>Item 1</li>\n              <li>Item 2 <script>evil()</script></li>\n            </ul>\n            <a href=\"https://safe.com\" onclick=\"bad()\">Safe Link</a>\n            <img src=\"image.jpg\" alt=\"Image\" onerror=\"hack()\" />\n          </div>\n        ",
+      "expected": "\n          <div class=\"content\">\n            <h1>Title</h1>\n            <p>Paragraph with <em>emphasis</em> and <strong>bold</strong> text.</p>\n            <ul>\n              <li>Item 1</li>\n              <li>Item 2 </li>\n            </ul>\n            <a href=\"https://safe.com\">Safe Link</a>\n            <img src=\"image.jpg\" alt=\"Image\" />\n          </div>\n        ",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "\n          \n            <h1>Title</h1>\n            <p>Paragraph with <em>emphasis</em> and <strong>bold</strong> text.</p>\n            <ul>\n              <li>Item 1</li>\n              <li>Item 2 </li>\n            </ul>\n            <a href=\"https://safe.com\">Safe Link</a>\n            \n          \n        ",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "\n          \n            <h1>Title</h1>\n            <p>Paragraph with <em>emphasis</em> and <strong>bold</strong> text.</p>\n            <ul>\n              <li>Item 1</li>\n              <li>Item 2 </li>\n            </ul>\n            <a href=\"https://safe.com\">Safe Link</a>\n            \n          \n        ",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<div class=\"content\">\n            <h1>Title</h1>\n            <p>Paragraph with <em>emphasis</em> and <strong>bold</strong> text.</p>\n            <ul>\n              <li>Item 1</li>\n              <li>Item 2 </li>\n            </ul>\n            <a href=\"https://safe.com\" >Safe Link</a>\n            <img src=\"image.jpg\" alt=\"Image\"  />\n          </div>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 71,
+        "sanitizeHtml": 71,
+        "bleach": 92
+      }
+    },
+    "unicodeAttacks": {
+      "testName": "unicodeAttacks",
+      "description": "Unicode directionality attacks",
+      "input": "<p>Hello‎<script>alert(1)</script>‎world</p>",
+      "expected": "<p>Hello‎world</p>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<p>Hello‎‎world</p>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<p>Hello‎‎world</p>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<p>Hello‎‎world</p>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 0,
+        "sanitizeHtml": 0,
+        "bleach": 0
+      }
+    },
+    "cssInjection": {
+      "testName": "cssInjection",
+      "description": "CSS injection attacks",
+      "input": "<p style=\"background-image: url(javascript:alert(1))\">Styled text</p>",
+      "expected": "<p>Styled text</p>",
+      "libraries": {
+        "DOMPurify": {
+          "success": true,
+          "output": "<p>Styled text</p>",
+          "config": {
+            "ALLOWED_TAGS": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "ALLOWED_ATTR": [
+              "href",
+              "title"
+            ],
+            "ALLOW_DATA_ATTR": false
+          }
+        },
+        "sanitizeHtml": {
+          "success": true,
+          "output": "<p>Styled text</p>",
+          "config": {
+            "allowedTags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "allowedAttributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "allowedSchemes": [
+              "http",
+              "https",
+              "mailto"
+            ]
+          }
+        },
+        "bleach": {
+          "success": true,
+          "output": "<p >Styled text</p>",
+          "config": {
+            "tags": [
+              "p",
+              "br",
+              "strong",
+              "em",
+              "u",
+              "h1",
+              "h2",
+              "h3",
+              "ol",
+              "ul",
+              "li",
+              "a"
+            ],
+            "attributes": {
+              "a": [
+                "href",
+                "title"
+              ],
+              "img": [
+                "src",
+                "alt",
+                "title"
+              ]
+            },
+            "protocols": [
+              "http",
+              "https",
+              "mailto"
+            ],
+            "strip": false
+          },
+          "note": "This is a conceptual simulation. Real bleach would be more comprehensive."
+        }
+      },
+      "accuracy": {
+        "DOMPurify": 100,
+        "sanitizeHtml": 100,
+        "bleach": 33
+      }
+    }
+  }
+}

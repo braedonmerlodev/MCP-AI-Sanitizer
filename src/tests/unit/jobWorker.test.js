@@ -1,61 +1,76 @@
 const rewire = require('rewire');
-const sinon = require('sinon');
+// Mock external dependencies
+jest.mock('../../models/JobStatus');
+jest.mock('../../models/JobResult');
+jest.mock('../../components/proxy-sanitizer');
+jest.mock('../../components/MarkdownConverter');
+jest.mock('pdf-parse');
+
+const JobStatus = require('../../models/JobStatus');
+const JobResult = require('../../models/JobResult');
+const ProxySanitizer = require('../../components/proxy-sanitizer');
+const MarkdownConverter = require('../../components/MarkdownConverter');
+const pdfParse = require('pdf-parse');
 
 describe('jobWorker', () => {
-  let jobWorker;
   let mockJobStatus;
+  let mockJobResult;
+  let mockSanitizer;
+  let mockMarkdownConverter;
 
   beforeEach(() => {
-    jobWorker = rewire('../../workers/jobWorker');
+    // Reset all mocks
+    jest.clearAllMocks();
 
+    // Setup mock instances
     mockJobStatus = {
-      updateStatus: sinon.stub().resolves(),
-      updateProgress: sinon.stub().resolves(),
+      updateStatus: jest.fn().mockResolvedValue(),
+      updateProgress: jest.fn().mockResolvedValue(),
     };
 
-    const mockProxySanitizerInstance = {
-      sanitize: sinon.stub().resolves('sanitized data'),
-    };
-    const MockProxySanitizer = sinon.stub().returns(mockProxySanitizerInstance);
-
-    const MockMarkdownConverter = class {
-      constructor() {
-        this.convert = sinon.stub().returns('markdown text');
-      }
+    mockJobResult = {
+      save: jest.fn().mockResolvedValue(),
     };
 
-    const mockJobStatusModule = {
-      load: sinon.stub().resolves(mockJobStatus),
+    mockSanitizer = {
+      sanitize: jest.fn().mockResolvedValue('sanitized data'),
     };
 
-    const mockPdfParse = sinon.stub().resolves({
+    mockMarkdownConverter = {
+      convert: jest.fn().mockReturnValue('markdown text'),
+    };
+
+    // Setup module mocks
+    JobStatus.load = jest.fn().mockResolvedValue(mockJobStatus);
+    JobResult.mockImplementation(() => mockJobResult);
+    ProxySanitizer.mockImplementation(() => mockSanitizer);
+    MarkdownConverter.mockImplementation(() => mockMarkdownConverter);
+
+    pdfParse.mockResolvedValue({
       text: 'extracted text',
       numpages: 2,
       info: { Title: 'Test PDF', Author: 'Test Author' },
     });
+  });
 
-    const mockJobResult = {
-      save: sinon.stub().resolves(),
-    };
-
-    const MockJobResult = sinon.stub().returns(mockJobResult);
-
-    jobWorker.__set__('ProxySanitizer', MockProxySanitizer);
-    jobWorker.__set__('JobStatus', mockJobStatusModule);
-    jobWorker.__set__('MarkdownConverter', MockMarkdownConverter);
-    jobWorker.__set__('pdfParse', mockPdfParse);
-    jobWorker.__set__('JobResult', MockJobResult);
+  afterEach(() => {
+    // Clean up mocks to prevent async operation leaks
+    jest.clearAllMocks();
+    sinon.restore();
   });
 
   it('should process job successfully', async () => {
-    const processJob = jobWorker.__get__('processJob');
+    // Import the function directly since we're using Jest mocks
+    const { processJob } = require('../../workers/jobWorker');
 
     const job = { id: '123', data: 'test', options: {} };
 
     const result = await processJob(job);
+
+    expect(result).toBeDefined();
     expect(result.sanitizedContent).toBe('sanitized data');
-    expect(mockJobStatus.updateStatus.calledWith('processing')).toBe(true);
-    expect(mockJobStatus.updateStatus.calledWith('completed')).toBe(true);
+    expect(mockJobStatus.updateStatus).toHaveBeenCalledWith('processing');
+    expect(mockJobStatus.updateStatus).toHaveBeenCalledWith('completed');
   });
 
   it('should handle job processing error', async () => {
@@ -88,7 +103,7 @@ describe('jobWorker', () => {
     const job = {
       id: '123',
       data: {
-        type: 'upload-pdf',
+        type: 'pdf_processing',
         fileBuffer: Buffer.from('pdf data').toString('base64'),
         fileName: 'test.pdf',
       },
@@ -122,7 +137,7 @@ describe('jobWorker', () => {
     const job = {
       id: '123',
       data: {
-        type: 'upload-pdf',
+        type: 'pdf_processing',
         fileBuffer: Buffer.from('pdf data').toString('base64'),
         fileName: 'test.pdf',
       },
@@ -134,7 +149,7 @@ describe('jobWorker', () => {
     expect(result.fileName).toBe('test.pdf');
     expect(result.metadata.pages).toBe(2);
     expect(
-      mockJobStatus.updateProgress.calledWith(55, 'Applying AI structure transformation'),
+      mockJobStatus.updateProgress.calledWith(70, 'Applying AI structure transformation'),
     ).toBe(true);
   });
 
