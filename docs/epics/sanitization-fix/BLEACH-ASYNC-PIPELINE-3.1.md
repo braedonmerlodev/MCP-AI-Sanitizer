@@ -23,8 +23,10 @@ In Progress
 - [x] Identify job type mismatches (upload-pdf → pdf_processing)
 - [x] Update progress percentage assertions (55% → 70% for AI transformation)
 - [x] Diagnose result structure issues (result undefined in tests)
-- [ ] Update test expectations for result.sanitizedData vs result.sanitizedContent
-- [ ] Fix mock objects to match new pipeline flow
+- [ ] **ALTERNATIVE APPROACH**: Replace rewire mocks with direct integration tests
+- [ ] **ALTERNATIVE APPROACH**: Create end-to-end pipeline verification tests
+- [ ] Update test expectations for result.sanitizedData vs result.sanitizedContent (once mocks fixed)
+- [ ] Fix mock objects to match new pipeline flow (or replace with integration tests)
 - [ ] Verify all test scenarios work with reordered pipeline
 - [ ] Add regression tests for pipeline reordering
 
@@ -34,14 +36,21 @@ In Progress
 
 The pipeline reordering changed the result structure and processing order. Tests were written for the old order (AI → Sanitization) and need updates for the new order (Sanitization → AI).
 
-**Analysis Complete**: Issues identified and fix patterns established. Job types corrected, progress assertions updated. Result structure issues diagnosed - tests failing due to result being undefined, likely rewire/mock setup issues.
+**Analysis Complete**: Issues identified and fix patterns established. Job types corrected, progress assertions updated.
 
 **Implementation Challenges Identified**:
 
-- Rewire mocking may not be returning results correctly
-- Result formatting logic may have issues with default path
-- Mock cleanup missing (no afterEach)
-- Complex interdependencies between mocks
+- Rewire mocking appears to have issues with result return (result undefined)
+- Mock setup may not be intercepting module imports correctly
+- Complex mock interdependencies causing test instability
+- Missing mock cleanup (no afterEach) causing async leaks
+
+**Root Cause Analysis**:
+
+- Tests failing because `processJob()` returns undefined instead of result object
+- Likely rewire not properly mocking module imports or return values
+- Mock cleanup issues causing async operation leaks
+- Result formatting logic untested due to mock failures
 
 ### Data Models
 
@@ -71,6 +80,23 @@ jobWorker.js now sanitizes first, then applies AI transformation.
 - Must maintain test coverage levels
 - Cannot break existing test infrastructure
 - Need to support both pipeline orders during transition
+
+### Recommended Alternative Approach
+
+**Due to rewire mocking complexity, recommend switching to integration testing:**
+
+1. **Create integration test suite** that tests the actual pipeline end-to-end
+2. **Use real dependencies** instead of complex mocks
+3. **Test pipeline reordering** by comparing before/after behavior
+4. **Maintain unit tests** for individual components only
+5. **Add pipeline verification tests** that ensure sanitization → AI ordering
+
+**Benefits:**
+
+- Eliminates mock complexity and rewire issues
+- Tests actual pipeline behavior
+- Easier to maintain and debug
+- Provides better confidence in pipeline correctness
 
 ## Testing
 
