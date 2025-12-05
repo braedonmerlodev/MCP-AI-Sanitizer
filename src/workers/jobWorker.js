@@ -5,6 +5,7 @@ const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
+const AuditLogger = require('../components/data-integrity/AuditLogger');
 const pdfParse = require('pdf-parse');
 
 /**
@@ -148,6 +149,80 @@ async function processJob(job) {
         if (repairResult.success) {
           // Sanitize the structured data
           result.sanitizedData = sanitizeObject(repairResult.data);
+
+          // Extract and separate sanitizationTests for HITL
+          // We look for multiple potential keys to be robust against AI variability
+          const potentialKeys = [
+            'sanitizationTests',
+            'sanitizationTargets',
+            'sanitizationReport',
+            'securityReport',
+            'SanitizationTests',
+            'SanitizationTargets',
+            'SanitizationReport',
+            'SecurityReport',
+          ];
+
+          // Find all matching keys in the data
+          const matchedKeys = Object.keys(result.sanitizedData).filter(
+            (key) =>
+              potentialKeys.includes(key) ||
+              key.toLowerCase().includes('sanitization') ||
+              key.toLowerCase().includes('securityreport'),
+          );
+
+          // Use the first matched key for the HITL log (primary source of truth)
+          const primaryKey = matchedKeys[0];
+
+          if (primaryKey && result.sanitizedData[primaryKey]) {
+            const sanitizationTests = result.sanitizedData[primaryKey];
+            const auditLogger = new AuditLogger();
+
+            // Construct HITL message
+            let hitlMessage = 'No malicious scripts or payloads detected.';
+            let riskLevel = 'Low';
+            let triggers = [];
+
+            // Check for threats in sanitizationTests
+            const threatFound = Object.entries(sanitizationTests).some(([, value]) => {
+              if (Array.isArray(value)) return value.length > 0;
+              return value && value !== 'None' && value !== 'Absent';
+            });
+
+            if (threatFound) {
+              hitlMessage = `Malicious Payload Detected: ${JSON.stringify(sanitizationTests)}`;
+              riskLevel = 'High';
+              triggers.push('malicious_payload_detected');
+            }
+
+            // Log to AuditLogger as HITL Alert/Escalation
+            await auditLogger.logEscalationDecision(
+              {
+                riskLevel,
+                triggerConditions: triggers,
+                decisionRationale: hitlMessage,
+                escalationId: `hitl_${jobId}_sanitization`,
+                details: {
+                  sanitizationTests,
+                  message: hitlMessage,
+                },
+              },
+              {
+                resourceId: jobId,
+                resourceType: 'job_result',
+                sessionId: jobId,
+                userId: job.data.userId || 'system',
+              },
+            );
+          }
+
+          // AGGRESSIVE CLEANUP: Remove ALL matched keys from the user response
+          matchedKeys.forEach((key) => {
+            if (result.sanitizedData[key]) {
+              delete result.sanitizedData[key];
+            }
+          });
+
           if (repairResult.repairs.length > 0) {
             logger.info('JSON repair applied during PDF processing', {
               jobId,

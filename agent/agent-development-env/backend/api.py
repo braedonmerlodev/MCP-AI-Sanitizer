@@ -693,53 +693,82 @@ async def get_agent():
                         # Check if this is about PDF processing results
                         if context and context.get('processed_data'):
                             processed_data = context['processed_data']
-
-                            # Extract sanitized characters from the structured output
-                            sanitized_chars = set()
-
-                            # Parse structured output to find HTML entities (including double-encoded)
+                            
+                            # Check for explicit sanitization report first
+                            sanitization_report = None
                             structured = processed_data.get('structured_output', {})
-                            if isinstance(structured, dict):
-                                def find_entities(obj, path=""):
-                                    if isinstance(obj, str):
-                                        # Look for HTML entities in the string (including double-encoded)
-                                        import re
-                                        entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
-
-                                        # Handle both single and double-encoded entities
-                                        entity_map = {
-                                            '&quot;': '"',
-                                            '&lt;': '<',
-                                            '&gt;': '>',
-                                            '&amp;': '&',
-                                            '&#x27;': "'",
-                                            '&apos;': "'",
-                                            # Double-encoded entities
-                                            '&amp;lt;': '<',
-                                            '&amp;gt;': '>',
-                                            '&amp;amp;': '&',
-                                            '&amp;quot;': '"',
-                                        }
-
-                                        for entity in entities:
-                                            if entity in entity_map:
-                                                char = entity_map[entity]
-                                                sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
-                                    elif isinstance(obj, dict):
-                                        for key, value in obj.items():
-                                            find_entities(value, f"{path}.{key}" if path else key)
-                                    elif isinstance(obj, list):
-                                        for i, item in enumerate(obj):
-                                            find_entities(item, f"{path}[{i}]")
-
-                                find_entities(structured)
-
-                            sanitized_list = sorted(list(sanitized_chars))
-
-                            if sanitized_list:
-                                response = f"Sanitized characters from PDF processing:\n\n{chr(10).join(f'- {item}' for item in sanitized_list)}"
+                            
+                            for key in ['sanitizationTests', 'sanitizationTargets', 'sanitizationReport', 'securityReport']:
+                                if isinstance(structured, dict) and key in structured:
+                                    sanitization_report = structured[key]
+                                    break
+                                if key in processed_data:
+                                    sanitization_report = processed_data[key]
+                                    break
+                                    
+                            if sanitization_report:
+                                # Format based on report content
+                                import json
+                                threats_detected = False
+                                if isinstance(sanitization_report, dict):
+                                    for key, value in sanitization_report.items():
+                                        if isinstance(value, list) and value:
+                                            threats_detected = True
+                                            break
+                                        if value and isinstance(value, str) and value not in ["None", "Absent"]:
+                                            threats_detected = True
+                                            break
+                                
+                                if threats_detected:
+                                    response = f"Malicious Payload Detected:\n{json.dumps(sanitization_report, indent=2)}"
+                                else:
+                                    response = "No malicious scripts or payloads detected."
                             else:
-                                response = "No character sanitization detected."
+                                # Extract sanitized characters from the structured output
+                                sanitized_chars = set()
+
+                                # Parse structured output to find HTML entities (including double-encoded)
+                                if isinstance(structured, dict):
+                                    def find_entities(obj, path=""):
+                                        if isinstance(obj, str):
+                                            # Look for HTML entities in the string (including double-encoded)
+                                            import re
+                                            entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
+
+                                            # Handle both single and double-encoded entities
+                                            entity_map = {
+                                                '&quot;': '"',
+                                                '&lt;': '<',
+                                                '&gt;': '>',
+                                                '&amp;': '&',
+                                                '&#x27;': "'",
+                                                '&apos;': "'",
+                                                # Double-encoded entities
+                                                '&amp;lt;': '<',
+                                                '&amp;gt;': '>',
+                                                '&amp;amp;': '&',
+                                                '&amp;quot;': '"',
+                                            }
+
+                                            for entity in entities:
+                                                if entity in entity_map:
+                                                    char = entity_map[entity]
+                                                    sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+                                        elif isinstance(obj, dict):
+                                            for key, value in obj.items():
+                                                find_entities(value, f"{path}.{key}" if path else key)
+                                        elif isinstance(obj, list):
+                                            for i, item in enumerate(obj):
+                                                find_entities(item, f"{path}[{i}]")
+
+                                    find_entities(structured)
+
+                                sanitized_list = sorted(list(sanitized_chars))
+
+                                if sanitized_list:
+                                    response = f"Sanitized characters from PDF processing:\n\n{chr(10).join(f'- {item}' for item in sanitized_list)}"
+                                else:
+                                    response = "No character sanitization detected."
                         else:
                             response = f"Mock Agent: I received your message '{message}'. The real AI agent failed to initialize."
 
