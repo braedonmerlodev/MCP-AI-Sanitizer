@@ -233,6 +233,26 @@ async function processJob(job) {
           ? sanitized // Includes trustToken
           : { sanitizedData: sanitized };
 
+      // Set consistent result structure for PDF processing
+      result.status = 'processed';
+      result.fileName = job.data.fileName;
+      result.metadata = metadata;
+
+      // Set consistent result structure for PDF processing
+      result.status = 'processed';
+      result.fileName = job.data.fileName;
+      result.metadata = {
+        pages: metadata.pages,
+        title: metadata.title,
+        author: metadata.author,
+        subject: metadata.subject,
+        creator: metadata.creator,
+        producer: metadata.producer,
+        creationDate: metadata.creationDate,
+        modificationDate: metadata.modificationDate,
+        encoding: metadata.encoding,
+      };
+
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
         const jsonRepair = new JSONRepair();
@@ -445,83 +465,6 @@ async function processJob(job) {
           }
         }
 
-        // Store extracted threats for security monitoring (similar to async path)
-        if (Object.keys(extractedThreats).length > 0) {
-          result.securityReport = extractedThreats;
-
-          // Log to AuditLogger for security team visibility
-          const auditLogger = new AuditLogger();
-
-          // Determine risk level and triggers based on extracted threats
-          let riskLevel = 'Low';
-          let triggers = [];
-          let hitlMessage = 'No malicious scripts or payloads detected.';
-          let threatClassification = 'none';
-
-          if (extractedThreats && Object.keys(extractedThreats).length > 0) {
-            // Check for real threats
-            const threatString = JSON.stringify(extractedThreats);
-            const isRealThreat =
-              threatString.includes('Present') ||
-              threatString.includes('email@') ||
-              threatString.includes('<script');
-
-            if (isRealThreat) {
-              // Classify the threat type
-              if (threatString.includes('email@') || threatString.includes('phone:')) {
-                threatClassification = 'pii_data_leakage';
-                riskLevel = 'High';
-              } else if (threatString.includes('<script') || threatString.includes('javascript:')) {
-                threatClassification = 'xss_attempt';
-                riskLevel = 'Critical';
-              } else if (threatString.includes('zeroWidth') || threatString.includes('invisible')) {
-                threatClassification = 'stealth_malware';
-                riskLevel = 'High';
-              } else {
-                threatClassification = 'suspicious_content';
-                riskLevel = 'Medium';
-              }
-
-              hitlMessage = `Malicious content (${threatClassification}) removed from default sanitization response: ${JSON.stringify(extractedThreats)}`;
-              triggers.push('malicious_content_detected', threatClassification);
-            }
-          }
-
-          try {
-            await auditLogger.logEscalationDecision(
-              {
-                riskLevel,
-                triggerConditions: triggers,
-                decisionRationale: hitlMessage,
-                escalationId: `security_${jobId}_content_removal`,
-                details: {
-                  sanitizationTests: extractedThreats,
-                  sourcePath: 'default_sanitization',
-                  responseType: 'direct_sanitization',
-                  threatClassification,
-                  jobType: job.data.type || 'unknown',
-                  contentLength: job.data.length || 0,
-                  message: hitlMessage,
-                },
-              },
-              {
-                resourceId: jobId,
-                resourceType: 'job_result',
-                sessionId: jobId,
-                userId: job.data.userId || 'system',
-                stage: 'security_logging',
-              },
-            );
-          } catch (auditError) {
-            logger.error('Audit logging failed for default path', {
-              jobId,
-              error: auditError.message,
-              threatCount: Object.keys(extractedThreats).length,
-            });
-            // Continue processing - audit logging failure should not break job
-          }
-        }
-
         // Format result to match sync response
         // If sanitizedData is an object (structured response), stringify it for backward compatibility
         if (typeof result.sanitizedData === 'object' && result.sanitizedData !== null) {
@@ -531,20 +474,7 @@ async function processJob(job) {
         }
         delete result.sanitizedData;
         result.metadata = {
-          originalLength: job.data.length,
-          sanitizedLength: result.sanitizedContent.length,
-          timestamp: new Date().toISOString(),
-          reused: false,
-          performance: {
-            totalTimeMs: 10, // Approximate
-          },
-        };
-
-        // Format result to match sync response
-        result.sanitizedContent = result.sanitizedData;
-        delete result.sanitizedData;
-        result.metadata = {
-          originalLength: job.data.length,
+          originalLength: job.data.length || 0,
           sanitizedLength: result.sanitizedContent.length,
           timestamp: new Date().toISOString(),
           reused: false,
