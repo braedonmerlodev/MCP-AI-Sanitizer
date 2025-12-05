@@ -225,6 +225,44 @@ def sanitize_input(text: str) -> str:
     return text[:MAX_TEXT_LENGTH]
 
 
+def sanitize_input_with_tracking(text: str) -> tuple[str, dict]:
+    """Sanitize input text and track what was changed
+
+    Returns:
+        tuple: (sanitized_text, changes_dict)
+        changes_dict contains information about what was sanitized
+    """
+    import unicodedata
+
+    # Ensure it's a string
+    if not isinstance(text, str):
+        text = str(text or '')
+
+    original_text = text
+    changes = {
+        'characters_changed': {}  # Track specific character transformations
+    }
+
+    # Track HTML entity conversions by comparing before/after
+    html_entities = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        '"': '&quot;',
+        "'": '&#x27;',
+    }
+
+    # Apply sanitization
+    sanitized_text = sanitize_input(text)
+
+    # Check which entities were added
+    for char, entity in html_entities.items():
+        if char in original_text and entity in sanitized_text:
+            changes['characters_changed'][char] = entity
+
+    return sanitized_text, changes
+
+
 def get_sanitization_metrics(text: str) -> dict:
     """Get detailed sanitization metrics for input text
 
@@ -656,33 +694,45 @@ async def get_agent():
                         if context and context.get('processed_data'):
                             processed_data = context['processed_data']
 
-                            # For now, hardcode the detection based on the test data
-                            # TODO: Implement proper recursive entity detection
+                            # Extract sanitized characters from the structured output
                             sanitized_chars = set()
 
-                            # Check for known entities in the test data
+                            # Parse structured output to find HTML entities (including double-encoded)
                             structured = processed_data.get('structured_output', {})
                             if isinstance(structured, dict):
-                                # Check specific fields that contain entities
-                                symbols_text = structured.get('sections', {}).get('symbolsAndSpecialChars', '')
-                                unicode_text = structured.get('sections', {}).get('unicodeText', '')
-                                math_text = structured.get('sections', {}).get('mathematicalSymbols', '')
+                                def find_entities(obj, path=""):
+                                    if isinstance(obj, str):
+                                        # Look for HTML entities in the string (including double-encoded)
+                                        import re
+                                        entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
 
-                                # Check for &lt;
-                                if '&lt;' in symbols_text or '&lt;' in unicode_text:
-                                    sanitized_chars.add('Original: < → Sanitized: &lt;')
+                                        # Handle both single and double-encoded entities
+                                        entity_map = {
+                                            '&quot;': '"',
+                                            '&lt;': '<',
+                                            '&gt;': '>',
+                                            '&amp;': '&',
+                                            '&#x27;': "'",
+                                            '&apos;': "'",
+                                            # Double-encoded entities
+                                            '&amp;lt;': '<',
+                                            '&amp;gt;': '>',
+                                            '&amp;amp;': '&',
+                                            '&amp;quot;': '"',
+                                        }
 
-                                # Check for &gt;
-                                if '&gt;' in symbols_text:
-                                    sanitized_chars.add('Original: > → Sanitized: &gt;')
+                                        for entity in entities:
+                                            if entity in entity_map:
+                                                char = entity_map[entity]
+                                                sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+                                    elif isinstance(obj, dict):
+                                        for key, value in obj.items():
+                                            find_entities(value, f"{path}.{key}" if path else key)
+                                    elif isinstance(obj, list):
+                                        for i, item in enumerate(obj):
+                                            find_entities(item, f"{path}[{i}]")
 
-                                # Check for &amp;
-                                if '&amp;' in math_text:
-                                    sanitized_chars.add('Original: & → Sanitized: &amp;')
-
-                                # Check for &quot;
-                                if '&quot;' in math_text:
-                                    sanitized_chars.add('Original: " → Sanitized: &quot;')
+                                find_entities(structured)
 
                             sanitized_list = sorted(list(sanitized_chars))
 
