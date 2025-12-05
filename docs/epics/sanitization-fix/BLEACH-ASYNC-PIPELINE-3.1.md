@@ -12,18 +12,19 @@ In Progress
 
 ## Acceptance Criteria
 
-1. All jobWorker unit tests pass with new result structure
-2. Test expectations updated for reordered processing steps
-3. Progress tracking assertions corrected for new pipeline order
-4. Backward compatibility maintained where possible
+1. All jobWorker unit tests pass with new result structure _[8/9 currently failing]_
+2. Test expectations updated for reordered processing steps _[Job types corrected, progress updated]_
+3. Progress tracking assertions corrected for new pipeline order _[AI progress updated to 70%]_
+4. Backward compatibility maintained where possible _[Confirmed]_
 
 ## Tasks / Subtasks
 
 - [x] Analyze current test failures in jobWorker.test.js
 - [x] Identify job type mismatches (upload-pdf → pdf_processing)
+- [x] Update progress percentage assertions (55% → 70% for AI transformation)
+- [x] Diagnose result structure issues (result undefined in tests)
 - [ ] Update test expectations for result.sanitizedData vs result.sanitizedContent
-- [ ] Fix progress percentage assertions (40% sanitization, 70% AI)
-- [ ] Update mock objects to match new pipeline flow
+- [ ] Fix mock objects to match new pipeline flow
 - [ ] Verify all test scenarios work with reordered pipeline
 - [ ] Add regression tests for pipeline reordering
 
@@ -33,7 +34,14 @@ In Progress
 
 The pipeline reordering changed the result structure and processing order. Tests were written for the old order (AI → Sanitization) and need updates for the new order (Sanitization → AI).
 
-**Analysis Complete**: Issues identified and fix patterns established. Job types corrected, result structure mapping documented.
+**Analysis Complete**: Issues identified and fix patterns established. Job types corrected, progress assertions updated. Result structure issues diagnosed - tests failing due to result being undefined, likely rewire/mock setup issues.
+
+**Implementation Challenges Identified**:
+
+- Rewire mocking may not be returning results correctly
+- Result formatting logic may have issues with default path
+- Mock cleanup missing (no afterEach)
+- Complex interdependencies between mocks
 
 ### Data Models
 
