@@ -6,26 +6,27 @@ Draft
 
 ## Epic Overview
 
-**Problem**: The current sanitization pipeline marks malicious content with "Present" values in JSON responses (e.g., "zeroWidthCharacters": "Present"), but this still exposes information about malicious content to users. Users should never see any indication of malicious content in their responses - it should be completely removed and only logged for security review.
+**Problem**: The Python AI agent backend creates malicious content detection structures in JSON responses (e.g., "zeroWidthCharacters": "Present", "potentialXSS": {...}), but the Node.js layer doesn't consistently remove these from all response paths. Users see security indicators in their responses that should be completely removed and only logged for security review.
 
-**Solution**: Implement complete removal of malicious content detection results from JSON responses while maintaining comprehensive security logging. Malicious content indicators should be entirely absent from user-facing data, with all security information captured in secure logs only.
+**Solution**: Extend the existing extractAndRemoveThreats function in jobWorker.js to apply to all response processing paths, ensuring malicious content from AI agent responses is completely removed from user-facing JSON while maintaining comprehensive security logging.
 
 **Business Value**: Provides clean, professional user experience by removing all malicious content traces from responses, while maintaining full security monitoring through comprehensive logging. Users get sanitized results without any security-related clutter or indicators.
 
 ## Epic Goals
 
-- Completely remove malicious content indicators from JSON responses
-- Implement comprehensive security logging for all detected threats
+- Extend extractAndRemoveThreats to all jobWorker.js response paths
+- Ensure malicious content from AI agent responses is completely removed
+- Enhance security logging for comprehensive threat capture
 - Maintain clean, professional user experience
-- Ensure no malicious content metadata leaks to users
-- Preserve all security monitoring capabilities
+- Preserve all existing security monitoring capabilities
 
 ## Success Criteria
 
-- No malicious content indicators appear in any JSON responses
-- All malicious content is properly logged for security review
-- User responses are clean and professional
-- Security monitoring remains comprehensive
+- extractAndRemoveThreats applied to all jobWorker.js response paths
+- No malicious content from AI agent responses appears in user JSON responses
+- All malicious content properly captured in securityReport for logging
+- User responses remain clean and professional
+- Security monitoring capabilities preserved
 - Performance impact remains minimal (<1% overhead)
 - Backward compatibility maintained for legitimate content
 
@@ -80,40 +81,32 @@ Draft
 
 ### Story 3: JSON Response Sanitization Pipeline
 
-**Status**: Pending
+**Status**: Cancelled
 
 **Description**: Modify the JSON sanitization pipeline to completely remove malicious content before response delivery.
 
-**Acceptance Criteria**:
+**Cancellation Reason**: Functionality fully implemented in JSON-Story-1. This story was redundant.
 
-- Malicious content removed before JSON serialization
-- Response validation ensures clean output
-- No performance degradation
-- Maintains existing sanitization for text content
+**Acceptance Criteria**: (All satisfied by JSON-Story-1)
 
-**Tasks**:
-
-- [ ] Update JSON transformation logic
-- [ ] Implement pre-response sanitization
-- [ ] Add response validation
-- [ ] Performance testing and optimization
+**Tasks**: (All completed in JSON-Story-1)
 
 ### Story 4: Clean Response Validation
 
 **Status**: Pending
 
-**Description**: Implement validation to ensure no malicious content indicators appear in any user responses.
+**Description**: Implement monitoring and metrics for threat extraction effectiveness to provide security teams with visibility into system performance.
 
 **Acceptance Criteria**:
 
-- Automated validation of all JSON responses
-- Alert system for any malicious content leakage
-- Comprehensive test coverage
-- Zero tolerance for malicious content in responses
+- Metrics collected for threat extraction success rates across all response paths
+- Dashboard/alerts for monitoring threat extraction performance
+- Historical tracking of malicious content types and volumes
+- Automated alerts for unusual threat extraction patterns
 
 **Tasks**:
 
-- [ ] Create response validation logic
+- [ ] Implement threat extraction metrics collection
 - [ ] Implement automated checks
 - [ ] Add alerting for violations
 - [ ] Comprehensive testing
@@ -159,11 +152,11 @@ Draft
 
 - **Story 1**: 2-3 days (Key removal logic implementation)
 - **Story 2**: 3-4 days (Security logging system)
-- **Story 3**: 2-3 days (Pipeline modification)
+- **Story 3**: 0 days (Cancelled - redundant with Story 1)
 - **Story 4**: 2-3 days (Validation system)
 - **Story 5**: 3-4 days (Comprehensive testing)
 
-**Total Estimate**: 12-17 days
+**Total Estimate**: 10-14 days (Story 3 cancelled)
 
 ## Definition of Done
 
@@ -179,6 +172,9 @@ Draft
 
 ## Change Log
 
-| Date       | Version | Description                                                  | Author |
-| ---------- | ------- | ------------------------------------------------------------ | ------ |
-| 2025-12-05 | v1.0    | Initial epic creation for complete malicious content removal | PO     |
+| Date       | Version | Description                                                      | Author |
+| ---------- | ------- | ---------------------------------------------------------------- | ------ |
+| 2025-12-05 | v1.0    | Initial epic creation for complete malicious content removal     | PO     |
+| 2025-12-05 | v1.1    | Corrected scope to address Python AI agent response sanitization | PO     |
+| 2025-12-05 | v1.2    | Cancelled Story 3 - redundant with Story 1 implementation        | PO     |
+| 2025-12-05 | v1.3    | Repurposed Story 4 as threat extraction monitoring & metrics     | PO     |

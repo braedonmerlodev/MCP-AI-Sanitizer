@@ -20,72 +20,73 @@ Pending
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create comprehensive test cases
-  - [ ] Define test scenarios for all malicious content types
-  - [ ] Create test data with various JSON structures
-  - [ ] Include edge cases and complex nested objects
-- [ ] Task 2: Implement integration tests
-  - [ ] End-to-end testing of complete pipeline
-  - [ ] Test all API endpoints and response paths
-  - [ ] Validate logging integration
-- [ ] Task 3: Security testing and validation
-  - [ ] Attempt bypass techniques and validate failures
-  - [ ] Test malformed input handling
-  - [ ] Validate secure logging separation
-- [ ] Task 4: Performance benchmarking
-  - [ ] Compare performance before/after implementation
-  - [ ] Load testing with malicious content
-  - [ ] Memory usage validation
+- [ ] Task 1: Enhance existing test coverage
+  - [ ] Update jobWorker tests to cover all response paths
+  - [ ] Add test cases for AI agent response sanitization
+  - [ ] Include nested malicious content scenarios
+- [ ] Task 2: Create comprehensive integration tests
+  - [ ] Test extractAndRemoveThreats across all jobWorker paths
+  - [ ] Validate securityReport creation and content
+  - [ ] Test legitimate content preservation
+- [ ] Task 3: Security validation testing
+  - [ ] Test malicious content removal from AI responses
+  - [ ] Validate no malicious content leakage in final responses
+  - [ ] Test edge cases with complex nested structures
+- [ ] Task 4: Performance and regression testing
+  - [ ] Measure performance impact of threat extraction
+  - [ ] Regression tests for legitimate content
+  - [ ] Load testing with various response types
 
 ## Dev Notes
 
 ### Previous Story Insights
 
-Stories 1-4 implement the complete removal system. This story validates everything works correctly.
+Stories 1-4 ensure extractAndRemoveThreats is applied to all response paths. This story provides comprehensive testing to validate the complete malicious content removal system works across all scenarios.
 
 ### Data Models
 
-Test data sets containing malicious and legitimate content for comprehensive testing.
+Test data simulating AI agent responses with malicious content structures, legitimate responses, and edge cases for comprehensive validation.
 
 ### API Specifications
 
-Testing covers all API endpoints that return JSON responses.
+Testing covers all jobWorker.js response paths and ensures malicious content is removed from all JSON responses delivered to users.
 
 ### Component Specifications
 
-Testing framework for the complete malicious content removal system.
+Comprehensive test suite validating extractAndRemoveThreats functionality across async PDF processing, default sanitization, and AI agent response handling.
 
 ### File Locations
 
-- New: src/tests/integration/complete-malicious-removal.test.js
-- New: src/tests/security/malicious-content-bypass.test.js
-- New: src/tests/performance/malicious-removal-performance.test.js
-- Modified: src/tests/unit/json-key-removal.test.js
+- Modified: src/tests/unit/jobWorker.sanitizationTests.test.js (enhance existing tests)
+- New: src/tests/integration/threat-extraction-comprehensive.test.js
+- New: src/tests/security/ai-response-sanitization.test.js
+- Existing: src/tests/unit/jobWorker.test.js
 
 ### Testing Requirements
 
-Comprehensive test coverage including unit, integration, security, and performance tests.
+End-to-end testing of malicious content removal from all response sources, regression testing for legitimate content, security validation.
 
 ### Technical Constraints
 
-- Tests must not impact production performance
-- Secure test data handling
-- Automated test execution
-- Detailed test reporting
+- Tests must validate real-world scenarios with AI agent responses
+- Performance testing to ensure <1% overhead
+- Secure handling of test data containing malicious patterns
+- Comprehensive coverage of nested JSON structures
 
 ## Testing
 
-- Unit tests for all components
-- Integration tests for end-to-end flows
-- Security tests for bypass validation
-- Performance tests for overhead measurement
-- Regression tests for legitimate content
+- Enhanced jobWorker test coverage for all response paths
+- Integration tests for AI agent response sanitization
+- Security validation of malicious content removal
+- Performance testing of threat extraction
+- Regression testing for legitimate content preservation
 
 ## Change Log
 
-| Date       | Version | Description                      | Author |
-| ---------- | ------- | -------------------------------- | ------ |
-| 2025-12-05 | 1.0     | Initial story creation from epic | PO     |
+| Date       | Version | Description                                                          | Author |
+| ---------- | ------- | -------------------------------------------------------------------- | ------ |
+| 2025-12-05 | 1.0     | Initial story creation from epic                                     | PO     |
+| 2025-12-05 | 1.1     | Updated to focus on comprehensive testing of extractAndRemoveThreats | PO     |
 
 ## Dev Agent Record
 
@@ -95,14 +96,14 @@ dev
 
 ### Completion Notes List
 
-- [ ] Create comprehensive test cases
-- [ ] Implement integration tests
-- [ ] Security testing and validation
-- [ ] Performance benchmarking
+- [ ] Enhance existing test coverage
+- [ ] Create comprehensive integration tests
+- [ ] Security validation testing
+- [ ] Performance and regression testing
 
 ### File List
 
-- New: src/tests/integration/complete-malicious-removal.test.js
-- New: src/tests/security/malicious-content-bypass.test.js
-- New: src/tests/performance/malicious-removal-performance.test.js
-- Modified: src/tests/unit/json-key-removal.test.js
+- Modified: src/tests/unit/jobWorker.sanitizationTests.test.js
+- Modified: src/tests/unit/jobWorker.test.js
+- New: src/tests/integration/threat-extraction-comprehensive.test.js
+- New: src/tests/security/ai-response-sanitization.test.js
