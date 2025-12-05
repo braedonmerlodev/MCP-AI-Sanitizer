@@ -2,7 +2,7 @@
 
 ## Status
 
-Pending
+In Progress
 
 ## Story
 
@@ -19,7 +19,8 @@ Pending
 
 ## Tasks / Subtasks
 
-- [ ] Analyze current test failures in jobWorker.test.js
+- [x] Analyze current test failures in jobWorker.test.js
+- [x] Identify job type mismatches (upload-pdf → pdf_processing)
 - [ ] Update test expectations for result.sanitizedData vs result.sanitizedContent
 - [ ] Fix progress percentage assertions (40% sanitization, 70% AI)
 - [ ] Update mock objects to match new pipeline flow
@@ -31,6 +32,8 @@ Pending
 ### Previous Story Insights
 
 The pipeline reordering changed the result structure and processing order. Tests were written for the old order (AI → Sanitization) and need updates for the new order (Sanitization → AI).
+
+**Analysis Complete**: Issues identified and fix patterns established. Job types corrected, result structure mapping documented.
 
 ### Data Models
 
