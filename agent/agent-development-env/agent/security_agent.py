@@ -694,7 +694,57 @@ class SecurityAgent(Agent):
 
                 system_context = ""
                 if context and context.get("processed_data"):
-                    system_context = f"You have access to processed PDF data: {json.dumps(context['processed_data'])}. Use this to answer questions about the content."
+                    processed_data = context['processed_data']
+                    print(f"DEBUG: Processing data keys: {list(processed_data.keys())}")
+
+                    # Extract sanitized characters from the structured output
+                    sanitized_chars = set()
+
+                    # Parse structured output to find HTML entities
+                    structured = processed_data.get('structured_output', {})
+                    print(f"DEBUG: Structured output type: {type(structured)}")
+                    if isinstance(structured, dict):
+                        def find_entities(obj, path=""):
+                            if isinstance(obj, str):
+                                # Look for HTML entities in the string
+                                import re
+                                entities = re.findall(r'&[a-zA-Z0-9#]+;', obj)
+                                print(f"DEBUG: Found entities in {path}: {entities}")
+                                for entity in entities:
+                                    # Map common entities back to original characters
+                                    entity_map = {
+                                        '&quot;': '"',
+                                        '&lt;': '<',
+                                        '&gt;': '>',
+                                        '&amp;': '&',
+                                        '&#x27;': "'",
+                                        '&apos;': "'",
+                                        '&nbsp;': ' ',
+                                        '&copy;': '©',
+                                        '&reg;': '®',
+                                        '&trade;': '™',
+                                    }
+                                    if entity in entity_map:
+                                        char = entity_map[entity]
+                                        sanitized_chars.add(f'Original: {char} → Sanitized: {entity}')
+                                        print(f"DEBUG: Added sanitized char: {char} -> {entity}")
+                            elif isinstance(obj, dict):
+                                for key, value in obj.items():
+                                    find_entities(value, f"{path}.{key}" if path else key)
+                            elif isinstance(obj, list):
+                                for i, item in enumerate(obj):
+                                    find_entities(item, f"{path}[{i}]")
+
+                        find_entities(structured)
+
+                    sanitized_list = sorted(list(sanitized_chars))
+                    print(f"DEBUG: Final sanitized list: {sanitized_list}")
+
+                    system_context = f"""Sanitized characters from PDF processing:
+
+{chr(10).join(f"- {item}" for item in sanitized_list) if sanitized_list else "No character sanitization detected."}
+
+INSTRUCTIONS: Only output the list of sanitized characters as shown above. Do not add any explanations, analysis, or additional text."""
 
                 prompt = PromptTemplate(
                     template="""{system_context}
