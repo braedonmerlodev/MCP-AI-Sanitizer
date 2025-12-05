@@ -5,6 +5,7 @@ const ProxySanitizer = require('../components/proxy-sanitizer');
 const MarkdownConverter = require('../components/MarkdownConverter');
 const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
+const AuditLogger = require('../components/data-integrity/AuditLogger');
 const pdfParse = require('pdf-parse');
 
 /**
@@ -34,6 +35,46 @@ const logger = winston.createLogger({
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
 });
+
+/**
+ * Recursively extracts and removes threat details from the object
+ */
+function extractAndRemoveThreats(obj, foundThreats = {}) {
+  if (!obj || typeof obj !== 'object') return foundThreats;
+
+  const suspiciousKeys = [
+    'sanitization',
+    'sanitizationTests',
+    'sanitizationTargets',
+    'sanitizationReport',
+    'securityReport',
+    'potentialXSS',
+    'symbolsAndSpecialChars',
+    'unicodeText',
+    'mathematicalSymbols',
+    'zeroWidthCharacters',
+    'controlCharacters',
+    'invisibleCharacters',
+  ];
+
+  for (const key of Object.keys(obj)) {
+    // Check if key is suspicious
+    const isSuspicious =
+      suspiciousKeys.some((k) => k.toLowerCase() === key.toLowerCase()) ||
+      key.toLowerCase().includes('sanitization');
+
+    if (isSuspicious) {
+      // Capture the threat data
+      foundThreats[key] = obj[key];
+      // Remove from object
+      delete obj[key];
+    } else {
+      // Recurse
+      extractAndRemoveThreats(obj[key], foundThreats);
+    }
+  }
+  return foundThreats;
+}
 
 /**
  * Processes a job asynchronously and returns a promise.
@@ -148,6 +189,61 @@ async function processJob(job) {
         if (repairResult.success) {
           // Sanitize the structured data
           result.sanitizedData = sanitizeObject(repairResult.data);
+
+          // RECURSIVE EXTRACTION AND REMOVAL
+          // This modifies result.sanitizedData in place by removing threats
+          const extractedThreats = extractAndRemoveThreats(result.sanitizedData);
+
+          // Store extracted threats in a separate field for the Agent to access later
+          // This field will NOT be returned to the user if we structure the response correctly
+          result.securityReport = extractedThreats;
+
+          // HITL Alerting Logic
+          const auditLogger = new AuditLogger();
+
+          // Construct HITL message
+          let hitlMessage = 'No malicious scripts or payloads detected.';
+          let riskLevel = 'Low';
+          let triggers = [];
+
+          // Check if we actually found anything significant
+          // We filter out empty objects to avoid false positives
+          const hasThreats = Object.keys(extractedThreats).length > 0;
+
+          if (hasThreats) {
+            // Deep check to ensure values aren't just "Absent" or "None"
+            const isRealThreat =
+              JSON.stringify(extractedThreats).includes('Present') ||
+              JSON.stringify(extractedThreats).includes('email@') ||
+              JSON.stringify(extractedThreats).includes('<script');
+
+            if (isRealThreat) {
+              hitlMessage = `Malicious Payload Detected: ${JSON.stringify(extractedThreats)}`;
+              riskLevel = 'High';
+              triggers.push('malicious_payload_detected');
+            }
+          }
+
+          // Log to AuditLogger as HITL Alert/Escalation
+          await auditLogger.logEscalationDecision(
+            {
+              riskLevel,
+              triggerConditions: triggers,
+              decisionRationale: hitlMessage,
+              escalationId: `hitl_${jobId}_sanitization`,
+              details: {
+                sanitizationTests: extractedThreats,
+                message: hitlMessage,
+              },
+            },
+            {
+              resourceId: jobId,
+              resourceType: 'job_result',
+              sessionId: jobId,
+              userId: job.data.userId || 'system',
+            },
+          );
+
           if (repairResult.repairs.length > 0) {
             logger.info('JSON repair applied during PDF processing', {
               jobId,
