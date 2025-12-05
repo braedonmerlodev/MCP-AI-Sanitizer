@@ -542,8 +542,22 @@ router.post(
         (globalThis.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
       globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
-      const sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
+      let sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
       const trustToken = typeof result === 'string' ? null : result.trustToken;
+
+      // Clean any malicious content from structured responses
+      try {
+        const parsed = JSON.parse(sanitizedContent);
+        if (typeof parsed === 'object' && parsed !== null) {
+          const extractAndRemoveThreats =
+            require('../workers/jobWorker.js').extractAndRemoveThreats;
+          extractAndRemoveThreats(parsed);
+          sanitizedContent = JSON.stringify(parsed);
+        }
+      } catch (e) {
+        // Not JSON, leave as is
+      }
+
       res.json({
         sanitizedContent,
         trustToken,
@@ -577,9 +591,21 @@ router.post('/chat', accessValidationMiddleware, destinationTracking, async (req
     });
 
     // Sanitize the response
-    const sanitizedResponse = await proxySanitizer.sanitize(aiResponse.text, {
+    let sanitizedResponse = await proxySanitizer.sanitize(aiResponse.text, {
       classification: req.destinationTracking.classification,
     });
+
+    // Clean any malicious content from structured responses
+    try {
+      const parsed = JSON.parse(sanitizedResponse);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const extractAndRemoveThreats = require('../workers/jobWorker.js').extractAndRemoveThreats;
+        extractAndRemoveThreats(parsed);
+        sanitizedResponse = JSON.stringify(parsed);
+      }
+    } catch (e) {
+      // Not JSON, leave as is
+    }
 
     res.json({
       response: sanitizedResponse,

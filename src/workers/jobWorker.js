@@ -118,6 +118,7 @@ function extractAndRemoveThreats(obj, foundThreats = {}) {
     if (isSuspicious) {
       // Capture the threat data
       foundThreats[key] = obj[key];
+      logger.info('Removed suspicious key from response', { key, path: 'response_cleanup' });
       // Remove from object
       delete obj[key];
     } else {
@@ -193,17 +194,26 @@ async function processJob(job) {
       // Ensure processedText is a string
       processedText = String(processedText || '');
 
-      // Apply AI transformation if specified
+      // SANITIZE FIRST: Apply sanitization before AI processing
+      await jobStatus.updateProgress(40, 'Sanitizing content');
+
+      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
+      const sanitizeOptions = { ...job.options, generateTrustToken: true };
+      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
+
+      // Apply AI transformation if specified (now on sanitized input)
       if (job.options?.aiTransformType) {
         await jobStatus.updateProgress(
-          55,
+          70,
           `Applying AI ${job.options.aiTransformType} transformation`,
         );
 
         const aiTransformer = new AITextTransformer();
         try {
           const aiResult = await aiTransformer.transform(
-            processedText,
+            typeof sanitized === 'object' && sanitized.sanitizedData
+              ? sanitized.sanitizedData
+              : sanitized, // Sanitized input
             job.options.aiTransformType,
             {
               sanitizerOptions: job.options,
@@ -211,21 +221,24 @@ async function processJob(job) {
           );
           processedText = aiResult.text;
         } catch (aiError) {
-          logger.warn('AI transformation failed, proceeding with Markdown text', {
+          logger.warn('AI transformation failed, proceeding with sanitized text', {
             jobId,
             aiTransformType: job.options.aiTransformType,
             error: aiError.message,
           });
-          // processedText remains as Markdown
+          // processedText becomes sanitized text
+          processedText =
+            typeof sanitized === 'object' && sanitized.sanitizedData
+              ? sanitized.sanitizedData
+              : sanitized;
         }
+      } else {
+        // No AI transformation - use sanitized text
+        processedText =
+          typeof sanitized === 'object' && sanitized.sanitizedData
+            ? sanitized.sanitizedData
+            : sanitized;
       }
-
-      await jobStatus.updateProgress(70, 'Sanitizing content');
-
-      // Sanitize converted text
-      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
-      const sanitizeOptions = { ...job.options, generateTrustToken: true };
-      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
 
       // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
       result =
@@ -277,9 +290,8 @@ async function processJob(job) {
             result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
           }
 
-          // Store extracted threats in a separate field for the Agent to access later
-          // This field will NOT be returned to the user if we structure the response correctly
-          result.securityReport = extractedThreats;
+          // Store extracted threats for logging only - do not include in user response
+          // Log the threats but don't add to result
 
           // HITL Alerting Logic
           const auditLogger = new AuditLogger();
@@ -381,10 +393,8 @@ async function processJob(job) {
             result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
           }
 
-          // Store extracted threats for security monitoring (similar to async path)
+          // Store extracted threats for logging only - do not include in user response
           if (Object.keys(extractedThreats).length > 0) {
-            result.securityReport = extractedThreats;
-
             // Log to AuditLogger for security team visibility
             const auditLogger = new AuditLogger();
 
@@ -516,3 +526,4 @@ async function processJob(job) {
 }
 
 module.exports = processJob;
+module.exports.extractAndRemoveThreats = extractAndRemoveThreats;

@@ -1,5 +1,6 @@
 const winston = require('winston');
 const crypto = require('node:crypto');
+const winston = require('winston');
 const AuditLoggerAccess = require('../components/AuditLoggerAccess');
 
 /**
