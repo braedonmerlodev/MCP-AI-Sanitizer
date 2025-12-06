@@ -374,7 +374,7 @@ describe('AITextTransformer', () => {
       expect(result.metadata.security.validationTimestamp).toBeDefined();
     });
 
-    test('should log security warnings for high-risk AI responses', async () => {
+    test('should reject high-risk AI responses and fallback to sanitized input', async () => {
       const input = 'Test input';
       const dangerousAIResponse = 'Response with <iframe src="malicious.com"></iframe> content';
 
@@ -384,18 +384,22 @@ describe('AITextTransformer', () => {
         response_metadata: { usage: { total_tokens: 100 } },
       });
 
-      // Mock logger to capture warnings
-      const loggerSpy = jest.spyOn(transformer.logger, 'warn');
+      // Mock logger to capture errors
+      const loggerSpy = jest.spyOn(transformer.logger, 'error');
 
-      await transformer.transform(input, 'summarize');
+      const result = await transformer.transform(input, 'summarize');
+
+      // Should fallback to sanitized input
+      expect(result.text).toBe('sanitized text');
+      expect(result.metadata.fallback).toBe(true);
+      expect(result.metadata.reason).toBe('ai_security_violation');
+      expect(result.metadata.securityValidation.riskLevel).toBe('high');
 
       expect(loggerSpy).toHaveBeenCalledWith(
-        'AI response failed security validation',
+        'AI response failed security validation - rejecting response',
         expect.objectContaining({
           riskLevel: 'high',
-          securityNotes: expect.arrayContaining([
-            'Dangerous or prohibited content detected in AI response',
-          ]),
+          securityNotes: expect.arrayContaining(['Dangerous content detected: htmlTags, iframes']),
         }),
       );
     });

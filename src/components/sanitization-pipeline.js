@@ -6,6 +6,15 @@ const DataIntegrityValidator = require('./DataIntegrityValidator');
 const TrustTokenGenerator = require('./TrustTokenGenerator');
 const AuditLogger = require('./data-integrity/AuditLogger');
 
+const winston = require('winston');
+
+// Initialize logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [new winston.transports.Console()],
+});
+
 /**
  * SanitizationPipeline orchestrates the sanitization steps with data integrity validation.
  * Processes data through normalization, stripping, neutralization, redaction, and validation.
@@ -61,16 +70,12 @@ class SanitizationPipeline {
     } else if (data && typeof data === 'object') {
       const sanitized = {};
       for (const [key, value] of Object.entries(data)) {
-        // Skip sanitizing certain metadata fields that should remain intact
-        sanitized[key] = [
-          'trustToken',
-          'timestamp',
-          'requestId',
-          'correlationId',
-          'validationId',
-        ].includes(key)
-          ? value
-          : this.sanitizeObject(value);
+        // Skip trust token field if it appears in input content to prevent injection/echoing
+        if (key === 'trustToken') {
+          continue;
+        }
+        // Sanitize all user input fields
+        sanitized[key] = this.sanitizeObject(value);
       }
       return sanitized;
     }
@@ -87,7 +92,10 @@ class SanitizationPipeline {
   async sanitize(data, options = {}) {
     const startTime = Date.now();
     const { classification = 'unclear', riskLevel, mode = 'standard' } = options;
-    let generateTrustToken = options.generateTrustToken || false;
+
+    // Check global config first, then options
+    const configEnabled = require('../config').features.trustTokens.enabled;
+    let generateTrustToken = configEnabled && (options.generateTrustToken || false);
 
     let result = data;
     let isJsonData = false;
@@ -118,7 +126,7 @@ class SanitizationPipeline {
     }
 
     // Apply sanitization steps based on mode
-    if (typeof result === 'string') {
+    if (typeof result === 'string' && !isJsonData) {
       const activeSteps = this.modes[mode] || this.modes.standard;
       for (const step of activeSteps) {
         result = step.sanitize(result);
@@ -134,6 +142,12 @@ class SanitizationPipeline {
         appliedRules: [],
         processingTime: Date.now() - startTime,
         operation: 'sanitization',
+      });
+
+      // Log generated token to debug redaction issues
+      logger.info('SanitizationPipeline: Trust token generated', {
+        tokenSignature: trustTokenResult.signature.substring(0, 10) + '...',
+        originalHash: trustTokenResult.originalHash.substring(0, 10) + '...',
       });
     }
 
@@ -161,7 +175,7 @@ class SanitizationPipeline {
       this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
     }
 
-    return await this.trustTokenGenerator.generateToken(
+    return this.trustTokenGenerator.generateToken(
       sanitizedData,
       sanitizedData,
       metadata.appliedRules || [],

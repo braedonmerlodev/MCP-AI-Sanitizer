@@ -284,74 +284,103 @@ router.post(
   destinationTracking,
   async (req, res) => {
     const startTime = process.hrtime.bigint();
-    const { error, value } = sanitizeJsonSchema.validate(req.body);
+    const { error, value } = sanitizeJsonSchema.validate({ ...req.body, ...req.query });
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Apply smart transformation if requested
-    let contentToSanitize = value.content;
-    if (value.transform) {
-      try {
-        let jsonObj = JSON.parse(value.content);
+    // Detect if content needs AI processing due to malicious patterns
+    const contentToSanitize = value.content;
+    const contentString =
+      typeof contentToSanitize === 'string' ? contentToSanitize : JSON.stringify(contentToSanitize);
 
-        // Apply transformations in order
-        if (value.transformOptions) {
-          const opts = value.transformOptions;
+    const maliciousExamplePatterns = [
+      /<script[^>]*>[\s\S]*?<\/script>/i,
+      /javascript:/i,
+      /vbscript:/i,
+      /on\w+\s*=/i,
+      /<iframe[^>]*>/i,
+      /<object[^>]*>/i,
+      /<embed[^>]*>/i,
+      /data:text\/html/i,
+      /expression\s*\(/i,
+      /eval\s*\(/i,
+      /Function\s*\(/i,
+      /setTimeout\s*\(\s*['"]/i,
+      /setInterval\s*\(\s*['"]/i,
+      /document\.write/i,
+      /innerHTML\s*=/i,
+      /outerHTML\s*=/i,
+      /insertAdjacentHTML/i,
+      /dangerouslySetInnerHTML/i,
+      /<form[^>]*>/i,
+      /<input[^>]*>/i,
+      /<meta[^>]*>/i,
+      /<link[^>]*>/i,
+      /<style[^>]*>[\s\S]*?<\/style>/i,
+      /url\s*\(\s*['"]?javascript:/i,
+      /url\s*\(\s*['"]?vbscript:/i,
+      /url\s*\(\s*['"]?data:/i,
+    ];
 
-          // Support preset application
-          if (opts.preset) {
-            jsonObj = applyPreset(jsonObj, opts.preset);
-          }
+    const result = maliciousExamplePatterns.some((pattern) => pattern.test(contentString));
+    const matchedPatterns = maliciousExamplePatterns
+      .map((pattern) => ({
+        pattern: pattern.toString(),
+        matches: contentString.match(pattern),
+      }))
+      .filter((match) => match.matches !== null);
 
-          // Support transformation chaining
-          if (opts.chain) {
-            let chain = createChain(jsonObj);
-            for (const step of opts.chain) {
-              const { operation, params } = step;
-              if (chain[operation]) {
-                chain = chain[operation](...params);
-              } else {
-                logger.warn(`Unknown chain operation: ${operation}`);
-              }
-            }
-            jsonObj = chain.value();
-          } else {
-            // Legacy support for individual transformations
-            if (opts.normalizeKeys) {
-              jsonObj = normalizeKeys(jsonObj, opts.normalizeKeys);
-            }
-            if (opts.removeFields) {
-              jsonObj = removeFields(jsonObj, opts.removeFields);
-            }
-            if (opts.coerceTypes) {
-              jsonObj = coerceTypes(jsonObj, opts.coerceTypes);
-            }
-          }
-        }
+    const needsAIProcessing = result;
 
-        contentToSanitize = JSON.stringify(jsonObj);
-      } catch (e) {
-        logger.warn('Invalid JSON for transformation, skipping', { error: e.message });
-      }
-    }
+    logger.info('AI processing detection', {
+      contentType: typeof contentToSanitize,
+      contentLength: contentString.length,
+      contentPreview: contentString.slice(0, 500),
+      patternsChecked: maliciousExamplePatterns.length,
+      needsAIProcessing,
+      matchedPatterns: matchedPatterns,
+      patternNames: matchedPatterns.map((p) => p.pattern),
+    });
 
-    // Check if async processing is requested and sync mode is not forced
-    console.log('Async check:', { async: value.async, querySync: req.query.sync });
-    if (value.async && req.query.sync !== 'true') {
+    // Determine if request should be processed asynchronously
+    const shouldProcessAsync = value.async || needsAIProcessing;
+
+    logger.info('AI transform check', {
+      ai_transform: value.ai_transform,
+      ai_transform_type: typeof value.ai_transform,
+      needsAIProcessing,
+      shouldProcessAsync,
+      query: req.query,
+      body_ai_transform: req.body.ai_transform,
+    });
+
+    if (shouldProcessAsync) {
       // Support trust token from header if not in body
       value.trustToken = value.trustToken || req.headers['x-trust-token'];
       try {
         const jobData = contentToSanitize;
         const jobOptions = {
           classification: value.classification || req.destinationTracking.classification,
-          generateTrustToken: config.features.trustTokens.enabled,
+          generateTrustToken: false, // Disable trust token generation for /api/sanitize/json
           trustToken: value.trustToken, // Pass trust token for reuse check in job
         };
 
-        // Add AI processing options if requested
-        if (value.ai_transform) {
+        // Add AI processing options if requested or if content needs AI sanitization
+        logger.info('AI transform check', {
+          ai_transform: value.ai_transform,
+          needsAIProcessing,
+          query: req.query,
+          body: req.body,
+        });
+
+        if (value.ai_transform || needsAIProcessing) {
           jobOptions.aiTransformType = value.ai_transform_type || 'structure';
+          logger.info('AI processing enabled for content sanitization', {
+            aiTransformType: jobOptions.aiTransformType,
+            reason: value.ai_transform ? 'explicit_request' : 'malicious_content_detected',
+            needsAIProcessing,
+          });
         }
         logger.info('Calling queueManager.addJob');
         const taskId = await queueManager.addJob(jobData, jobOptions);
@@ -450,11 +479,17 @@ router.post(
             globalThis.reuseStats.totalTimeSavedMs += 50;
             globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
-            return res.json({
+            const reuseResponse = {
               sanitizedContent: value.content,
-              trustToken: value.trustToken,
               metadata,
-            });
+            };
+
+            // Only include trust token if trust tokens are enabled
+            if (config.features.trustTokens.enabled) {
+              reuseResponse.trustToken = value.trustToken;
+            }
+
+            return res.json(reuseResponse);
           } else {
             // Content hash mismatch - log as security event
             const auditLog = new AuditLog({
@@ -520,6 +555,13 @@ router.post(
       let aiProcessingMetadata = {};
 
       // Apply AI transformation if requested
+      logger.info('Synchronous AI transform check', {
+        ai_transform: value.ai_transform,
+        ai_transform_type: value.ai_transform_type,
+        query: req.query,
+        body_ai_transform: req.body.ai_transform,
+      });
+
       if (value.ai_transform) {
         try {
           const aiResult = await aiTransformer.transform(
@@ -554,7 +596,7 @@ router.post(
 
       const options = {
         classification: value.classification || req.destinationTracking.classification,
-        generateTrustToken: true,
+        generateTrustToken: false, // Disable trust token generation for /api/sanitize/json
       };
       const result = await proxySanitizer.sanitize(contentForSanitization, options);
 
@@ -619,6 +661,13 @@ router.post(
       let sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
       const trustToken = typeof result === 'string' ? null : result.trustToken;
 
+      if (trustToken) {
+        logger.info('API Response: Sending trust token', {
+          signatureSnippet: trustToken.signature?.substring(0, 15) + '...',
+          originalHashSnippet: trustToken.originalHash?.substring(0, 15) + '...',
+        });
+      }
+
       // Clean any malicious content from structured responses
       try {
         const parsed = JSON.parse(sanitizedContent);
@@ -632,9 +681,9 @@ router.post(
         // Not JSON, leave as is
       }
 
+      // For /api/sanitize/json endpoint, never include trust tokens
       res.json({
         sanitizedContent,
-        trustToken,
         metadata,
       });
     } catch (err) {
@@ -791,6 +840,18 @@ router.post(
         return res.json(result);
       } else {
         // Asynchronous processing - queue job and return job_id
+        const jobOptions = {
+          generateTrustToken: config.features.trustTokens.enabled,
+        };
+
+        // Enable AI processing if requested
+        if (aiTransform) {
+          jobOptions.aiTransformType = 'structure'; // Default to structure for PDFs
+          logger.info('AI processing enabled for PDF upload', {
+            aiTransformType: jobOptions.aiTransformType,
+          });
+        }
+
         const jobId = await queueManager.addJob(
           {
             type: 'pdf_processing',
@@ -798,9 +859,7 @@ router.post(
             aiTransform,
             originalName: req.file.originalname,
           },
-          {
-            generateTrustToken: true,
-          },
+          jobOptions,
         );
 
         const result = {

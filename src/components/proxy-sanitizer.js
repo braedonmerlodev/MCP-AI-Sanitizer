@@ -44,10 +44,13 @@ class ProxySanitizer {
       classification = 'unclear',
       operation = 'unknown',
       // eslint-disable-next-line no-unused-vars
-      generateTrustToken = false,
-      // eslint-disable-next-line no-unused-vars
       trustToken,
     } = options;
+
+    // Check both global config AND local options
+    const configEnabled = require('../config').features.trustTokens.enabled;
+    const generateTrustToken = configEnabled && options.generateTrustToken === true;
+
     const riskLevel = sanitizationConfig.getRiskLevel(classification);
     // Zero-trust: Always apply full sanitization regardless of risk level
     const sanitizationLevel = 'full';
@@ -60,7 +63,11 @@ class ProxySanitizer {
     });
 
     const startTime = Date.now();
-    const sanitized = await this.pipeline.sanitize(data, { ...options, riskLevel });
+    const sanitized = await this.pipeline.sanitize(data, {
+      ...options,
+      riskLevel,
+      generateTrustToken,
+    });
     const endTime = Date.now();
     const latency = endTime - startTime;
 

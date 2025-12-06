@@ -29,6 +29,16 @@ class QueueManager {
     return QueueManager.queue;
   }
 
+  /**
+   * Reset the queue singleton - useful for testing or when config changes require queue restart
+   */
+  resetQueue() {
+    if (QueueManager.queue) {
+      logger.info('Resetting queue singleton');
+      QueueManager.queue = null;
+    }
+  }
+
   async loadQueuedJobs() {
     try {
       // This is a simplified approach - in a real implementation,

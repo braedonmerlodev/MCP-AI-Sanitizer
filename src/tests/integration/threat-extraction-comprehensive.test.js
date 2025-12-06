@@ -25,11 +25,10 @@ describe('Threat Extraction Integration Tests', () => {
         sanitizedData: '{"content": "sanitized", "sanitizationTests": {"patterns": ["malicious"]}}',
       }),
     });
-    sandbox.stub(require('../../utils/jsonRepair'), 'default').returns({
-      repair: sandbox.stub().returns({
-        success: true,
-        data: { content: 'sanitized', sanitizationTests: { patterns: ['malicious'] } },
-      }),
+    const JSONRepair = require('../../utils/jsonRepair');
+    sandbox.stub(JSONRepair.prototype, 'repair').returns({
+      success: true,
+      data: { content: 'sanitized', sanitizationTests: { patterns: ['malicious'] } },
     });
     sandbox
       .stub(

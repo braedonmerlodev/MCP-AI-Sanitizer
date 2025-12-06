@@ -1,3 +1,12 @@
+const winston = require('winston');
+
+// Initialize logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [new winston.transports.Console()],
+});
+
 /**
  * PatternRedaction component for redacting sensitive patterns.
  * Removes or masks sensitive information like credit card numbers, SSNs, etc.
@@ -10,6 +19,22 @@ class PatternRedaction {
    */
   sanitize(data) {
     let result = data;
+
+    // Helper for logging redactions
+    const logRedaction = (patternName, original, redacted) => {
+      if (original !== redacted) {
+        // Calculate number of replacements by length difference or regex match count
+        // This is a rough estimation for logging purposes
+        logger.info(`PatternRedaction: Redacted ${patternName}`, {
+          pattern: patternName,
+          dataLength: original.length,
+          redactedLength: redacted.length,
+          preview: original.substring(0, 50) + '...',
+        });
+      }
+    };
+
+    const initialData = result;
 
     // Remove HTML script tags and their content
     result = result.replaceAll(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -37,12 +62,25 @@ class PatternRedaction {
 
     // Remove phone numbers (various formats) - using negative lookbehind simulation/robust patterns
     // Matches: 123-456-7890, 123.456.7890, 1234567890
-    result = result.replaceAll(/(?<!\d)\d{3}[-.]?\d{3}[-.]?\d{4}(?!\d)/g, 'PHONE_REDACTED');
+    const phoneRegex = /(?<!\d)\d{3}[-.]?\d{3}[-.]?\d{4}(?!\d)/g;
+    if (phoneRegex.test(result)) {
+      logger.info('PatternRedaction: Phone number pattern detected', {
+        matchPreview: result.match(phoneRegex)?.slice(0, 3),
+      });
+      result = result.replaceAll(phoneRegex, 'PHONE_REDACTED');
+    }
+
     result = result.replaceAll(/(?<!\d)\(\d{3}\)\s*\d{3}[-.]?\d{4}(?!\d)/g, 'PHONE_REDACTED');
 
     // Remove SSN patterns
     // Matches: 123-45-6789, 123456789
-    result = result.replaceAll(/(?<!\d)\d{3}[-]?\d{2}[-]?\d{4}(?!\d)/g, 'SSN_REDACTED');
+    const ssnRegex = /(?<!\d)\d{3}[-]?\d{2}[-]?\d{4}(?!\d)/g;
+    if (ssnRegex.test(result)) {
+      logger.info('PatternRedaction: SSN pattern detected', {
+        matchPreview: result.match(ssnRegex)?.slice(0, 3),
+      });
+      result = result.replaceAll(ssnRegex, 'SSN_REDACTED');
+    }
 
     // Remove credit card numbers (basic pattern)
     result = result.replaceAll(
@@ -59,6 +97,10 @@ class PatternRedaction {
     // Remove suspicious symbol sequences and special characters that might be obfuscation
     // Includes: < > ( ) { } [ ] \ | ~ ` " ' ; : = ? ! @ # $ % ^ & * + , - . /
     result = result.replaceAll(/[<>(){}[\]\\|~`"';:=?!@#$%^&*+,\-./]/g, '');
+
+    if (initialData !== result) {
+      // logger.info('PatternRedaction: Content was modified');
+    }
 
     return result;
   }

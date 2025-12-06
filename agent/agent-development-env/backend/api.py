@@ -1368,16 +1368,13 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             client_ip,
         )
 
-        # Generate trust token for the enhanced content
+        # Trust tokens disabled for PDF processing
         trust_token = None
+        # Get structured output from enhancement result
         structured_output = enhance_result.get("structured_output")
-        if success and enhance_result.get("enhanced_content"):
-            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement", "BleachSanitization"])
-            # Add trust token to structured output if it exists
-            if structured_output and isinstance(structured_output, dict):
-                structured_output["trustToken"] = trust_token
-                # Sanitize the structured output
-                structured_output = sanitize_dict(structured_output)
+        # Sanitize the structured output
+        if structured_output and isinstance(structured_output, dict):
+            structured_output = sanitize_dict(structured_output)
 
         # Sanitize enhanced content
         enhanced_content = enhance_result.get("enhanced_content")
@@ -1391,7 +1388,7 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             "sanitized_content": sanitize_result.get("sanitized_content"),
             "enhanced_content": enhanced_content,
             "structured_output": structured_output,
-            "trustToken": trust_token,
+            "trustToken": None,  # Trust tokens disabled
             "processing_time": enhance_result.get("processing_metadata", {}).get(
                 "processing_time"
             ),
@@ -1624,15 +1621,13 @@ async def sanitize_content(
             content=req.content, classification=req.classification
         )
 
-        # Generate trust token if sanitization was successful
+        # Trust tokens disabled for /api/sanitize/json endpoint
         trust_token = None
-        if result.get("success", False) and result.get("sanitized_content"):
-            trust_token = generate_trust_token(result["sanitized_content"])
 
         return SanitizeResponse(
             success=result.get("success", False),
             sanitized_content=result.get("sanitized_content"),
-            trustToken=trust_token,
+            trustToken=None,  # Trust tokens disabled for /api/sanitize/json
             processing_time=result.get("processing_time"),
             error=result.get("error"),
         )

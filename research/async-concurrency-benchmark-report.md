@@ -1,15 +1,15 @@
 # Async Processing Concurrency Benchmark Report
 
-Generated: 2025-12-06T01:11:12.131Z
+Generated: 2025-12-06T02:16:32.966Z
 
 ## Executive Summary
 
 This report presents comprehensive concurrency benchmarking results for the reordered pipeline under various load conditions.
 
 **Key Findings:**
-- Maximum Throughput: 9848.6 jobs/second
+- Maximum Throughput: 9679.3 jobs/second
 - Optimal Concurrency: 5 concurrent operations
-- Efficiency Range: 100.0% - 12158.8%
+- Efficiency Range: 100.0% - 12271.4%
 - Error Rate Range: 0.0% - 0.0%
 
 ## Test Configuration
@@ -25,7 +25,7 @@ This report presents comprehensive concurrency benchmarking results for the reor
 
 | Concurrency | Light Data | Medium Data | Heavy Data | Avg Efficiency |
 |-------------|------------|-------------|------------|----------------|
-| 5 | 9848.6 | 9230.7 | 3509.1 | NaN% |
+| 5 | 9679.3 | 9414.5 | 3689.2 | NaN% |
 
 
 ## Data Set Performance Analysis
@@ -34,9 +34,9 @@ This report presents comprehensive concurrency benchmarking results for the reor
 
 | Data Set | 1 Conc | 5 Conc | 10 Conc | 20 Conc | 50 Conc | Avg Efficiency |
 |----------|--------|--------|---------|---------|---------|----------------|
-| light | 9848.6 | 12158.8% |
-| medium | 9230.7 | 11935.9% |
-| heavy | 3509.1 | 11658.6% |
+| light | 9679.3 | 11238.9% |
+| medium | 9414.5 | 12196.8% |
+| heavy | 3689.2 | 12271.4% |
 
 
 ## Performance Analysis
@@ -47,8 +47,8 @@ This report presents comprehensive concurrency benchmarking results for the reor
 
 ### Bottleneck Analysis
 - **Optimal Performance**: 5 concurrent operations
-- **Throughput Peak**: 9848.6 operations/second
-- **Efficiency Range**: 100.0% to 12158.8%
+- **Throughput Peak**: 9679.3 operations/second
+- **Efficiency Range**: 100.0% to 12271.4%
 
 ### Error Analysis
 - **Error Rate Range**: 0.00% to 0.00%
@@ -63,7 +63,7 @@ This report presents comprehensive concurrency benchmarking results for the reor
 
 - Node.js version: v22.21.0
 - Platform: linux x64
-- Memory: 65MB heap used
+- Memory: 58MB heap used
 - CPU: 16 cores
 
 ## Raw Data
