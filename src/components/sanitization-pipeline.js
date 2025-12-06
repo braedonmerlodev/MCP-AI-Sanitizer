@@ -36,12 +36,6 @@ class SanitizationPipeline {
       final: [...this.steps], // Start with same steps, can add final validation later
     };
 
-    // Configure sanitization modes
-    this.modes = {
-      standard: [...this.steps],
-      final: [...this.steps], // Start with same steps, can add final validation later
-    };
-
     // Initialize data integrity validator
     this.integrityValidator = new DataIntegrityValidator(options.integrityOptions || {});
     this.enableValidation = options.enableValidation !== false;
@@ -171,199 +165,25 @@ class SanitizationPipeline {
 
     return result;
   }
-        resourceId: options.resourceId || 'unknown',
-        stage: 'risk-assessment',
-      },
-    return result;
-  }
-      await this.auditLogger.logHighRiskCase(
-        {
-          userId: options.userId,
-          resourceId: options.resourceId || 'unknown',
-          sessionId: options.sessionId,
-          stage: 'high_risk_detection',
-        },
-        mlFields,
-      );
-    } else if (assessedRiskLevel === 'Unknown' && confidence < 0.3) {
-      // Unknown Risk: confidence < 0.3 requiring HITL
-      const mlFields = {
-        threatPatternId: options.threatPatternId || 'unknown_pattern',
-        confidenceScore: confidence,
-        mitigationActions: options.mitigationActions || ['hitl_required'],
-        featureVector: options.featureVector || { riskIndicators: ['unclear_threat'] },
-        trainingLabels: options.trainingLabels || { supervised: 'unknown_risk' },
-        anomalyScore: options.anomalyScore || 1 - confidence,
-        detectionTimestamp: new Date().toISOString(),
-      };
-      await this.auditLogger.logUnknownRiskCase(
-        {
-          userId: options.userId,
-          resourceId: options.resourceId || 'unknown',
-          sessionId: options.sessionId,
-          stage: 'unknown_risk_detection',
-        },
-        mlFields,
-      );
+
+  /**
+   * Generates a trust token for the sanitized content.
+   * @param {string|Object} sanitizedData - The sanitized data
+   * @param {Object} metadata - Metadata for the trust token
+   * @returns {string} - The generated trust token
+   */
+  async generateTrustToken(sanitizedData, metadata = {}) {
+    if (!this.trustTokenGenerator) {
+      this.trustTokenGenerator = new TrustTokenGenerator(this.trustTokenOptions);
     }
 
-    // Apply full sanitization pipeline (default behavior)
-    logger.info('Applying full sanitization pipeline', {
-      classification,
-      riskLevel,
-      dataLength: typeof data === 'string' ? data.length : JSON.stringify(data).length,
-      dataType: typeof data,
-    });
-
-    let result = data;
-
-    // Try to parse string data as JSON first
-    let isJsonString = false;
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data);
-        if (typeof parsed === 'object' && parsed !== null) {
-          result = parsed;
-          isJsonString = true;
-          logger.info('Detected JSON string, applying recursive sanitization');
-        }
-      } catch (e) {
-        // Not JSON, proceed as string
-      }
-    }
-
-    // Handle JSON data by recursively sanitizing object structure
-    if (isJsonData) {
-      logger.info('Detected JSON data, applying recursive sanitization');
-      result = this.sanitizeObject(result);
-
-      if (isJsonString) {
-        result = JSON.stringify(result);
-        // Note: isJsonData remains true so we skip the string sanitization loop
-        // but result is now a string.
-      }
-    }
-    }
-    }
-      result = this.sanitizeObject(result);
-
-      if (isJsonString) {
-        result = JSON.stringify(result);
-        // Note: isJsonData remains true so we skip the string sanitization loop
-        // but result is now a string.
-      }
-    }
-
-    // Pre-validation hook
-    if (this.enableValidation && !skipValidation) {
-      const preValidation = await this.integrityValidator.validateData(result, {
-        source: 'pre-sanitization',
-        ...validationOptions,
-      });
-
-      if (!preValidation.isValid) {
-        logger.warn('Pre-sanitization validation failed', {
-          validationId: preValidation.validationId,
-          errors: preValidation.errors,
-        });
-      }
-    }
-
-    // Post-validation hook
-    if (this.enableValidation && !skipValidation) {
-      const postValidation = await this.integrityValidator.validateData(result, {
-        source: 'post-sanitization',
-        ...validationOptions,
-      });
-
-      if (!postValidation.isValid) {
-        logger.warn('Post-sanitization validation failed', {
-          validationId: postValidation.validationId,
-          errors: postValidation.errors,
-        });
-      }
-    }
-
-    // Post-validation hook
-    if (this.enableValidation && !skipValidation) {
-      const postValidation = await this.integrityValidator.validateData(result, {
-        source: 'post-sanitization',
-        ...validationOptions,
-      });
-
-      if (!postValidation.isValid) {
-        logger.error('Post-sanitization validation failed', {
-          validationId: postValidation.validationId,
-          errors: postValidation.errors,
-        });
-      }
-    }
-
-    // Cache the sanitized result
-    const contentToHash = typeof result === 'string' ? result : JSON.stringify(result);
-    const contentHash = crypto.createHash('sha256').update(contentToHash).digest('hex');
-    this.trustTokenCache.set(contentHash, {
-      sanitizedData: result,
-      timestamp: Date.now(),
-    });
-    this.cacheOrder.push(contentHash);
-    // Maintain cache size (LRU)
-    if (this.trustTokenCache.size > this.cacheMaxSize) {
-      const oldestKey = this.cacheOrder.shift();
-      this.trustTokenCache.delete(oldestKey);
-    }
-
-    // Log high-fidelity data collection for AI training
-    const processingTime = Date.now() - startTime;
-    const inputDataForHash = typeof data === 'string' ? data : JSON.stringify(data);
-    const inputDataHash = crypto.createHash('sha256').update(inputDataForHash).digest('hex');
-    const decisionOutcome = {
-      decision: 'sanitized',
-      reasoning: assessedRiskLevel,
-      riskScore: confidence,
-    };
-    const inputDataForLength = typeof data === 'string' ? data : JSON.stringify(data);
-    const contextMetadata = {
-      inputLength: inputDataForLength.length,
-      outputLength: typeof result === 'string' ? result.length : JSON.stringify(result).length,
-      processingTime,
-    };
-    const processingSteps = appliedRules;
-    await this.auditLogger.logHighFidelityDataCollection(
-      inputDataHash,
-      processingSteps,
-      decisionOutcome,
-      contextMetadata,
-      {
-        userId: options.userId,
-        resourceId: options.resourceId || 'unknown',
-        sessionId: options.sessionId,
-      },
+    return await this.trustTokenGenerator.generateToken(
+      sanitizedData,
+      sanitizedData,
+      metadata.appliedRules || [],
+      metadata,
     );
-
-    // Generate trust token if requested
-    let trustTokenResult = null;
-    if (generateTrustToken) {
-      trustTokenResult = await this.generateTrustToken(result, {
-        classification,
-        riskLevel: assessedRiskLevel,
-        appliedRules,
-        processingTime: Date.now() - startTime,
-        operation: 'sanitization',
-      });
-    }
-
-    // Return result
-    if (generateTrustToken) {
-      return {
-        sanitizedData: result,
-        trustToken: trustTokenResult,
-        appliedRules,
-        processingTime: Date.now() - startTime,
-      };
-    }
-
-    return result;
   }
+}
 
 module.exports = SanitizationPipeline;

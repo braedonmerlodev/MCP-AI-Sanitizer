@@ -11,28 +11,35 @@ describe('Threat Extraction Integration Tests', () => {
     sandbox.stub(require('pdf-parse'), 'default').resolves({
       text: 'Sample PDF text for testing',
       numpages: 1,
-      info: { Title: 'Test PDF' }
+      info: { Title: 'Test PDF' },
     });
 
-    sandbox.stub(require('../../components/MarkdownConverter').prototype, 'convert').returns('Converted markdown');
+    sandbox
+      .stub(require('../../components/MarkdownConverter').prototype, 'convert')
+      .returns('Converted markdown');
     sandbox.stub(require('../../components/AITextTransformer').prototype, 'transform').resolves({
-      text: '{"content": "AI processed", "sanitizationTests": {"patterns": ["<script>"]}}'
+      text: '{"content": "AI processed", "sanitizationTests": {"patterns": ["<script>"]}}',
     });
     sandbox.stub(require('../../components/proxy-sanitizer'), 'default').returns({
       sanitize: sandbox.stub().resolves({
-        sanitizedData: '{"content": "sanitized", "sanitizationTests": {"patterns": ["malicious"]}}'
-      })
+        sanitizedData: '{"content": "sanitized", "sanitizationTests": {"patterns": ["malicious"]}}',
+      }),
     });
     sandbox.stub(require('../../utils/jsonRepair'), 'default').returns({
       repair: sandbox.stub().returns({
         success: true,
-        data: { content: 'sanitized', sanitizationTests: { patterns: ['malicious'] } }
-      })
+        data: { content: 'sanitized', sanitizationTests: { patterns: ['malicious'] } },
+      }),
     });
-    sandbox.stub(require('../../components/data-integrity/AuditLogger').prototype, 'logEscalationDecision').resolves();
+    sandbox
+      .stub(
+        require('../../components/data-integrity/AuditLogger').prototype,
+        'logEscalationDecision',
+      )
+      .resolves();
     sandbox.stub(require('../../models/JobStatus'), 'load').resolves({
       updateStatus: sandbox.stub().resolves(),
-      updateProgress: sandbox.stub().resolves()
+      updateProgress: sandbox.stub().resolves(),
     });
     sandbox.stub(require('../../models/JobResult').prototype, 'save').resolves();
   });
@@ -48,17 +55,17 @@ describe('Threat Extraction Integration Tests', () => {
         sanitizedData: {
           content: 'safe content',
           sanitizationTests: { patterns: ['<script>alert(1)</script>'] },
-          potentialXSS: { scripts: ['evil.js'] }
-        }
+          potentialXSS: { scripts: ['evil.js'] },
+        },
       });
 
       const job = {
         id: 'test-job-1',
         data: {
           content: 'test data',
-          sanitizationTests: { patterns: ['malicious'] }
+          sanitizationTests: { patterns: ['malicious'] },
         },
-        options: {}
+        options: {},
       };
 
       const result = await processJob(job);
@@ -81,17 +88,17 @@ describe('Threat Extraction Integration Tests', () => {
           title: 'Legitimate Title',
           description: 'Safe description',
           sanitizationTests: { patterns: ['<script>'] },
-          metadata: { author: 'Test Author' }
-        }
+          metadata: { author: 'Test Author' },
+        },
       });
 
       const job = {
         id: 'test-job-2',
         data: {
           title: 'Test',
-          description: 'Test desc'
+          description: 'Test desc',
         },
-        options: {}
+        options: {},
       };
 
       const result = await processJob(job);
@@ -108,7 +115,7 @@ describe('Threat Extraction Integration Tests', () => {
     it('should extract threats during PDF processing with AI structure', async () => {
       const mockAI = require('../../components/AITextTransformer').prototype;
       mockAI.transform.resolves({
-        text: '{"content": "processed content", "sanitizationTests": {"xss": "<script>"}, "potentialXSS": {"vectors": ["img onerror"]}}'
+        text: '{"content": "processed content", "sanitizationTests": {"xss": "<script>"}, "potentialXSS": {"vectors": ["img onerror"]}}',
       });
 
       const mockRepair = require('../../utils/jsonRepair').default();
@@ -117,8 +124,8 @@ describe('Threat Extraction Integration Tests', () => {
         data: {
           content: 'processed content',
           sanitizationTests: { xss: '<script>' },
-          potentialXSS: { vectors: ['img onerror'] }
-        }
+          potentialXSS: { vectors: ['img onerror'] },
+        },
       });
 
       const job = {
@@ -126,9 +133,9 @@ describe('Threat Extraction Integration Tests', () => {
         data: {
           type: 'pdf_processing',
           fileBuffer: Buffer.from('fake pdf').toString('base64'),
-          fileName: 'test.pdf'
+          fileName: 'test.pdf',
         },
-        options: { aiTransformType: 'structure' }
+        options: { aiTransformType: 'structure' },
       };
 
       const result = await processJob(job);
@@ -147,7 +154,7 @@ describe('Threat Extraction Integration Tests', () => {
     it('should handle nested malicious structures in PDF processing', async () => {
       const mockAI = require('../../components/AITextTransformer').prototype;
       mockAI.transform.resolves({
-        text: '{"data": {"nested": {"sanitizationTests": {"deep": {"malicious": "code"}}, "potentialXSS": {"scripts": ["evil"]}}}}'
+        text: '{"data": {"nested": {"sanitizationTests": {"deep": {"malicious": "code"}}, "potentialXSS": {"scripts": ["evil"]}}}}',
       });
 
       const mockRepair = require('../../utils/jsonRepair').default();
@@ -157,10 +164,10 @@ describe('Threat Extraction Integration Tests', () => {
           data: {
             nested: {
               sanitizationTests: { deep: { malicious: 'code' } },
-              potentialXSS: { scripts: ['evil'] }
-            }
-          }
-        }
+              potentialXSS: { scripts: ['evil'] },
+            },
+          },
+        },
       });
 
       const job = {
@@ -168,9 +175,9 @@ describe('Threat Extraction Integration Tests', () => {
         data: {
           type: 'pdf_processing',
           fileBuffer: Buffer.from('fake pdf').toString('base64'),
-          fileName: 'test.pdf'
+          fileName: 'test.pdf',
         },
-        options: { aiTransformType: 'structure' }
+        options: { aiTransformType: 'structure' },
       };
 
       const result = await processJob(job);
@@ -192,20 +199,22 @@ describe('Threat Extraction Integration Tests', () => {
           content: 'safe',
           sanitizationTests: { patterns: ['<script>', 'javascript:'] },
           potentialXSS: { sources: ['user_input'] },
-          symbolsAndSpecialChars: { chars: ['\u0000'] }
-        }
+          symbolsAndSpecialChars: { chars: ['\u0000'] },
+        },
       });
 
       const job = {
         id: 'test-job-5',
         data: { content: 'test' },
-        options: {}
+        options: {},
       };
 
       const result = await processJob(job);
 
       expect(result.securityReport).toBeDefined();
-      expect(result.securityReport.sanitizationTests).toEqual({ patterns: ['<script>', 'javascript:'] });
+      expect(result.securityReport.sanitizationTests).toEqual({
+        patterns: ['<script>', 'javascript:'],
+      });
       expect(result.securityReport.potentialXSS).toEqual({ sources: ['user_input'] });
       expect(result.securityReport.symbolsAndSpecialChars).toEqual({ chars: ['\u0000'] });
     });
@@ -215,14 +224,14 @@ describe('Threat Extraction Integration Tests', () => {
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           content: 'completely safe content',
-          metadata: { safe: true }
-        }
+          metadata: { safe: true },
+        },
       });
 
       const job = {
         id: 'test-job-6',
         data: { content: 'safe' },
-        options: {}
+        options: {},
       };
 
       const result = await processJob(job);
@@ -233,5 +242,4 @@ describe('Threat Extraction Integration Tests', () => {
       expect(sanitizedData.metadata).toEqual({ safe: true });
     });
   });
-});</content>
-<parameter name="filePath">src/tests/integration/threat-extraction-comprehensive.test.js
+});
