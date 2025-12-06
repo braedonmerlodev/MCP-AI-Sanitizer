@@ -24,11 +24,11 @@ const SanitizationMonitor = require('../utils/sanitization-monitor');
 const SanitizationDashboard = require('../monitoring/sanitization-dashboard');
 const queueManager = require('../utils/queueManager');
 const {
-  normalizeKeys,
-  removeFields,
-  coerceTypes,
-  applyPreset,
-  createChain,
+  normalizeKeys, // eslint-disable-line no-unused-vars
+  removeFields, // eslint-disable-line no-unused-vars
+  coerceTypes, // eslint-disable-line no-unused-vars
+  applyPreset, // eslint-disable-line no-unused-vars
+  createChain, // eslint-disable-line no-unused-vars
 } = require('../utils/jsonTransformer');
 const AITextTransformer = require('../components/AITextTransformer');
 
@@ -663,8 +663,8 @@ router.post(
 
       if (trustToken) {
         logger.info('API Response: Sending trust token', {
-          signatureSnippet: trustToken.signature?.substring(0, 15) + '...',
-          originalHashSnippet: trustToken.originalHash?.substring(0, 15) + '...',
+          signatureSnippet: trustToken.signature?.slice(0, 15) + '...',
+          originalHashSnippet: trustToken.originalHash?.slice(0, 15) + '...',
         });
       }
 

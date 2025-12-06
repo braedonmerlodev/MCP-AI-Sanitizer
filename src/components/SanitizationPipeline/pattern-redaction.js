@@ -20,20 +20,6 @@ class PatternRedaction {
   sanitize(data) {
     let result = data;
 
-    // Helper for logging redactions
-    const logRedaction = (patternName, original, redacted) => {
-      if (original !== redacted) {
-        // Calculate number of replacements by length difference or regex match count
-        // This is a rough estimation for logging purposes
-        logger.info(`PatternRedaction: Redacted ${patternName}`, {
-          pattern: patternName,
-          dataLength: original.length,
-          redactedLength: redacted.length,
-          preview: original.substring(0, 50) + '...',
-        });
-      }
-    };
-
     const initialData = result;
 
     // Remove HTML script tags and their content

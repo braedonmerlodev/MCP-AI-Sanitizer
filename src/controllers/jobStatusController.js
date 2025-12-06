@@ -1,7 +1,6 @@
 const JobStatus = require('../models/JobStatus');
 const JobResult = require('../models/JobResult');
 const winston = require('winston');
-const config = require('../config');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -17,7 +16,9 @@ const logger = winston.createLogger({
 function stripTrustTokensRecursively(data) {
   if (data && typeof data === 'object') {
     if (Array.isArray(data)) {
-      data.forEach((item) => stripTrustTokensRecursively(item));
+      for (const item of data) {
+        stripTrustTokensRecursively(item);
+      }
     } else {
       // Remove trustToken from current object
       if (data.trustToken) {
@@ -25,7 +26,9 @@ function stripTrustTokensRecursively(data) {
         logger.info('Stripped trust token from nested object');
       }
       // Recurse into all properties
-      Object.values(data).forEach((value) => stripTrustTokensRecursively(value));
+      for (const value of Object.values(data)) {
+        stripTrustTokensRecursively(value);
+      }
     }
   }
 }
@@ -191,12 +194,11 @@ const JobStatusController = {
           resultData &&
           typeof resultData === 'object' &&
           resultData.sanitizedData &&
-          typeof resultData.sanitizedData === 'object'
+          typeof resultData.sanitizedData === 'object' &&
+          resultData.sanitizedData.trustToken
         ) {
-          if (resultData.sanitizedData.trustToken) {
-            delete resultData.sanitizedData.trustToken;
-            logger.info('Stripped trust token from sanitizedData in cached result', { taskId });
-          }
+          delete resultData.sanitizedData.trustToken;
+          logger.info('Stripped trust token from sanitizedData in cached result', { taskId });
         }
       } else if (jobStatus.result) {
         // Fallback to job status result and cache it
@@ -212,12 +214,11 @@ const JobStatusController = {
           resultData &&
           typeof resultData === 'object' &&
           resultData.sanitizedData &&
-          typeof resultData.sanitizedData === 'object'
+          typeof resultData.sanitizedData === 'object' &&
+          resultData.sanitizedData.trustToken
         ) {
-          if (resultData.sanitizedData.trustToken) {
-            delete resultData.sanitizedData.trustToken;
-            logger.info('Stripped trust token from sanitizedData in job status result', { taskId });
-          }
+          delete resultData.sanitizedData.trustToken;
+          logger.info('Stripped trust token from sanitizedData in job status result', { taskId });
         }
         try {
           jobResult = new JobResult({

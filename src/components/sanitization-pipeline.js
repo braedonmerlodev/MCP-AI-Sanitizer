@@ -146,8 +146,8 @@ class SanitizationPipeline {
 
       // Log generated token to debug redaction issues
       logger.info('SanitizationPipeline: Trust token generated', {
-        tokenSignature: trustTokenResult.signature.substring(0, 10) + '...',
-        originalHash: trustTokenResult.originalHash.substring(0, 10) + '...',
+        tokenSignature: trustTokenResult.signature.slice(0, 10) + '...',
+        originalHash: trustTokenResult.originalHash.slice(0, 10) + '...',
       });
     }
 

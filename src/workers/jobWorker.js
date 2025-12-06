@@ -50,7 +50,9 @@ const logger = winston.createLogger({
 function stripTrustTokensRecursively(data) {
   if (data && typeof data === 'object') {
     if (Array.isArray(data)) {
-      data.forEach((item) => stripTrustTokensRecursively(item));
+      for (const item of data) {
+        stripTrustTokensRecursively(item);
+      }
     } else {
       // Remove trustToken from current object
       if (data.trustToken) {
@@ -58,7 +60,9 @@ function stripTrustTokensRecursively(data) {
         logger.info('Stripped trust token from object in jobWorker');
       }
       // Recurse into all properties
-      Object.values(data).forEach((value) => stripTrustTokensRecursively(value));
+      for (const value of Object.values(data)) {
+        stripTrustTokensRecursively(value);
+      }
     }
   }
 }
@@ -232,7 +236,7 @@ async function processJob(job) {
         ...job.options,
         // Respect generateTrustToken from job options, default to false if not specified
         generateTrustToken:
-          job.options.generateTrustToken !== undefined ? job.options.generateTrustToken : false,
+          job.options.generateTrustToken === undefined ? false : job.options.generateTrustToken,
       };
       const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
 

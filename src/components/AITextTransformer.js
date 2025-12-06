@@ -222,7 +222,7 @@ Return ONLY clean, safe JSON schema.`,
       /ADDRESS_REDACTED/gi,
     ];
 
-    redactedPatterns.forEach((pattern) => {
+    for (const pattern of redactedPatterns) {
       const matches = text.match(pattern);
       if (matches) {
         detailedMatches.redactedContent.push(...matches);
@@ -230,7 +230,7 @@ Return ONLY clean, safe JSON schema.`,
           patternsDetected.push('redactedContent');
         }
       }
-    });
+    }
 
     // Check for zero-width characters
     const zeroWidthPattern = /[\u200B\u200C\u200D\u200E\u200F\uFEFF]/g;
@@ -265,7 +265,7 @@ Return ONLY clean, safe JSON schema.`,
     }
 
     // Check for non-ASCII characters
-    const nonAsciiPattern = /[^\x00-\x7F]/g;
+    const nonAsciiPattern = /[^\u0000-\u007F]/g;
     const nonAsciiMatches = text.match(nonAsciiPattern);
     if (nonAsciiMatches) {
       detailedMatches.nonAsciiChars = nonAsciiMatches;
@@ -470,7 +470,7 @@ Return ONLY clean, safe JSON schema.`,
       type,
       promptLength: prompt.template.length,
       hasSecurityInstructions: prompt.template.includes('CRITICAL SECURITY'),
-      promptPreview: prompt.template.substring(0, 200) + '...',
+      promptPreview: prompt.template.slice(0, 200) + '...',
     });
 
     // Sanitize input before AI processing
