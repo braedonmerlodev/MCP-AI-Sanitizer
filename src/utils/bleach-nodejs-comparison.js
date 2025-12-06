@@ -1,5 +1,7 @@
 // Bleach-Node.js Sanitization Library Comparison Utility
+// eslint-disable-next-line n/no-unpublished-require
 const DOMPurify = require('dompurify');
+// eslint-disable-next-line n/no-unpublished-require
 const sanitizeHtml = require('sanitize-html');
 
 /**
@@ -9,6 +11,7 @@ const sanitizeHtml = require('sanitize-html');
 class BleachNodeComparison {
   constructor() {
     // Initialize DOMPurify (server-side)
+    // eslint-disable-next-line n/no-unpublished-require
     const { JSDOM } = require('jsdom');
     const window = new JSDOM('').window;
     this.DOMPurify = DOMPurify(window);

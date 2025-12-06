@@ -1,5 +1,7 @@
 // Proof-of-Concept Sanitization Library Adapters
+// eslint-disable-next-line n/no-unpublished-require
 const DOMPurify = require('dompurify');
+// eslint-disable-next-line n/no-unpublished-require
 const sanitizeHtml = require('sanitize-html');
 const winston = require('winston');
 
@@ -21,10 +23,11 @@ class SanitizationAdapter {
   /**
    * Sanitize content using the adapted library
    * @param {string} content - Content to sanitize
-   * @param {object} _options - Sanitization options
+   * @param {object} options - Sanitization options (used by subclasses)
    * @returns {string} - Sanitized content
    */
-  sanitize(content, _options = {}) {
+  // eslint-disable-next-line no-unused-vars
+  sanitize(content, options = {}) {
     throw new Error('sanitize() must be implemented by subclass');
   }
 
@@ -55,6 +58,7 @@ class DOMPurifyAdapter extends SanitizationAdapter {
   constructor() {
     super('DOMPurify');
     // Initialize DOMPurify with JSDOM for server-side usage
+    // eslint-disable-next-line n/no-unpublished-require
     const { JSDOM } = require('jsdom');
     const window = new JSDOM('').window;
     this.DOMPurify = DOMPurify(window);
@@ -205,6 +209,7 @@ class SanitizeHtmlAdapter extends SanitizationAdapter {
 
   getVersion() {
     try {
+      // eslint-disable-next-line n/no-unpublished-require
       const packageJson = require('sanitize-html/package.json');
       return packageJson.version;
     } catch {
@@ -341,7 +346,8 @@ class BleachAdapter extends SanitizationAdapter {
 /**
  * Factory function to create sanitization adapters
  */
-function createSanitizationAdapter(libraryName, _options = {}) {
+// eslint-disable-next-line no-unused-vars
+function createSanitizationAdapter(libraryName, options = {}) {
   switch (libraryName.toLowerCase()) {
     case 'dompurify': {
       return new DOMPurifyAdapter();
