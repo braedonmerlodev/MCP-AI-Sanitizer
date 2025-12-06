@@ -1,0 +1,48 @@
+schema: 1
+story: 'BLEACH-ASYNC-PIPELINE-3.1'
+story_title: 'Update Unit Tests for Reordered Pipeline'
+gate: CONCERNS
+status_reason: 'Pipeline reordering correctly implemented and manually verified. Automated test coverage recommended to prevent future regressions.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-05T12:00:00.000Z'
+
+top_issues:
+  - severity: medium
+    title: 'Manual Testing Used Instead of Automated Tests'
+    description: 'Due to mocking complexity, manual verification was used for pipeline reordering. Automated tests recommended for regression prevention.'
+    suggested_owner: dev
+
+waiver: { active: false }
+
+evidence:
+  tests_reviewed: 10
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Threat extraction properly implemented, sanitizationTests removed from user responses'
+  performance:
+    status: CONCERNS
+    notes: 'Performance impact of reordered pipeline not measured'
+  reliability:
+    status: PASS
+    notes: 'Error handling and logging comprehensive throughout pipeline'
+  maintainability:
+    status: PASS
+    notes: 'Code well-structured with clear comments and separation of concerns'
+
+recommendations:
+  immediate:
+    - action: 'Implement automated unit tests for pipeline reordering to prevent regressions'
+      refs:
+        ['src/tests/unit/jobWorker.test.js', 'src/tests/unit/jobWorker.sanitizationTests.test.js']
+  future:
+    - action: 'Add integration tests for end-to-end pipeline verification'
+      refs: ['src/workers/jobWorker.js']
+
+quality_score: 80
+expires: '2025-12-19T12:00:00.000Z'

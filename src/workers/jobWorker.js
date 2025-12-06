@@ -7,6 +7,8 @@ const AITextTransformer = require('../components/AITextTransformer');
 const JSONRepair = require('../utils/jsonRepair');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const pdfParse = require('pdf-parse');
+const { performance } = require('node:perf_hooks');
+const { recordPipelinePerformance } = require('../utils/monitoring');
 
 /**
  * Recursively sanitizes string values in an object or array
@@ -35,6 +37,58 @@ const logger = winston.createLogger({
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
 });
+
+/**
+ * Validates JSON structure after threat extraction
+ * @param {any} data - The data to validate
+ * @returns {boolean} - True if valid, false if invalid
+ */
+function validateJsonStructure(data) {
+  try {
+    // Check if it's a valid JSON-serializable structure
+    JSON.stringify(data);
+    return true;
+  } catch (error) {
+    logger.warn('Invalid JSON structure detected after threat extraction', {
+      error: error.message,
+    });
+    return false;
+  }
+}
+
+/**
+ * Handles edge cases after threat extraction (empty objects, etc.)
+ * @param {any} data - The data to clean up
+ * @returns {any} - The cleaned data
+ */
+function cleanupJsonStructure(data) {
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      // Clean up arrays
+      const cleaned = data
+        .map((item) => cleanupJsonStructure(item))
+        .filter((item) => item !== null);
+      return cleaned.length > 0 ? cleaned : null;
+    } else {
+      // Clean up objects
+      const cleaned = {};
+      let hasValidContent = false;
+
+      for (const [key, value] of Object.entries(data)) {
+        const cleanedValue = cleanupJsonStructure(value);
+        if (cleanedValue !== null) {
+          cleaned[key] = cleanedValue;
+          hasValidContent = true;
+        }
+      }
+
+      return hasValidContent ? cleaned : null;
+    }
+  }
+
+  // Return primitive values as-is
+  return data;
+}
 
 /**
  * Recursively extracts and removes threat details from the object
@@ -66,6 +120,7 @@ function extractAndRemoveThreats(obj, foundThreats = {}) {
     if (isSuspicious) {
       // Capture the threat data
       foundThreats[key] = obj[key];
+      logger.info('Removed suspicious key from response', { key, path: 'response_cleanup' });
       // Remove from object
       delete obj[key];
     } else {
@@ -141,17 +196,35 @@ async function processJob(job) {
       // Ensure processedText is a string
       processedText = String(processedText || '');
 
-      // Apply AI transformation if specified
+      // SANITIZE FIRST: Apply sanitization before AI processing
+      await jobStatus.updateProgress(40, 'Sanitizing content');
+
+      // Start sanitization performance timing
+      const sanitizeStartTime = performance.now();
+
+      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
+      const sanitizeOptions = { ...job.options, generateTrustToken: true };
+      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
+
+      const sanitizeEndTime = performance.now();
+      const sanitizationTime = sanitizeEndTime - sanitizeStartTime;
+
+      // Apply AI transformation if specified (now on sanitized input)
+      let aiProcessingTime = 0;
       if (job.options?.aiTransformType) {
         await jobStatus.updateProgress(
-          55,
+          70,
           `Applying AI ${job.options.aiTransformType} transformation`,
         );
+
+        const aiStartTime = performance.now();
 
         const aiTransformer = new AITextTransformer();
         try {
           const aiResult = await aiTransformer.transform(
-            processedText,
+            typeof sanitized === 'object' && sanitized.sanitizedData
+              ? sanitized.sanitizedData
+              : sanitized, // Sanitized input
             job.options.aiTransformType,
             {
               sanitizerOptions: job.options,
@@ -159,27 +232,80 @@ async function processJob(job) {
           );
           processedText = aiResult.text;
         } catch (aiError) {
-          logger.warn('AI transformation failed, proceeding with Markdown text', {
+          logger.warn('AI transformation failed, proceeding with sanitized text', {
             jobId,
             aiTransformType: job.options.aiTransformType,
             error: aiError.message,
           });
-          // processedText remains as Markdown
+          // processedText becomes sanitized text
+          processedText =
+            typeof sanitized === 'object' && sanitized.sanitizedData
+              ? sanitized.sanitizedData
+              : sanitized;
         }
+
+        const aiEndTime = performance.now();
+        aiProcessingTime = aiEndTime - aiStartTime;
+      } else {
+        // No AI transformation - use sanitized text
+        processedText =
+          typeof sanitized === 'object' && sanitized.sanitizedData
+            ? sanitized.sanitizedData
+            : sanitized;
       }
 
-      await jobStatus.updateProgress(70, 'Sanitizing content');
-
-      // Sanitize converted text
-      const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
-      const sanitizeOptions = { ...job.options, generateTrustToken: true };
-      const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
+      // Record pipeline performance metrics
+      const totalPipelineTime = sanitizationTime + aiProcessingTime;
+      recordPipelinePerformance(sanitizationTime, aiProcessingTime, totalPipelineTime, {
+        jobId,
+        jobType: job.data.type,
+        aiTransformType: job.options?.aiTransformType || 'none',
+        inputSize: Math.max(processedText.length, 0),
+        outputSize:
+          (result?.sanitizedData?.length > 0 ? result.sanitizedData.length : 0) ||
+          Math.max(processedText.length, 0),
+      });
 
       // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
       result =
         typeof sanitized === 'object' && sanitized.sanitizedData
           ? sanitized // Includes trustToken
           : { sanitizedData: sanitized };
+
+      // Set consistent result structure for PDF processing
+      result.status = 'processed';
+      result.fileName = job.data.fileName;
+      result.metadata = metadata;
+
+      // FINAL SANITIZATION: Ensure entire result object is properly sanitized
+      logger.info('Applying final sanitization to complete result object', { jobId });
+      result.sanitizedData = sanitizeObject(result.sanitizedData);
+      result.metadata = sanitizeObject(result.metadata);
+
+      // Record final pipeline performance
+      recordPipelinePerformance(sanitizationTime, aiProcessingTime, totalPipelineTime, {
+        jobId,
+        jobType: job.data.type,
+        aiTransformType: job.options?.aiTransformType || 'none',
+        inputSize: JSON.stringify(result.sanitizedData).length,
+        outputSize: JSON.stringify(result).length,
+        finalSanitization: true,
+      });
+
+      // Set consistent result structure for PDF processing
+      result.status = 'processed';
+      result.fileName = job.data.fileName;
+      result.metadata = {
+        pages: metadata.pages,
+        title: metadata.title,
+        author: metadata.author,
+        subject: metadata.subject,
+        creator: metadata.creator,
+        producer: metadata.producer,
+        creationDate: metadata.creationDate,
+        modificationDate: metadata.modificationDate,
+        encoding: metadata.encoding,
+      };
 
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
@@ -194,9 +320,19 @@ async function processJob(job) {
           // This modifies result.sanitizedData in place by removing threats
           const extractedThreats = extractAndRemoveThreats(result.sanitizedData);
 
-          // Store extracted threats in a separate field for the Agent to access later
-          // This field will NOT be returned to the user if we structure the response correctly
-          result.securityReport = extractedThreats;
+          // Validate and cleanup JSON structure after threat extraction
+          if (validateJsonStructure(result.sanitizedData)) {
+            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
+          } else {
+            logger.error('JSON structure invalid after threat extraction in PDF processing', {
+              jobId,
+            });
+            // Reset to safe structure if invalid
+            result.sanitizedData = { error: 'Invalid content structure after sanitization' };
+          }
+
+          // Store extracted threats for logging only - do not include in user response
+          // Log the threats but don't add to result
 
           // HITL Alerting Logic
           const auditLogger = new AuditLogger();
@@ -209,80 +345,198 @@ async function processJob(job) {
           // Check if we actually found anything significant
           // We filter out empty objects to avoid false positives
           const hasThreats = Object.keys(extractedThreats).length > 0;
+          let threatClassification = 'none';
 
           if (hasThreats) {
-            // Deep check to ensure values aren't just "Absent" or "None"
+            // Enhanced threat detection and classification
+            const threatString = JSON.stringify(extractedThreats);
             const isRealThreat =
-              JSON.stringify(extractedThreats).includes('Present') ||
-              JSON.stringify(extractedThreats).includes('email@') ||
-              JSON.stringify(extractedThreats).includes('<script');
+              threatString.includes('Present') ||
+              threatString.includes('email@') ||
+              threatString.includes('<script');
 
             if (isRealThreat) {
-              hitlMessage = `Malicious Payload Detected: ${JSON.stringify(extractedThreats)}`;
-              riskLevel = 'High';
-              triggers.push('malicious_payload_detected');
+              // Classify the threat type
+              if (threatString.includes('email@') || threatString.includes('phone:')) {
+                threatClassification = 'pii_data_leakage';
+                riskLevel = 'High';
+              } else if (threatString.includes('<script') || threatString.includes('javascript:')) {
+                threatClassification = 'xss_attempt';
+                riskLevel = 'Critical';
+              } else if (threatString.includes('zeroWidth') || threatString.includes('invisible')) {
+                threatClassification = 'stealth_malware';
+                riskLevel = 'High';
+              } else {
+                threatClassification = 'suspicious_content';
+                riskLevel = 'Medium';
+              }
+
+              hitlMessage = `Malicious Payload Detected (${threatClassification}): ${JSON.stringify(extractedThreats)}`;
+              triggers.push('malicious_payload_detected', threatClassification);
             }
           }
 
           // Log to AuditLogger as HITL Alert/Escalation
-          await auditLogger.logEscalationDecision(
-            {
-              riskLevel,
-              triggerConditions: triggers,
-              decisionRationale: hitlMessage,
-              escalationId: `hitl_${jobId}_sanitization`,
-              details: {
-                sanitizationTests: extractedThreats,
-                message: hitlMessage,
+          try {
+            await auditLogger.logEscalationDecision(
+              {
+                riskLevel,
+                triggerConditions: triggers,
+                decisionRationale: hitlMessage,
+                escalationId: `hitl_${jobId}_sanitization`,
+                details: {
+                  sanitizationTests: extractedThreats,
+                  sourcePath: 'pdf_processing',
+                  responseType: 'ai_agent_response',
+                  threatClassification,
+                  jobType: job.data.type,
+                  fileName: job.data.fileName,
+                  contentLength: job.data.fileBuffer ? job.data.fileBuffer.length : 0,
+                  message: hitlMessage,
+                },
               },
-            },
-            {
-              resourceId: jobId,
-              resourceType: 'job_result',
-              sessionId: jobId,
-              userId: job.data.userId || 'system',
-            },
-          );
-
-          if (repairResult.repairs.length > 0) {
-            logger.info('JSON repair applied during PDF processing', {
+              {
+                resourceId: jobId,
+                resourceType: 'job_result',
+                sessionId: jobId,
+                userId: job.data.userId || 'system',
+                stage: 'security_logging',
+              },
+            );
+          } catch (auditError) {
+            logger.error('Audit logging failed for PDF processing', {
               jobId,
-              repairs: repairResult.repairs,
+              error: auditError.message,
+              threatCount: Object.keys(extractedThreats).length,
             });
+            // Continue processing - audit logging failure should not break job
           }
-        } else {
-          logger.warn('Failed to parse and repair AI structured output as JSON in async job', {
-            jobId,
-            error: repairResult.error,
-            repairsAttempted: repairResult.repairs,
-          });
-          // Keep the original string data if repair fails
         }
+      } else {
+        // Default: sanitize content
+        const sanitizer = new ProxySanitizer();
+        const sanitized = await sanitizer.sanitize(job.data, job.options);
+        result = { sanitizedData: sanitized };
+
+        // Only apply threat extraction to structured JSON responses (not plain text)
+        if (typeof result.sanitizedData === 'object' && result.sanitizedData !== null) {
+          // Apply threat extraction to remove malicious content keys from structured AI responses
+          const extractedThreats = extractAndRemoveThreats(result.sanitizedData);
+
+          // Validate and cleanup JSON structure after threat extraction
+          if (validateJsonStructure(result.sanitizedData)) {
+            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
+          } else {
+            logger.error('JSON structure invalid after threat extraction in default path', {
+              jobId,
+            });
+            // Reset to safe structure if invalid
+            result.sanitizedData = 'Content sanitization resulted in invalid structure';
+          }
+
+          // Store extracted threats for logging only - do not include in user response
+          if (Object.keys(extractedThreats).length > 0) {
+            // Log to AuditLogger for security team visibility
+            const auditLogger = new AuditLogger();
+
+            // Determine risk level and triggers based on extracted threats
+            let riskLevel = 'Low';
+            let triggers = [];
+            let hitlMessage = 'No malicious scripts or payloads detected.';
+            let threatClassification = 'none';
+
+            if (extractedThreats && Object.keys(extractedThreats).length > 0) {
+              // Check for real threats
+              const threatString = JSON.stringify(extractedThreats);
+              const isRealThreat =
+                threatString.includes('Present') ||
+                threatString.includes('email@') ||
+                threatString.includes('<script');
+
+              if (isRealThreat) {
+                // Classify the threat type
+                if (threatString.includes('email@') || threatString.includes('phone:')) {
+                  threatClassification = 'pii_data_leakage';
+                  riskLevel = 'High';
+                } else if (
+                  threatString.includes('<script') ||
+                  threatString.includes('javascript:')
+                ) {
+                  threatClassification = 'xss_attempt';
+                  riskLevel = 'Critical';
+                } else if (
+                  threatString.includes('zeroWidth') ||
+                  threatString.includes('invisible')
+                ) {
+                  threatClassification = 'stealth_malware';
+                  riskLevel = 'High';
+                } else {
+                  threatClassification = 'suspicious_content';
+                  riskLevel = 'Medium';
+                }
+
+                hitlMessage = `Malicious content (${threatClassification}) removed from default sanitization response: ${JSON.stringify(extractedThreats)}`;
+                triggers.push('malicious_content_detected', threatClassification);
+              }
+            }
+
+            try {
+              await auditLogger.logEscalationDecision(
+                {
+                  riskLevel,
+                  triggerConditions: triggers,
+                  decisionRationale: hitlMessage,
+                  escalationId: `security_${jobId}_content_removal`,
+                  details: {
+                    sanitizationTests: extractedThreats,
+                    sourcePath: 'default_sanitization',
+                    responseType: 'direct_sanitization',
+                    threatClassification,
+                    jobType: job.data.type || 'unknown',
+                    contentLength: job.data.length || 0,
+                    message: hitlMessage,
+                  },
+                },
+                {
+                  resourceId: jobId,
+                  resourceType: 'job_result',
+                  sessionId: jobId,
+                  userId: job.data.userId || 'system',
+                  stage: 'security_logging',
+                },
+              );
+            } catch (auditError) {
+              logger.error('Audit logging failed for default path', {
+                jobId,
+                error: auditError.message,
+                threatCount: Object.keys(extractedThreats).length,
+              });
+              // Continue processing - audit logging failure should not break job
+            }
+          }
+        }
+
+        // FINAL SECURITY CHECK: Sanitize the complete result object before returning
+        logger.info('Applying final security sanitization to result object', { jobId });
+        result = sanitizeObject(result);
+
+        // Format result to match sync response
+        // If sanitizedData is an object (structured response), stringify it for backward compatibility
+        result.sanitizedContent =
+          typeof result.sanitizedData === 'object' && result.sanitizedData !== null
+            ? JSON.stringify(result.sanitizedData)
+            : result.sanitizedData;
+        delete result.sanitizedData;
+        result.metadata = {
+          originalLength: job.data.length || 0,
+          sanitizedLength: result.sanitizedContent.length,
+          timestamp: new Date().toISOString(),
+          reused: false,
+          performance: {
+            totalTimeMs: 10, // Approximate
+          },
+        };
       }
-
-      // Add metadata to result
-      result.metadata = metadata;
-      result.fileName = job.data.fileName;
-      result.status = 'processed';
-
-      await jobStatus.updateProgress(90, 'Finalizing result');
-    } else {
-      // Default: sanitize content
-      const sanitizer = new ProxySanitizer();
-      const sanitized = await sanitizer.sanitize(job.data, job.options);
-      result = { sanitizedData: sanitized };
-      // Format result to match sync response
-      result.sanitizedContent = result.sanitizedData;
-      delete result.sanitizedData;
-      result.metadata = {
-        originalLength: job.data.length,
-        sanitizedLength: result.sanitizedContent.length,
-        timestamp: new Date().toISOString(),
-        reused: false,
-        performance: {
-          totalTimeMs: 10, // Approximate
-        },
-      };
     }
 
     // Update status to completed with result
@@ -316,3 +570,4 @@ async function processJob(job) {
 }
 
 module.exports = processJob;
+module.exports.extractAndRemoveThreats = extractAndRemoveThreats;

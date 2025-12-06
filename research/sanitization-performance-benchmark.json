@@ -1,0 +1,544 @@
+{
+  "timestamp": "2025-12-05T22:27:49.712Z",
+  "iterations": 50,
+  "adapters": [
+    {
+      "name": "DOMPurify",
+      "version": "3.3.0",
+      "type": "DOM-based"
+    },
+    {
+      "name": "sanitize-html",
+      "version": "2.17.0",
+      "type": "Parser-based"
+    },
+    {
+      "name": "bleach",
+      "version": "conceptual-1.0",
+      "type": "Parser-based (Python)"
+    }
+  ],
+  "dataSets": [
+    {
+      "name": "small-safe",
+      "description": "Small safe HTML content",
+      "size": 36
+    },
+    {
+      "name": "medium-safe",
+      "description": "Medium safe HTML content",
+      "size": 135
+    },
+    {
+      "name": "large-safe",
+      "description": "Large safe HTML content (10KB)",
+      "size": 10700
+    },
+    {
+      "name": "small-malicious",
+      "description": "Small content with malicious script",
+      "size": 49
+    },
+    {
+      "name": "medium-malicious",
+      "description": "Medium content with multiple threats",
+      "size": 129
+    },
+    {
+      "name": "large-malicious",
+      "description": "Large content with distributed threats (5KB)",
+      "size": 7500
+    },
+    {
+      "name": "complex-html",
+      "description": "Complex real-world HTML with mixed safe/malicious content",
+      "size": 1069
+    }
+  ],
+  "benchmarks": [
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "small-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.431942,
+        "max": 7.974024,
+        "mean": 0.7729835999999999,
+        "median": 0.51096,
+        "p95": 1.467177,
+        "p99": 7.974024,
+        "stdDev": 1.069358512474091
+      },
+      "metadata": {
+        "inputSize": 36,
+        "outputSize": 36,
+        "compressionRatio": 1,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "medium-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.80875,
+        "max": 4.08687,
+        "mean": 1.18190498,
+        "median": 1.026229,
+        "p95": 2.645682,
+        "p99": 4.08687,
+        "stdDev": 0.6034715462361916
+      },
+      "metadata": {
+        "inputSize": 135,
+        "outputSize": 124,
+        "compressionRatio": 0.9185185185185185,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "large-safe",
+      "stats": {
+        "count": 50,
+        "min": 2.519184,
+        "max": 12.30844,
+        "mean": 4.293478219999999,
+        "median": 3.530615,
+        "p95": 7.121081,
+        "p99": 12.30844,
+        "stdDev": 1.828779081828773
+      },
+      "metadata": {
+        "inputSize": 10700,
+        "outputSize": 10700,
+        "compressionRatio": 1,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "small-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.347222,
+        "max": 1.839888,
+        "mean": 0.4559104599999999,
+        "median": 0.376037,
+        "p95": 0.916302,
+        "p99": 1.839888,
+        "stdDev": 0.26895461618467975
+      },
+      "metadata": {
+        "inputSize": 49,
+        "outputSize": 20,
+        "compressionRatio": 0.40816326530612246,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "medium-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.655492,
+        "max": 3.509084,
+        "mean": 0.8831077799999999,
+        "median": 0.729892,
+        "p95": 1.157415,
+        "p99": 3.509084,
+        "stdDev": 0.5149280177493273
+      },
+      "metadata": {
+        "inputSize": 129,
+        "outputSize": 39,
+        "compressionRatio": 0.3023255813953488,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "large-malicious",
+      "stats": {
+        "count": 50,
+        "min": 4.646111,
+        "max": 9.721619,
+        "mean": 6.13784422,
+        "median": 5.910497,
+        "p95": 8.606242,
+        "p99": 9.721619,
+        "stdDev": 1.2103166806456944
+      },
+      "metadata": {
+        "inputSize": 7500,
+        "outputSize": 5000,
+        "compressionRatio": 0.6666666666666666,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "DOMPurify",
+      "dataSet": "complex-html",
+      "stats": {
+        "count": 50,
+        "min": 2.630904,
+        "max": 8.094451,
+        "mean": 3.7616281400000005,
+        "median": 3.488546,
+        "p95": 5.94918,
+        "p99": 8.094451,
+        "stdDev": 1.102068565214978
+      },
+      "metadata": {
+        "inputSize": 1069,
+        "outputSize": 789,
+        "compressionRatio": 0.7380729653882133,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "small-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.033483,
+        "max": 1.50046,
+        "mean": 0.08333656000000002,
+        "median": 0.038653,
+        "p95": 0.172735,
+        "p99": 1.50046,
+        "stdDev": 0.2059600976119558
+      },
+      "metadata": {
+        "inputSize": 36,
+        "outputSize": 36,
+        "compressionRatio": 1,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "medium-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.064591,
+        "max": 0.102252,
+        "mean": 0.07318715999999999,
+        "median": 0.070011,
+        "p95": 0.090681,
+        "p99": 0.102252,
+        "stdDev": 0.00817996581743469
+      },
+      "metadata": {
+        "inputSize": 135,
+        "outputSize": 124,
+        "compressionRatio": 0.9185185185185185,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "large-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.142708,
+        "max": 3.154628,
+        "mean": 0.4101372399999999,
+        "median": 0.327305,
+        "p95": 1.081141,
+        "p99": 3.154628,
+        "stdDev": 0.45076985750507126
+      },
+      "metadata": {
+        "inputSize": 10700,
+        "outputSize": 10700,
+        "compressionRatio": 1,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "small-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.028223,
+        "max": 0.422614,
+        "mean": 0.04441548,
+        "median": 0.032511,
+        "p95": 0.078197,
+        "p99": 0.422614,
+        "stdDev": 0.05692061245708448
+      },
+      "metadata": {
+        "inputSize": 49,
+        "outputSize": 20,
+        "compressionRatio": 0.40816326530612246,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "medium-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.048291,
+        "max": 0.554822,
+        "mean": 0.07357321999999998,
+        "median": 0.054653,
+        "p95": 0.135073,
+        "p99": 0.554822,
+        "stdDev": 0.07206109578691959
+      },
+      "metadata": {
+        "inputSize": 129,
+        "outputSize": 39,
+        "compressionRatio": 0.3023255813953488,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "large-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.175821,
+        "max": 2.996812,
+        "mean": 0.31385884000000003,
+        "median": 0.215335,
+        "p95": 0.875996,
+        "p99": 2.996812,
+        "stdDev": 0.4131068009557025
+      },
+      "metadata": {
+        "inputSize": 7500,
+        "outputSize": 5000,
+        "compressionRatio": 0.6666666666666666,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "sanitize-html",
+      "dataSet": "complex-html",
+      "stats": {
+        "count": 50,
+        "min": 0.086122,
+        "max": 0.55868,
+        "mean": 0.15678159999999994,
+        "median": 0.115717,
+        "p95": 0.327666,
+        "p99": 0.55868,
+        "stdDev": 0.08902200230886745
+      },
+      "metadata": {
+        "inputSize": 1069,
+        "outputSize": 778,
+        "compressionRatio": 0.7277829747427502,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "small-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.014417,
+        "max": 0.757955,
+        "mean": 0.04118912000000001,
+        "median": 0.014858,
+        "p95": 0.078778,
+        "p99": 0.757955,
+        "stdDev": 0.11600550702852688
+      },
+      "metadata": {
+        "inputSize": 36,
+        "outputSize": 23,
+        "compressionRatio": 0.6388888888888888,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "medium-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.015319,
+        "max": 0.043501,
+        "mean": 0.017189600000000006,
+        "median": 0.015789,
+        "p95": 0.030367,
+        "p99": 0.043501,
+        "stdDev": 0.0048445445482521885
+      },
+      "metadata": {
+        "inputSize": 135,
+        "outputSize": 86,
+        "compressionRatio": 0.6370370370370371,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "large-safe",
+      "stats": {
+        "count": 50,
+        "min": 0.104656,
+        "max": 0.129453,
+        "mean": 0.10837624000000001,
+        "median": 0.10608,
+        "p95": 0.123863,
+        "p99": 0.129453,
+        "stdDev": 0.005610972880205358
+      },
+      "metadata": {
+        "inputSize": 10700,
+        "outputSize": 10300,
+        "compressionRatio": 0.9626168224299065,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "small-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.014617,
+        "max": 0.035186,
+        "mean": 0.015764200000000003,
+        "median": 0.014939,
+        "p95": 0.018214,
+        "p99": 0.035186,
+        "stdDev": 0.0033757659219797805
+      },
+      "metadata": {
+        "inputSize": 49,
+        "outputSize": 16,
+        "compressionRatio": 0.32653061224489793,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "medium-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.01569,
+        "max": 0.028924,
+        "mean": 0.01660318,
+        "median": 0.01595,
+        "p95": 0.018985,
+        "p99": 0.028924,
+        "stdDev": 0.0024352282660153233
+      },
+      "metadata": {
+        "inputSize": 129,
+        "outputSize": 35,
+        "compressionRatio": 0.2713178294573643,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "large-malicious",
+      "stats": {
+        "count": 50,
+        "min": 0.049493,
+        "max": 0.22353,
+        "mean": 0.05483170000000002,
+        "median": 0.050434,
+        "p95": 0.066395,
+        "p99": 0.22353,
+        "stdDev": 0.02434625420572947
+      },
+      "metadata": {
+        "inputSize": 7500,
+        "outputSize": 5000,
+        "compressionRatio": 0.6666666666666666,
+        "errors": 0
+      }
+    },
+    {
+      "adapter": "bleach",
+      "dataSet": "complex-html",
+      "stats": {
+        "count": 50,
+        "min": 0.019677,
+        "max": 0.04832,
+        "mean": 0.021242099999999993,
+        "median": 0.020108,
+        "p95": 0.028444,
+        "p99": 0.04832,
+        "stdDev": 0.004326118164128205
+      },
+      "metadata": {
+        "inputSize": 1069,
+        "outputSize": 631,
+        "compressionRatio": 0.5902712815715622,
+        "errors": 0
+      }
+    }
+  ],
+  "summary": {
+    "byAdapter": {
+      "DOMPurify": {
+        "benchmarks": 7,
+        "avgResponseTime": 2.4981224857142856,
+        "avgThroughput": 630.3731739510973,
+        "totalErrors": 0
+      },
+      "sanitize-html": {
+        "benchmarks": 7,
+        "avgResponseTime": 0.1650414428571428,
+        "avgThroughput": 8848.066677557043,
+        "totalErrors": 0
+      },
+      "bleach": {
+        "benchmarks": 7,
+        "avgResponseTime": 0.03931373428571429,
+        "avgThroughput": 43634.63091958827,
+        "totalErrors": 0
+      }
+    },
+    "byDataSet": {
+      "small-safe": {
+        "size": 36,
+        "adapters": 3,
+        "avgResponseTime": 0.29916975999999995
+      },
+      "medium-safe": {
+        "size": 135,
+        "adapters": 3,
+        "avgResponseTime": 0.4240939133333334
+      },
+      "large-safe": {
+        "size": 10700,
+        "adapters": 3,
+        "avgResponseTime": 1.603997233333333
+      },
+      "small-malicious": {
+        "size": 49,
+        "adapters": 3,
+        "avgResponseTime": 0.17203004666666663
+      },
+      "medium-malicious": {
+        "size": 129,
+        "adapters": 3,
+        "avgResponseTime": 0.32442805999999996
+      },
+      "large-malicious": {
+        "size": 7500,
+        "adapters": 3,
+        "avgResponseTime": 2.16884492
+      },
+      "complex-html": {
+        "size": 1069,
+        "adapters": 3,
+        "avgResponseTime": 1.3132172800000002
+      }
+    },
+    "overall": {
+      "totalBenchmarks": 21,
+      "totalTime": 945.8671819999998,
+      "avgThroughput": 17704.356923698804
+    }
+  }
+}

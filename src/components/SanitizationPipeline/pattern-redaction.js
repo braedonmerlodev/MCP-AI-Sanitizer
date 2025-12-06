@@ -14,15 +14,51 @@ class PatternRedaction {
     // Remove HTML script tags and their content
     result = result.replaceAll(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 
-    // Remove other HTML tags but keep content
-    result = result.replaceAll(/<[^>]*>/g, '');
+    // Aggressive HTML tag stripping causing data loss - relying on symbol stripping instead
+    // result = result.replaceAll(/<[^>]*>/g, '');
 
-    // Remove potential XSS vectors
-    result = result.replaceAll(/javascript:/gi, '');
-    result = result.replaceAll(/on\w+\s*=/gi, '');
+    // Remove potential XSS vectors - complete removal of dangerous URLs and handlers
+    result = result.replaceAll(/javascript:[^'"\s]*/gi, '');
+    result = result.replaceAll(/vbscript:[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:text\/html[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:text\/javascript[^'"\s]*/gi, '');
+    result = result.replaceAll(/on\w+\s*=\s*[^'">\s]*/gi, '');
 
-    // Remove data URLs that might contain scripts
-    result = result.replaceAll(/data:\s*text\/html[^,]+,/gi, '');
+    // Remove data URLs that might contain scripts - comprehensive removal
+    result = result.replaceAll(/data:\s*text\/html[^'"\s,]*,[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:\s*text\/javascript[^'"\s,]*,[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:\s*application\/javascript[^'"\s,]*,[^'"\s]*/gi, '');
+
+    // Remove email addresses
+    result = result.replaceAll(
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+      'EMAIL_REDACTED',
+    );
+
+    // Remove phone numbers (various formats) - using negative lookbehind simulation/robust patterns
+    // Matches: 123-456-7890, 123.456.7890, 1234567890
+    result = result.replaceAll(/(?<!\d)\d{3}[-.]?\d{3}[-.]?\d{4}(?!\d)/g, 'PHONE_REDACTED');
+    result = result.replaceAll(/(?<!\d)\(\d{3}\)\s*\d{3}[-.]?\d{4}(?!\d)/g, 'PHONE_REDACTED');
+
+    // Remove SSN patterns
+    // Matches: 123-45-6789, 123456789
+    result = result.replaceAll(/(?<!\d)\d{3}[-]?\d{2}[-]?\d{4}(?!\d)/g, 'SSN_REDACTED');
+
+    // Remove credit card numbers (basic pattern)
+    result = result.replaceAll(
+      /(?<!\d)\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}(?!\d)/g,
+      'CC_REDACTED',
+    );
+
+    // Remove potential malicious Unicode sequences and symbols
+    result = result.replaceAll(/[\u200B-\u200F\u2028-\u2029\uFEFF]/g, ''); // Zero-width and control chars
+
+    // Remove HTML entities
+    result = result.replaceAll(/&(lt|gt|quot|apos|amp);/gi, '');
+
+    // Remove suspicious symbol sequences and special characters that might be obfuscation
+    // Includes: < > ( ) { } [ ] \ | ~ ` " ' ; : = ? ! @ # $ % ^ & * + , - . /
+    result = result.replaceAll(/[<>(){}[\]\\|~`"';:=?!@#$%^&*+,\-./]/g, '');
 
     return result;
   }

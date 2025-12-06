@@ -20,6 +20,8 @@ const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
 const { getMetrics } = require('../utils/monitoring');
+const SanitizationMonitor = require('../utils/sanitization-monitor');
+const SanitizationDashboard = require('../monitoring/sanitization-dashboard');
 const queueManager = require('../utils/queueManager');
 const {
   normalizeKeys,
@@ -32,12 +34,79 @@ const AITextTransformer = require('../components/AITextTransformer');
 
 const router = express.Router();
 
+// Initialize AI transformer instance
+const aiTransformer = new AITextTransformer();
+
+/**
+ * Response sanitization monitoring middleware.
+ * Scans API responses for metadata leakage artifacts.
+ * Non-blocking to avoid impacting response times.
+ */
+const responseSanitizationMonitoring = async (req, res, next) => {
+  // Store original send method
+  const originalSend = res.send;
+  const originalJson = res.json;
+
+  // Context for monitoring
+  const monitoringContext = {
+    endpoint: req.path,
+    method: req.method,
+    userId: req.user?.id || req.body?.userId || 'anonymous',
+    userAgent: req.get('User-Agent'),
+    ip: req.ip || req.connection?.remoteAddress,
+    responseId: `resp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+  };
+
+  // Override send method to scan response
+  res.send = function (data) {
+    // Scan response asynchronously (non-blocking)
+    setImmediate(async () => {
+      try {
+        await sanitizationMonitor.scanResponse(data, monitoringContext);
+      } catch (error) {
+        logger.error('Response sanitization monitoring failed', {
+          error: error.message,
+          endpoint: monitoringContext.endpoint,
+          responseId: monitoringContext.responseId,
+        });
+      }
+    });
+
+    // Call original send method
+    return originalSend.call(this, data);
+  };
+
+  // Override json method to scan response
+  res.json = function (data) {
+    // Scan response asynchronously (non-blocking)
+    setImmediate(async () => {
+      try {
+        await sanitizationMonitor.scanResponse(data, monitoringContext);
+      } catch (error) {
+        logger.error('Response sanitization monitoring failed', {
+          error: error.message,
+          endpoint: monitoringContext.endpoint,
+          responseId: monitoringContext.responseId,
+        });
+      }
+    });
+
+    // Call original json method
+    return originalJson.call(this, data);
+  };
+
+  next();
+};
+
 // Response validation middleware (non-blocking)
 // router.use(responseValidationMiddleware);
 
 // Agent authentication and sync enforcement middleware
 router.use(agentAuth);
 router.use(enforceAgentSync);
+
+// Response sanitization monitoring middleware (non-blocking)
+router.use(responseSanitizationMonitoring);
 
 const proxySanitizer = new ProxySanitizer();
 const pdfGenerator = new PDFGenerator();
@@ -52,8 +121,13 @@ const dataExportManager = new DataExportManager({
   auditLogger,
   accessControlEnforcer,
 });
-
-const aiTransformer = new AITextTransformer();
+const sanitizationMonitor = new SanitizationMonitor({
+  enableDetailedLogging: config.monitoring?.enableDetailedLogging || false,
+});
+const sanitizationDashboard = new SanitizationDashboard({
+  retentionDays: config.monitoring?.retentionDays || 30,
+  enableHistoricalData: config.monitoring?.enableHistoricalData || true,
+});
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -542,8 +616,22 @@ router.post(
         (globalThis.reuseStats.averageSanitizationTimeMs + totalTime) / 2;
       globalThis.reuseStats.lastUpdated = new Date().toISOString();
 
-      const sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
+      let sanitizedContent = typeof result === 'string' ? result : result.sanitizedData;
       const trustToken = typeof result === 'string' ? null : result.trustToken;
+
+      // Clean any malicious content from structured responses
+      try {
+        const parsed = JSON.parse(sanitizedContent);
+        if (typeof parsed === 'object' && parsed !== null) {
+          const extractAndRemoveThreats =
+            require('../workers/jobWorker.js').extractAndRemoveThreats;
+          extractAndRemoveThreats(parsed);
+          sanitizedContent = JSON.stringify(parsed);
+        }
+      } catch (e) {
+        // Not JSON, leave as is
+      }
+
       res.json({
         sanitizedContent,
         trustToken,
@@ -577,9 +665,21 @@ router.post('/chat', accessValidationMiddleware, destinationTracking, async (req
     });
 
     // Sanitize the response
-    const sanitizedResponse = await proxySanitizer.sanitize(aiResponse.text, {
+    let sanitizedResponse = await proxySanitizer.sanitize(aiResponse.text, {
       classification: req.destinationTracking.classification,
     });
+
+    // Clean any malicious content from structured responses
+    try {
+      const parsed = JSON.parse(sanitizedResponse);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const extractAndRemoveThreats = require('../workers/jobWorker.js').extractAndRemoveThreats;
+        extractAndRemoveThreats(parsed);
+        sanitizedResponse = JSON.stringify(parsed);
+      }
+    } catch (e) {
+      // Not JSON, leave as is
+    }
 
     res.json({
       response: sanitizedResponse,
@@ -1072,6 +1172,77 @@ router.post('/export/training-data', accessValidationMiddleware, async (req, res
   } catch (error) {
     logger.error('Data export error', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Failed to export training data' });
+  }
+});
+
+/**
+ * GET /api/monitoring/sanitization-dashboard
+ * Gets sanitization metadata leakage dashboard data
+ */
+router.get('/monitoring/sanitization-dashboard', accessValidationMiddleware, (req, res) => {
+  // Enforce access control - monitoring data requires strict access
+  const accessResult = accessControlEnforcer.enforce(req, 'strict');
+  if (!accessResult.allowed) {
+    logger.warn('Access denied for sanitization dashboard', {
+      reason: accessResult.error,
+      code: accessResult.code,
+      method: req.method,
+      path: req.path,
+    });
+    return res.status(403).json({
+      error: 'Access denied',
+      message: accessResult.error,
+      code: accessResult.code,
+    });
+  }
+
+  try {
+    // Update dashboard with latest data
+    const performanceMetrics = getMetrics();
+    sanitizationDashboard.updateDashboard(sanitizationMonitor, performanceMetrics);
+
+    // Get dashboard data with optional filters
+    const filters = {
+      timeRange: req.query.timeRange, // 1d, 7d, 30d
+      severity: req.query.severity, // low, medium, high, critical
+    };
+
+    const dashboardData = sanitizationDashboard.getDashboardData(filters);
+
+    // Create audit log for dashboard access
+    auditLogger.logEvent({
+      eventType: 'SANITIZATION_DASHBOARD_ACCESS',
+      userId: req.user?.id || 'anonymous',
+      resourceType: 'sanitization_monitoring',
+      resourceId: 'sanitization-dashboard',
+      action: 'read',
+      details: {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        sessionId: req.session?.id,
+        filters: filters,
+        totalIncidents: dashboardData.summary.totalIncidents,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      sessionId: req.session?.id,
+    });
+
+    logger.info('Sanitization dashboard accessed', {
+      userId: req.user?.id || 'anonymous',
+      totalIncidents: dashboardData.summary.totalIncidents,
+      activeIncidents: dashboardData.summary.activeIncidents,
+      filters: filters,
+    });
+
+    res.json(dashboardData);
+  } catch (error) {
+    logger.error('Sanitization dashboard error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id || 'anonymous',
+    });
+    res.status(500).json({ error: 'Failed to retrieve dashboard data' });
   }
 });
 
