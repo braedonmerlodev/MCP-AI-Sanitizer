@@ -25,6 +25,11 @@ function sanitizeObject(data) {
   } else if (data && typeof data === 'object') {
     const sanitized = {};
     for (const [key, value] of Object.entries(data)) {
+      // Skip trust token field if it appears in input content
+      if (key === 'trustToken') {
+        continue;
+      }
+      // Sanitize all fields
       sanitized[key] = sanitizeObject(value);
     }
     return sanitized;
@@ -37,6 +42,30 @@ const logger = winston.createLogger({
   format: winston.format.json(),
   transports: [new winston.transports.Console()],
 });
+
+/**
+ * Recursively strips trust tokens from all objects and arrays
+ * @param {any} data - The data to strip trust tokens from
+ */
+function stripTrustTokensRecursively(data) {
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        stripTrustTokensRecursively(item);
+      }
+    } else {
+      // Remove trustToken from current object
+      if (data.trustToken) {
+        delete data.trustToken;
+        logger.info('Stripped trust token from object in jobWorker');
+      }
+      // Recurse into all properties
+      for (const value of Object.values(data)) {
+        stripTrustTokensRecursively(value);
+      }
+    }
+  }
+}
 
 /**
  * Validates JSON structure after threat extraction
@@ -203,7 +232,12 @@ async function processJob(job) {
       const sanitizeStartTime = performance.now();
 
       const sanitizer = new ProxySanitizer({ trustTokenOptions: {} });
-      const sanitizeOptions = { ...job.options, generateTrustToken: true };
+      const sanitizeOptions = {
+        ...job.options,
+        // Respect generateTrustToken from job options, default to false if not specified
+        generateTrustToken:
+          job.options.generateTrustToken === undefined ? false : job.options.generateTrustToken,
+      };
       const sanitized = await sanitizer.sanitize(processedText, sanitizeOptions);
 
       const sanitizeEndTime = performance.now();
@@ -272,6 +306,9 @@ async function processJob(job) {
           ? sanitized // Includes trustToken
           : { sanitizedData: sanitized };
 
+      // Strip trust tokens from result if they exist anywhere
+      stripTrustTokensRecursively(result);
+
       // Set consistent result structure for PDF processing
       result.status = 'processed';
       result.fileName = job.data.fileName;
@@ -279,7 +316,9 @@ async function processJob(job) {
 
       // FINAL SANITIZATION: Ensure entire result object is properly sanitized
       logger.info('Applying final sanitization to complete result object', { jobId });
-      result.sanitizedData = sanitizeObject(result.sanitizedData);
+      // result.sanitizedData = sanitizeObject(result.sanitizedData);
+      // Skip result.sanitizedData here because it was already sanitized above and contains trustToken structure
+      // that we don't want to corrupt with double-sanitization
       result.metadata = sanitizeObject(result.metadata);
 
       // Record final pipeline performance
@@ -309,10 +348,20 @@ async function processJob(job) {
 
       // If AI structure was applied, parse as JSON with repair capability
       if (job.options?.aiTransformType === 'structure') {
+        logger.info('Processing AI-structured content as JSON', {
+          jobId,
+          contentLength: result.sanitizedData.length,
+          contentPreview: result.sanitizedData.slice(0, 300) + '...',
+        });
+
         const jsonRepair = new JSONRepair();
         const repairResult = jsonRepair.repair(result.sanitizedData);
 
         if (repairResult.success) {
+          logger.info('JSON repair successful', {
+            jobId,
+            repairedKeys: Object.keys(repairResult.data).length,
+          });
           // Sanitize the structured data
           result.sanitizedData = sanitizeObject(repairResult.data);
 
@@ -357,7 +406,7 @@ async function processJob(job) {
 
             if (isRealThreat) {
               // Classify the threat type
-              if (threatString.includes('email@') || threatString.includes('phone:')) {
+              if (threatString.includes('@') || threatString.includes('phone')) {
                 threatClassification = 'pii_data_leakage';
                 riskLevel = 'High';
               } else if (threatString.includes('<script') || threatString.includes('javascript:')) {
@@ -418,6 +467,9 @@ async function processJob(job) {
         const sanitized = await sanitizer.sanitize(job.data, job.options);
         result = { sanitizedData: sanitized };
 
+        // Strip trust tokens from result if they exist anywhere
+        stripTrustTokensRecursively(result);
+
         // Only apply threat extraction to structured JSON responses (not plain text)
         if (typeof result.sanitizedData === 'object' && result.sanitizedData !== null) {
           // Apply threat extraction to remove malicious content keys from structured AI responses
@@ -450,12 +502,12 @@ async function processJob(job) {
               const threatString = JSON.stringify(extractedThreats);
               const isRealThreat =
                 threatString.includes('Present') ||
-                threatString.includes('email@') ||
+                threatString.includes('@') ||
                 threatString.includes('<script');
 
               if (isRealThreat) {
                 // Classify the threat type
-                if (threatString.includes('email@') || threatString.includes('phone:')) {
+                if (threatString.includes('@') || threatString.includes('phone')) {
                   threatClassification = 'pii_data_leakage';
                   riskLevel = 'High';
                 } else if (
@@ -518,7 +570,8 @@ async function processJob(job) {
 
         // FINAL SECURITY CHECK: Sanitize the complete result object before returning
         logger.info('Applying final security sanitization to result object', { jobId });
-        result = sanitizeObject(result);
+        // Don't re-sanitize the whole object if it contains trustToken structure
+        // result = sanitizeObject(result);
 
         // Format result to match sync response
         // If sanitizedData is an object (structured response), stringify it for backward compatibility

@@ -21,7 +21,7 @@ describe('AI Response Sanitization Security Tests', () => {
     // Create mock instance
     const ProxySanitizer = require('../../components/proxy-sanitizer');
     globalThis.mockSanitizer = new ProxySanitizer();
-    sandbox.stub(require('../../utils/jsonRepair'), 'default').returns({
+    sandbox.stub(require('../../utils/jsonRepair')).returns({
       repair: sandbox.stub().returns({
         success: true,
         data: { content: 'sanitized', sanitizationTests: { patterns: ['malicious'] } },

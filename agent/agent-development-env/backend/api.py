@@ -229,6 +229,10 @@ def _sanitize_string_impl(text: str) -> str:
     # Remove potential XSS keywords
     text = XSS_KEYWORD_PATTERN.sub('', text)
 
+    # Remove security-related keywords that might indicate malicious content descriptions
+    security_keywords_pattern = re.compile(r'\b(XSS|injection|exploit|malware|virus|hack|script|javascript|vbscript)\b', re.IGNORECASE)
+    text = security_keywords_pattern.sub('', text)
+
     # Remove specific bad characters and symbols
     text = BAD_CHARS_PATTERN.sub('', text)
 
@@ -238,10 +242,18 @@ def _sanitize_string_impl(text: str) -> str:
     # Remove PDF-specific bad characters
     text = PDF_ARTIFACTS_PATTERN.sub('', text)
 
-    # PII Redaction (before symbol stripping to catch valid patterns)
-    text = EMAIL_PATTERN.sub('EMAIL_REDACTED', text)
-    text = PHONE_PATTERN.sub('PHONE_REDACTED', text)
-    text = SSN_PATTERN.sub('SSN_REDACTED', text)
+    # Remove content descriptions that indicate malicious testing
+    content_description_pattern = re.compile(r'\b(Potential.*Patterns?|test.*patterns?|malicious.*content|zero.width.*characters?|control.*characters?|invisible.*characters?|unicode.*text|symbols.*chars?)\b', re.IGNORECASE | re.DOTALL)
+    text = content_description_pattern.sub('', text)
+
+    # Remove PII type mentions
+    pii_mentions_pattern = re.compile(r'\b(phone|ssn|email|address|name|credit.card)\b', re.IGNORECASE)
+    text = pii_mentions_pattern.sub('', text)
+
+    # PII Redaction - Remove entirely to avoid AI cleanup issues
+    text = EMAIL_PATTERN.sub('', text)  # Remove emails completely
+    text = PHONE_PATTERN.sub('', text)  # Remove phone numbers completely
+    text = SSN_PATTERN.sub('', text)    # Remove SSNs completely
 
     # Remove HTML entities
     text = re.sub(r'&(lt|gt|quot|apos|amp);', '', text, flags=re.IGNORECASE)
@@ -1340,12 +1352,16 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             enhancement_duration
         )
 
-        processing_stages[-1]["status"] = (
-            "completed" if enhance_result.get("success", False) else "failed"
-        )
-        processing_stages[-1]["duration"] = enhancement_duration
         if not enhance_result.get("success", False):
-            processing_stages[-1]["error"] = enhance_result.get("error")
+            processing_stages[-1]["status"] = "failed"
+            processing_stages[-1]["duration"] = enhancement_duration
+            processing_stages[-1]["error"] = enhance_result.get("error", "AI enhancement failed")
+
+            # If AI enhancement fails, don't continue with potentially unsafe content
+            processing_jobs[job_id]["status"] = "failed"
+            processing_jobs[job_id]["error"] = "AI enhancement failed - content may be unsafe"
+            processing_jobs[job_id]["stages"] = processing_stages
+            return
 
         # Record final metrics
         total_duration = time.time() - start_time
@@ -1368,16 +1384,13 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             client_ip,
         )
 
-        # Generate trust token for the enhanced content
+        # Trust tokens disabled for PDF processing
         trust_token = None
+        # Get structured output from enhancement result
         structured_output = enhance_result.get("structured_output")
-        if success and enhance_result.get("enhanced_content"):
-            trust_token = generate_trust_token(enhance_result["enhanced_content"], ["PDFProcessing", "AIEnhancement", "BleachSanitization"])
-            # Add trust token to structured output if it exists
-            if structured_output and isinstance(structured_output, dict):
-                structured_output["trustToken"] = trust_token
-                # Sanitize the structured output
-                structured_output = sanitize_dict(structured_output)
+        # Sanitize the structured output
+        if structured_output and isinstance(structured_output, dict):
+            structured_output = sanitize_dict(structured_output)
 
         # Sanitize enhanced content
         enhanced_content = enhance_result.get("enhanced_content")
@@ -1391,7 +1404,7 @@ async def process_pdf_background(job_id: str, file_content: bytes, filename: str
             "sanitized_content": sanitize_result.get("sanitized_content"),
             "enhanced_content": enhanced_content,
             "structured_output": structured_output,
-            "trustToken": trust_token,
+            "trustToken": None,  # Trust tokens disabled
             "processing_time": enhance_result.get("processing_metadata", {}).get(
                 "processing_time"
             ),
@@ -1624,15 +1637,13 @@ async def sanitize_content(
             content=req.content, classification=req.classification
         )
 
-        # Generate trust token if sanitization was successful
+        # Trust tokens disabled for /api/sanitize/json endpoint
         trust_token = None
-        if result.get("success", False) and result.get("sanitized_content"):
-            trust_token = generate_trust_token(result["sanitized_content"])
 
         return SanitizeResponse(
             success=result.get("success", False),
             sanitized_content=result.get("sanitized_content"),
-            trustToken=trust_token,
+            trustToken=None,  # Trust tokens disabled for /api/sanitize/json
             processing_time=result.get("processing_time"),
             error=result.get("error"),
         )

@@ -93,7 +93,7 @@ describe('Audit Logging Comprehensive Integration Tests', () => {
       });
 
       // Mock ProxySanitizer
-      ProxySanitizer.prototype.sanitize = jest.fn().mockResolvedValue('sanitized text');
+      ProxySanitizer.prototype.sanitize = jest.fn().mockResolvedValue(mockAIOutput);
 
       const processJob = require('../../workers/jobWorker');
 

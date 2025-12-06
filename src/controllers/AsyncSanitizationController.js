@@ -1,4 +1,5 @@
 const winston = require('winston');
+const config = require('../config');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -26,7 +27,7 @@ class AsyncSanitizationController {
       const jobData = content;
       const jobOptions = {
         classification: options.classification || 'llm',
-        generateTrustToken: true,
+        generateTrustToken: config.features.trustTokens.enabled,
         ...options,
       };
 
@@ -55,7 +56,7 @@ class AsyncSanitizationController {
       };
       const jobOptions = {
         classification: 'llm',
-        generateTrustToken: true,
+        generateTrustToken: config.features.trustTokens.enabled,
         ...options,
       };
 

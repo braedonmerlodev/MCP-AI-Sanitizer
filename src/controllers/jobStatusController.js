@@ -10,6 +10,30 @@ const logger = winston.createLogger({
 });
 
 /**
+ * Recursively strips trust tokens from all objects and arrays
+ * @param {any} data - The data to strip trust tokens from
+ */
+function stripTrustTokensRecursively(data) {
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        stripTrustTokensRecursively(item);
+      }
+    } else {
+      // Remove trustToken from current object
+      if (data.trustToken) {
+        delete data.trustToken;
+        logger.info('Stripped trust token from nested object');
+      }
+      // Recurse into all properties
+      for (const value of Object.values(data)) {
+        stripTrustTokensRecursively(value);
+      }
+    }
+  }
+}
+
+/**
  * Job Status Controller
  * Handles job status checking and result retrieval endpoints
  */
@@ -159,9 +183,43 @@ const JobStatusController = {
       if (jobResult && !jobResult.isExpired()) {
         resultData = jobResult.result;
         logger.info('Job result retrieved from cache', { taskId });
+
+        // Strip trust tokens from cached results (always for sanitize/json compatibility)
+        if (resultData && typeof resultData === 'object') {
+          stripTrustTokensRecursively(resultData);
+        }
+
+        // Also strip trust tokens from sanitizedData if present
+        if (
+          resultData &&
+          typeof resultData === 'object' &&
+          resultData.sanitizedData &&
+          typeof resultData.sanitizedData === 'object' &&
+          resultData.sanitizedData.trustToken
+        ) {
+          delete resultData.sanitizedData.trustToken;
+          logger.info('Stripped trust token from sanitizedData in cached result', { taskId });
+        }
       } else if (jobStatus.result) {
         // Fallback to job status result and cache it
         resultData = jobStatus.result;
+
+        // Strip trust tokens from job status results (always for sanitize/json compatibility)
+        if (resultData && typeof resultData === 'object') {
+          stripTrustTokensRecursively(resultData);
+        }
+
+        // Also strip trust tokens from sanitizedData if present
+        if (
+          resultData &&
+          typeof resultData === 'object' &&
+          resultData.sanitizedData &&
+          typeof resultData.sanitizedData === 'object' &&
+          resultData.sanitizedData.trustToken
+        ) {
+          delete resultData.sanitizedData.trustToken;
+          logger.info('Stripped trust token from sanitizedData in job status result', { taskId });
+        }
         try {
           jobResult = new JobResult({
             jobId: taskId,

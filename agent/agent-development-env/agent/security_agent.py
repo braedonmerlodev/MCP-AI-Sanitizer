@@ -74,9 +74,19 @@ class SecurityAgent(Agent):
                 enhanced_content = chain.invoke({"text": content})
 
                 # Validate and structure output
-                structured_output = self._validate_ai_output(
-                    enhanced_content, transformation_type
-                )
+                try:
+                    structured_output = self._validate_ai_output(
+                        enhanced_content, transformation_type
+                    )
+                except ValueError as e:
+                    # AI output failed security validation
+                    return {
+                        "success": False,
+                        "error": f"AI output failed security validation: {str(e)}",
+                        "original_content": content,
+                        "enhanced_content": enhanced_content,
+                        "transformation_type": transformation_type,
+                    }
 
                 return {
                     "success": True,
@@ -149,33 +159,94 @@ class SecurityAgent(Agent):
             PromptTemplate = MagicMock()
         prompts = {
             "structure": """
-            Transform the following raw PDF text into well-structured, readable content.
+            🚨 CRITICAL SECURITY PROTOCOL - VIOLATION = REJECTION 🚨
+
+            You are the FINAL SECURITY LAYER. You MUST sanitize and clean the input before structuring it.
+
+            TASK: First sanitize the input text by removing ALL malicious content, then structure the cleaned text.
+
+            SANITIZATION REQUIREMENTS (Apply BEFORE structuring):
+            1. Remove ALL zero-width characters, control characters, invisible Unicode
+            2. Remove ALL HTML tags: <script>, <iframe>, <object>, <embed>, etc.
+            3. Remove ALL dangerous URIs: javascript:, vbscript:, data:, etc.
+            4. Remove ALL mathematical symbols, special Unicode blocks, suspicious characters
+            5. Remove ALL content describing malicious patterns, security testing, or PII types
+            6. Keep ONLY safe ASCII: a-z, A-Z, 0-9, spaces, . , ! ? - _ ( ) [ ] { } " ' : ;
+
+            STRUCTURING TASK: After sanitization, transform the raw PDF text into well-structured, readable content.
             Improve formatting, fix any OCR errors, and organize the content logically.
-            Maintain all important information while making it more readable:
+            Maintain all important information while making it more readable.
+
+            SECURITY VALIDATION:
+            - Include "securityValidated": true in JSON output
+            - Your response will be scanned - ANY malicious pattern = REJECTION
+            - If input contains redacted content, sanitize it completely
 
             Raw text: {text}
 
             Structured output:
             """,
             "summarize": """
-            Create a concise summary of the following PDF content, highlighting key points and main ideas:
+            🚨 CRITICAL SECURITY PROTOCOL - VIOLATION = REJECTION 🚨
+
+            You are the FINAL SECURITY LAYER. First sanitize, then summarize.
+
+            SANITIZATION: Remove ALL malicious content from input before summarizing:
+            - Zero-width/control characters, HTML tags, dangerous URIs
+            - Special Unicode, non-ASCII symbols
+            - Content describing malicious patterns, security testing, or PII types
+            - Keep ONLY safe ASCII characters
+
+            TASK: Create a concise summary of the sanitized PDF content, highlighting key points and main ideas.
+
+            SECURITY SCAN: ANY malicious pattern in output = REJECTION.
 
             Content: {text}
 
             Summary:
             """,
             "extract_entities": """
-            Extract and categorize key entities from the following text (people, organizations, dates, locations, etc.):
+            🚨 CRITICAL SECURITY PROTOCOL - VIOLATION = REJECTION 🚨
+
+            You are the FINAL SECURITY LAYER. Sanitize first, then extract.
+
+            SANITIZATION: Clean input of all malicious content before entity extraction:
+            - Remove HTML tags, dangerous URIs, special characters
+            - Remove content describing malicious patterns, security testing, or PII types
+
+            TASK: Extract and categorize key entities from the sanitized text (people, organizations, dates, locations, etc.).
+
+            SECURITY: Extract ONLY safe, legitimate entities. ANY malicious pattern = REJECTION.
 
             Text: {text}
 
             Extracted entities:
             """,
             "json_schema": """
-            Convert the following text into a structured JSON format with appropriate keys and values.
+            🚨 CRITICAL SECURITY PROTOCOL - VIOLATION = REJECTION 🚨
+
+            You are the FINAL SECURITY LAYER. Sanitize input, generate safe schema.
+
+            SANITIZATION: Remove all malicious content from input first:
+            - Remove HTML tags, dangerous URIs, special characters
+            - IMPORTANT: Do NOT mix malicious content with clean content
+            - If text contains malicious patterns, unsafe descriptions, or suspicious content, remove them entirely
+            - Remove any text that mentions XSS, scripts, injections, security vulnerabilities, or testing patterns
+            - Remove any descriptions of character types (zero-width, control characters, unicode, symbols)
+            - Remove any mentions of PII types (phone, ssn, email, address, name, credit card)
+            - Remove any content that appears to be testing or demonstrating security features
+            - Only include safe, legitimate business content in the final output
+
+            TASK: Convert the sanitized text into a structured JSON format with appropriate keys and values.
             Identify logical sections and create a hierarchical JSON structure.
-            Output ONLY a valid JSON object that can be parsed by JSON.parse(). Do not include any markdown, code blocks, explanations, or extra text.
-            Start directly with {{ and end with }}.
+
+            REQUIREMENTS:
+            - Output ONLY a valid JSON object that can be parsed by JSON.parse()
+            - Do not include any markdown, code blocks, explanations, or extra text
+            - Start directly with {{ and end with }}
+            - Clean content only - no malicious patterns allowed
+
+            SECURITY: Schema must be safe and contain no malicious patterns. ANY violation = REJECTION.
 
             Text: {text}
 
@@ -189,9 +260,27 @@ class SecurityAgent(Agent):
     def _validate_ai_output(
         self, output: str, transformation_type: str
     ) -> Dict[str, Any]:
-        """Validate and structure AI output, with repair attempts"""
+        """Validate and structure AI output, with security validation"""
         import re
         try:
+            # SECURITY VALIDATION: Check for any remaining malicious patterns
+
+            # Check for other malicious patterns
+            malicious_patterns = [
+                r'<script[^>]*>[\s\S]*?</script>',  # Script tags
+                r'javascript:', r'vbscript:', r'data:text/html',  # Dangerous URIs
+                r'on\w+\s*=',  # Event handlers
+                r'\b(XSS|injection|exploit|malware|virus|hack)\b',  # Security-related keywords
+                r'\b(script|javascript|vbscript|onload|onerror)\b',  # Script-related keywords
+                r'\b(Potential.*Patterns|test.*patterns?|malicious.*content)\b',  # Content descriptions
+                r'\b(phone|ssn|email|address|name|credit.*card)\b',  # PII type mentions
+                r'\b(zero.width|control.char|invisible.char|unicode|symbols)\b',  # Character type descriptions
+            ]
+
+            for pattern in malicious_patterns:
+                if re.search(pattern, output, re.IGNORECASE):
+                    raise ValueError(f"AI output contains malicious pattern - security violation")
+
             if transformation_type == "json_schema":
                 # Strip markdown code blocks if present
                 output = re.sub(r'```\w*\n?', '', output).strip()
@@ -201,7 +290,35 @@ class SecurityAgent(Agent):
 
                 # Parse JSON output
                 try:
-                    return json.loads(repaired_output)
+                    parsed = json.loads(repaired_output)
+
+                    # Additional security check: validate JSON content for malicious patterns
+                    def check_json_for_malicious(obj):
+                        if isinstance(obj, str):
+                            # Check for malicious patterns in JSON strings
+                            malicious_patterns = [
+                                r'<script[^>]*>[\s\S]*?</script>',  # Script tags
+                                r'javascript:', r'vbscript:', r'data:text/html',  # Dangerous URIs
+                                r'on\w+\s*=',  # Event handlers
+                                r'\b(XSS|injection|exploit|malware|virus|hack)\b',  # Security-related keywords
+                                r'\b(script|javascript|vbscript|onload|onerror)\b',  # Script-related keywords
+                                r'\b(Potential.*Patterns|test.*patterns?|malicious.*content)\b',  # Content descriptions
+                                r'\b(phone|ssn|email|address|name|credit.*card)\b',  # PII type mentions
+                                r'\b(zero.width|control.char|invisible.char|unicode|symbols)\b',  # Character type descriptions
+                            ]
+                            for pattern in malicious_patterns:
+                                if re.search(pattern, obj, re.IGNORECASE):
+                                    raise ValueError(f"JSON contains malicious pattern - security violation")
+                        elif isinstance(obj, dict):
+                            for value in obj.values():
+                                check_json_for_malicious(value)
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                check_json_for_malicious(item)
+
+                    check_json_for_malicious(parsed)
+                    return parsed
+
                 except json.JSONDecodeError as e:
                     print(f"DEBUG: JSON parse failed in _validate_ai_output. Error: {e}")
                     print(f"DEBUG: Failed content (first 200 chars): {repaired_output[:200]}...")
@@ -213,6 +330,10 @@ class SecurityAgent(Agent):
                 "enhanced_text": output,
                 "validation_error": f"Invalid JSON structure: {str(e)}",
             }
+        except ValueError as e:
+            # Security violation - reject the output
+            print(f"SECURITY VIOLATION in AI output: {e}")
+            raise e
 
     def _repair_json(self, json_str: str) -> str:
         """Attempt to repair common JSON syntax errors with robust parsing"""
