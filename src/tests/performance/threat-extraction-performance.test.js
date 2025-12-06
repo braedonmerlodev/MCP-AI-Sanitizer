@@ -88,7 +88,7 @@ describe('Threat Extraction Performance Tests', () => {
       await processJob(mockJobData);
 
       const endTime = process.hrtime.bigint();
-      const processingTimeMs = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+      const processingTimeMs = Number(endTime - startTime) / 1_000_000; // Convert to milliseconds
 
       console.log(`Clean content processing time: ${processingTimeMs.toFixed(2)}ms`);
       expect(processingTimeMs).toBeLessThan(100); // Should complete within reasonable time
@@ -100,7 +100,7 @@ describe('Threat Extraction Performance Tests', () => {
       await processJob(mockJobDataWithThreats);
 
       const endTime = process.hrtime.bigint();
-      const processingTimeMs = Number(endTime - startTime) / 1000000;
+      const processingTimeMs = Number(endTime - startTime) / 1_000_000;
 
       console.log(`Threat processing time: ${processingTimeMs.toFixed(2)}ms`);
       expect(processingTimeMs).toBeLessThan(150); // Allow slightly more time for threat processing
@@ -117,13 +117,13 @@ describe('Threat Extraction Performance Tests', () => {
         const cleanStart = process.hrtime.bigint();
         await processJob(mockJobData);
         const cleanEnd = process.hrtime.bigint();
-        cleanTimes.push(Number(cleanEnd - cleanStart) / 1000000);
+        cleanTimes.push(Number(cleanEnd - cleanStart) / 1_000_000);
 
         // Threat content timing
         const threatStart = process.hrtime.bigint();
         await processJob(mockJobDataWithThreats);
         const threatEnd = process.hrtime.bigint();
-        threatTimes.push(Number(threatEnd - threatStart) / 1000000);
+        threatTimes.push(Number(threatEnd - threatStart) / 1_000_000);
       }
 
       const avgCleanTime = cleanTimes.reduce((a, b) => a + b) / cleanTimes.length;
@@ -152,7 +152,7 @@ describe('Threat Extraction Performance Tests', () => {
 
   describe('Scalability Testing', () => {
     it('should handle large content without performance degradation', async () => {
-      const largeContent = 'A'.repeat(10000); // 10KB content
+      const largeContent = 'A'.repeat(10_000); // 10KB content
       const largeJobData = {
         id: 'perf-test-large',
         data: {
@@ -168,7 +168,7 @@ describe('Threat Extraction Performance Tests', () => {
       await processJob(largeJobData);
 
       const endTime = process.hrtime.bigint();
-      const processingTimeMs = Number(endTime - startTime) / 1000000;
+      const processingTimeMs = Number(endTime - startTime) / 1_000_000;
 
       console.log(`Large content processing time: ${processingTimeMs.toFixed(2)}ms`);
       expect(processingTimeMs).toBeLessThan(500); // Should handle large content reasonably
@@ -204,7 +204,7 @@ describe('Threat Extraction Performance Tests', () => {
       await processJob(complexJobData);
 
       const endTime = process.hrtime.bigint();
-      const processingTimeMs = Number(endTime - startTime) / 1000000;
+      const processingTimeMs = Number(endTime - startTime) / 1_000_000;
 
       console.log(`Complex structure processing time: ${processingTimeMs.toFixed(2)}ms`);
       expect(processingTimeMs).toBeLessThan(200); // Complex structures should still be fast
@@ -231,7 +231,7 @@ describe('Threat Extraction Performance Tests', () => {
         const startTime = process.hrtime.bigint();
         await processJob(jobData);
         const endTime = process.hrtime.bigint();
-        const processingTimeMs = Number(endTime - startTime) / 1000000;
+        const processingTimeMs = Number(endTime - startTime) / 1_000_000;
 
         console.log(`${testCase.type} content processing time: ${processingTimeMs.toFixed(2)}ms`);
         expect(processingTimeMs).toBeLessThan(100); // All legitimate content should process quickly
@@ -245,7 +245,7 @@ describe('Threat Extraction Performance Tests', () => {
         const startTime = process.hrtime.bigint();
         await processJob(mockJobData);
         const endTime = process.hrtime.bigint();
-        const processingTimeMs = Number(endTime - startTime) / 1000000;
+        const processingTimeMs = Number(endTime - startTime) / 1_000_000;
         runTimes.push(processingTimeMs);
       }
 

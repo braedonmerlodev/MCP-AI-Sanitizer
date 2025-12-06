@@ -20,7 +20,7 @@ describe('AI Response Sanitization Security Tests', () => {
 
     // Create mock instance
     const ProxySanitizer = require('../../components/proxy-sanitizer');
-    global.mockSanitizer = new ProxySanitizer();
+    globalThis.mockSanitizer = new ProxySanitizer();
     sandbox.stub(require('../../utils/jsonRepair'), 'default').returns({
       repair: sandbox.stub().returns({
         success: true,
@@ -46,7 +46,7 @@ describe('AI Response Sanitization Security Tests', () => {
 
   describe('Malicious Content Removal from AI Responses', () => {
     it('should remove XSS scripts from AI-generated responses', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           response: 'AI response with <script>alert("xss")</script> malicious code',
@@ -80,7 +80,7 @@ describe('AI Response Sanitization Security Tests', () => {
     });
 
     it('should prevent JavaScript injection in AI responses', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           content: 'Safe AI content',
@@ -111,7 +111,7 @@ describe('AI Response Sanitization Security Tests', () => {
     });
 
     it('should block data leakage attempts in AI responses', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           message: 'AI response with email@test.com and phone:123-456-7890',
@@ -143,7 +143,7 @@ describe('AI Response Sanitization Security Tests', () => {
 
   describe('No Malicious Content Leakage Validation', () => {
     it('should ensure complete removal of all malicious patterns', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           text: 'Content with <iframe src="evil.com"></iframe> and <object data="malicious.swf"></object>',
@@ -175,7 +175,7 @@ describe('AI Response Sanitization Security Tests', () => {
     });
 
     it('should prevent encoded malicious content leakage', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           response: 'AI response with &lt;script&gt; encoded &amp;lt;img onerror&gt;',
@@ -206,7 +206,7 @@ describe('AI Response Sanitization Security Tests', () => {
 
   describe('Complex Nested Structure Edge Cases', () => {
     it('should handle deeply nested malicious structures', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           data: {
@@ -245,7 +245,7 @@ describe('AI Response Sanitization Security Tests', () => {
     });
 
     it('should sanitize arrays containing malicious objects', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           items: [
@@ -279,7 +279,7 @@ describe('AI Response Sanitization Security Tests', () => {
     });
 
     it('should handle mixed threat types in complex structures', async () => {
-      const mockSanitizer = global.mockSanitizer;
+      const mockSanitizer = globalThis.mockSanitizer;
       mockSanitizer.sanitize.resolves({
         sanitizedData: {
           metadata: { safe: true },

@@ -135,12 +135,23 @@ const recordSecurityEvent = (type) => {
 const recordAIInputSanitization = (eventType, details = {}) => {
   metrics.security.aiInputSanitization.totalProcessed++;
 
-  if (eventType === 'sanitizationFailure') {
+  switch (eventType) {
+  case 'sanitizationFailure': {
     metrics.security.aiInputSanitization.sanitizationFailures++;
-  } else if (eventType === 'validationFailure') {
+  
+  break;
+  }
+  case 'validationFailure': {
     metrics.security.aiInputSanitization.validationFailures++;
-  } else if (eventType === 'dangerousContentBlocked') {
+  
+  break;
+  }
+  case 'dangerousContentBlocked': {
     metrics.security.aiInputSanitization.dangerousContentBlocked++;
+  
+  break;
+  }
+  // No default
   }
 
   // Log the event for monitoring

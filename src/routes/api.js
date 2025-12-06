@@ -34,7 +34,7 @@ const {
   applyPreset,
   createChain,
 } = require('../utils/jsonTransformer');
-const AITextTransformer = require('../components/AITextTransformer');
+// const AITextTransformer = require('../components/AITextTransformer');
 
 const router = express.Router();
 
@@ -55,7 +55,7 @@ const responseSanitizationMonitoring = async (req, res, next) => {
     userId: req.user?.id || req.body?.userId || 'anonymous',
     userAgent: req.get('User-Agent'),
     ip: req.ip || req.connection?.remoteAddress,
-    responseId: `resp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    responseId: `resp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
   };
 
   // Override send method to scan response

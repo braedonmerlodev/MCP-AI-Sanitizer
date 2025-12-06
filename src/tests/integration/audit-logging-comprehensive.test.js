@@ -281,10 +281,10 @@ describe('Audit Logging Comprehensive Integration Tests', () => {
         'details',
       ];
 
-      requiredFields.forEach((field) => {
+      for (const field of requiredFields) {
         expect(pdfEscalationData).toHaveProperty(field);
         expect(defaultEscalationData).toHaveProperty(field);
-      });
+      }
 
       // Verify details structure consistency
       const requiredDetailFields = [
@@ -295,10 +295,10 @@ describe('Audit Logging Comprehensive Integration Tests', () => {
         'message',
       ];
 
-      requiredDetailFields.forEach((field) => {
+      for (const field of requiredDetailFields) {
         expect(pdfEscalationData.details).toHaveProperty(field);
         expect(defaultEscalationData.details).toHaveProperty(field);
-      });
+      }
     });
 
     test('should properly redact PII in audit logs', async () => {

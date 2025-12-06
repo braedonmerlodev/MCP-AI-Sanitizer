@@ -198,19 +198,19 @@ class BleachNodeComparison {
       let result = input;
 
       // Remove script tags
-      result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+      result = result.replaceAll(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
 
       // Remove event handlers
-      result = result.replace(/on\w+="[^"]*"/gi, '');
-      result = result.replace(/on\w+='[^']*'/gi, '');
+      result = result.replaceAll(/on\w+="[^"]*"/gi, '');
+      result = result.replaceAll(/on\w+='[^']*'/gi, '');
 
       // Remove javascript: protocols
-      result = result.replace(/href="javascript:[^"]*"/gi, '');
-      result = result.replace(/href='javascript:[^']*'/gi, '');
+      result = result.replaceAll(/href="javascript:[^"]*"/gi, '');
+      result = result.replaceAll(/href='javascript:[^']*'/gi, '');
 
       // Remove style attributes with dangerous content
-      result = result.replace(/style="[^"]*javascript:[^"]*"/gi, '');
-      result = result.replace(/style='[^']*javascript:[^']*'/gi, '');
+      result = result.replaceAll(/style="[^"]*javascript:[^"]*"/gi, '');
+      result = result.replaceAll(/style='[^']*javascript:[^']*'/gi, '');
 
       return {
         success: true,
@@ -247,11 +247,7 @@ class BleachNodeComparison {
     // Calculate accuracy scores
     results.accuracy = {};
     for (const [libName, libResult] of Object.entries(results.libraries)) {
-      if (libResult.success) {
-        results.accuracy[libName] = this.calculateAccuracy(libResult.output, testCase.expected);
-      } else {
-        results.accuracy[libName] = 0;
-      }
+      results.accuracy[libName] = libResult.success ? this.calculateAccuracy(libResult.output, testCase.expected) : 0;
     }
 
     return results;
@@ -262,7 +258,7 @@ class BleachNodeComparison {
    */
   calculateAccuracy(output, expected) {
     // Normalize strings for comparison
-    const normalize = (str) => str.replace(/\s+/g, ' ').trim().toLowerCase();
+    const normalize = (str) => str.replaceAll(/\s+/g, ' ').trim().toLowerCase();
 
     const normalizedOutput = normalize(output);
     const normalizedExpected = normalize(expected);
@@ -295,13 +291,13 @@ class BleachNodeComparison {
     };
 
     // Initialize aggregate scores
-    results.summary.libraries.forEach((lib) => {
+    for (const lib of results.summary.libraries) {
       results.aggregateScores[lib] = {
         totalScore: 0,
         successfulTests: 0,
         averageAccuracy: 0,
       };
-    });
+    }
 
     // Run each test
     for (const [testName, testCase] of Object.entries(this.testCases)) {
@@ -309,20 +305,20 @@ class BleachNodeComparison {
       results.tests[testName] = testResult;
 
       // Update aggregate scores
-      results.summary.libraries.forEach((lib) => {
+      for (const lib of results.summary.libraries) {
         if (testResult.libraries[lib].success) {
           results.aggregateScores[lib].successfulTests++;
           results.aggregateScores[lib].totalScore += testResult.accuracy[lib];
         }
-      });
+      }
     }
 
     // Calculate averages
-    results.summary.libraries.forEach((lib) => {
+    for (const lib of results.summary.libraries) {
       const agg = results.aggregateScores[lib];
       agg.averageAccuracy =
         agg.successfulTests > 0 ? Math.round(agg.totalScore / agg.successfulTests) : 0;
-    });
+    }
 
     return results;
   }

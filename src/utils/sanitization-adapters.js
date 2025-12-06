@@ -96,19 +96,19 @@ class DOMPurifyAdapter extends SanitizationAdapter {
         pre: ['class'],
       };
 
-      config.ALLOWED_TAGS.forEach((tag) => {
+      for (const tag of config.ALLOWED_TAGS) {
         if (defaultAttributes[tag]) {
           config.ALLOWED_ATTR.push(...defaultAttributes[tag]);
         }
-      });
+      }
 
       // Add custom allowed attributes
       if (options.allowedAttributes) {
-        Object.entries(options.allowedAttributes).forEach(([tag, attrs]) => {
+        for (const [tag, attrs] of Object.entries(options.allowedAttributes)) {
           if (config.ALLOWED_TAGS.includes(tag)) {
             config.ALLOWED_ATTR.push(...attrs);
           }
-        });
+        }
       }
 
       const result = this.DOMPurify.sanitize(content, config);
@@ -274,13 +274,13 @@ class BleachAdapter extends SanitizationAdapter {
         'input',
         'meta',
       ];
-      dangerousTags.forEach((tag) => {
+      for (const tag of dangerousTags) {
         const regex = new RegExp(`<${tag}[^>]*>.*?</${tag}>`, 'gi');
         result = result.replace(regex, '');
         // Also remove self-closing tags
         const selfClosingRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
         result = result.replace(selfClosingRegex, '');
-      });
+      }
 
       // Remove dangerous attributes
       const dangerousAttrs = [
@@ -292,17 +292,17 @@ class BleachAdapter extends SanitizationAdapter {
         'onmouseenter',
         'onmouseleave',
       ];
-      dangerousAttrs.forEach((attr) => {
+      for (const attr of dangerousAttrs) {
         const regex = new RegExp(`\\s${attr}=["'][^"']*["']`, 'gi');
         result = result.replace(regex, '');
-      });
+      }
 
       // Remove javascript: and other dangerous protocols
       const dangerousProtocols = ['javascript:', 'vbscript:', 'data:'];
-      dangerousProtocols.forEach((protocol) => {
+      for (const protocol of dangerousProtocols) {
         const regex = new RegExp(`href=["']${protocol}[^"']*["']`, 'gi');
         result = result.replace(regex, 'href="#"');
-      });
+      }
 
       // Only allow specified tags
       if (config.tags && config.tags.length > 0) {
@@ -343,15 +343,19 @@ class BleachAdapter extends SanitizationAdapter {
  */
 function createSanitizationAdapter(libraryName, options = {}) {
   switch (libraryName.toLowerCase()) {
-    case 'dompurify':
+    case 'dompurify': {
       return new DOMPurifyAdapter();
+    }
     case 'sanitize-html':
-    case 'sanitizehtml':
+    case 'sanitizehtml': {
       return new SanitizeHtmlAdapter();
-    case 'bleach':
+    }
+    case 'bleach': {
       return new BleachAdapter();
-    default:
+    }
+    default: {
       throw new Error(`Unknown sanitization library: ${libraryName}`);
+    }
   }
 }
 

@@ -187,15 +187,15 @@ class SanitizationDashboard {
     perf.trends.throughputTrend.push(currentMetrics);
     perf.trends.concurrencyTrend.push(currentMetrics);
 
-    [
+    for (const trend of [
       perf.trends.responseTimeTrend,
       perf.trends.throughputTrend,
       perf.trends.concurrencyTrend,
-    ].forEach((trend) => {
+    ]) {
       if (trend.length > 10) {
         trend.shift(); // Remove oldest
       }
-    });
+    }
   }
 
   /**
@@ -309,15 +309,15 @@ class SanitizationDashboard {
 
         if (dayStats) {
           weekIncidents += dayStats.incidents;
-          Object.keys(weekSeverity).forEach((severity) => {
+          for (const severity of Object.keys(weekSeverity)) {
             weekSeverity[severity] += dayStats.bySeverity[severity] || 0;
-          });
-          dayStats.topPatterns.forEach((pattern) => {
+          }
+          for (const pattern of dayStats.topPatterns) {
             weekPatterns.set(
               pattern.pattern,
               (weekPatterns.get(pattern.pattern) || 0) + pattern.count,
             );
-          });
+          }
         }
       }
 
@@ -325,7 +325,7 @@ class SanitizationDashboard {
         period: weekKey,
         incidents: weekIncidents,
         bySeverity: weekSeverity,
-        topPatterns: Array.from(weekPatterns.entries())
+        topPatterns: [...weekPatterns.entries()]
           .map(([pattern, count]) => ({ pattern, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5),
@@ -432,11 +432,11 @@ class SanitizationDashboard {
 
     // Filter severity breakdown
     const filteredBreakdown = {};
-    Object.keys(data.severityBreakdown).forEach((sev) => {
+    for (const sev of Object.keys(data.severityBreakdown)) {
       if (severityLevels[sev] >= minLevel) {
         filteredBreakdown[sev] = data.severityBreakdown[sev];
       }
-    });
+    }
     data.severityBreakdown = filteredBreakdown;
 
     return data;

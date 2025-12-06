@@ -208,15 +208,6 @@ class ProxySanitizer {
     // Mock implementation - in real scenario, call actual LLM API
     return `Processed: ${data}`;
   }
-  /**
-   * Forwards sanitized data to LLMs/MCP servers.
-   * @param {string} data - The sanitized data.
-   * @returns {string} - The response from LLM.
-   */
-  forwardToLLM(data) {
-    // Mock implementation - in real scenario, call actual LLM API
-    return `Processed: ${data}`;
-  }
 }
 
 module.exports = ProxySanitizer;

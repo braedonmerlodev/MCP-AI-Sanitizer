@@ -1,8 +1,8 @@
 // Pipeline Reorder Performance Benchmarks
 const { performance } = require('node:perf_hooks');
 const winston = require('winston');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -88,13 +88,13 @@ class PipelineReorderBenchmark {
       },
       {
         name: 'large-clean',
-        content: 'A'.repeat(50000).replace(/(.{200})/g, '<p>$1</p>'),
+        content: 'A'.repeat(50_000).replaceAll(/(.{200})/g, '<p>$1</p>'),
         description: 'Large clean HTML content (50KB)',
         expectedThreats: 0,
       },
       {
         name: 'large-malicious',
-        content: 'B'.repeat(25000).replace(/(.{100})/g, '$1<script>alert(1)</script>'),
+        content: 'B'.repeat(25_000).replaceAll(/(.{100})/g, '$1<script>alert(1)</script>'),
         description: 'Large content with distributed threats (25KB)',
         expectedThreats: 250, // Approximately 250 script tags
       },
@@ -205,7 +205,7 @@ class PipelineReorderBenchmark {
     await new Promise((resolve) => setTimeout(resolve, processingTime));
 
     // Simple sanitization simulation (remove script tags)
-    return content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    return content.replaceAll(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
   }
 
   /**
@@ -446,13 +446,13 @@ class PipelineReorderBenchmark {
       100;
 
     // Data set summaries
-    Object.entries(this.results.comparisons).forEach(([dataSet, comparison]) => {
+    for (const [dataSet, comparison] of Object.entries(this.results.comparisons)) {
       summary.byDataSet[dataSet] = {
         performanceChange: comparison.totalDurationChange,
         p95Change: comparison.p95Change,
         assessment: this.assessPerformanceChange(comparison),
       };
-    });
+    }
 
     // Concurrency summaries
     const concurrencyResults = Object.values(this.results.concurrency);
@@ -583,10 +583,10 @@ This report presents comprehensive performance benchmarking results comparing th
 |----------|-------------|-------------------|------------|------------|
 `;
 
-    Object.entries(summary.byDataSet).forEach(([name, data]) => {
+    for (const [name, data] of Object.entries(summary.byDataSet)) {
       const dataSet = this.testDataSets.find((d) => d.name === name);
       markdown += `| ${name} | ${dataSet.description} | ${data.performanceChange.toFixed(1)}% | ${data.p95Change.toFixed(1)}% | ${data.assessment.replace('_', ' ')} |\n`;
-    });
+    }
 
     markdown += `
 
@@ -596,9 +596,9 @@ This report presents comprehensive performance benchmarking results comparing th
 |-------------|-------------------|---------------------|-------------|
 `;
 
-    Object.entries(this.results.concurrency).forEach(([level, data]) => {
+    for (const [level, data] of Object.entries(this.results.concurrency)) {
       markdown += `| ${level} | ${data.baseline.throughput.toFixed(0)} ops/sec | ${data.reordered.throughput.toFixed(0)} ops/sec | ${data.comparison.throughputImprovement.toFixed(1)}% |\n`;
-    });
+    }
 
     markdown += `
 
@@ -626,7 +626,7 @@ ${summary.recommendations.map((rec) => `- ${rec}`).join('\n')}
 - Node.js version: ${process.version}
 - Platform: ${process.platform} ${process.arch}
 - Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB heap used
-- CPU: ${require('os').cpus().length} cores
+- CPU: ${require('node:os').cpus().length} cores
 
 ## Raw Data
 

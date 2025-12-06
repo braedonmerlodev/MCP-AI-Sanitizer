@@ -1,11 +1,11 @@
 // Pipeline Performance Regression Tests
 const PipelineReorderBenchmark = require('./pipeline-reorder-benchmarks');
 const AsyncConcurrencyBenchmark = require('../../../scripts/run-async-concurrency-benchmark');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 describe('Pipeline Performance Regression Tests', () => {
-  const testTimeout = 60000; // 60 seconds for performance tests
+  const testTimeout = 60_000; // 60 seconds for performance tests
   const regressionThreshold = 0.1; // 10% regression threshold
 
   let benchmark;

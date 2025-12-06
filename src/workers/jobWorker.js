@@ -319,14 +319,14 @@ async function processJob(job) {
           const extractedThreats = extractAndRemoveThreats(result.sanitizedData);
 
           // Validate and cleanup JSON structure after threat extraction
-          if (!validateJsonStructure(result.sanitizedData)) {
+          if (validateJsonStructure(result.sanitizedData)) {
+            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
+          } else {
             logger.error('JSON structure invalid after threat extraction in PDF processing', {
               jobId,
             });
             // Reset to safe structure if invalid
             result.sanitizedData = { error: 'Invalid content structure after sanitization' };
-          } else {
-            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
           }
 
           // Store extracted threats for logging only - do not include in user response
@@ -422,14 +422,14 @@ async function processJob(job) {
           const extractedThreats = extractAndRemoveThreats(result.sanitizedData);
 
           // Validate and cleanup JSON structure after threat extraction
-          if (!validateJsonStructure(result.sanitizedData)) {
+          if (validateJsonStructure(result.sanitizedData)) {
+            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
+          } else {
             logger.error('JSON structure invalid after threat extraction in default path', {
               jobId,
             });
             // Reset to safe structure if invalid
             result.sanitizedData = 'Content sanitization resulted in invalid structure';
-          } else {
-            result.sanitizedData = cleanupJsonStructure(result.sanitizedData);
           }
 
           // Store extracted threats for logging only - do not include in user response
@@ -520,11 +520,7 @@ async function processJob(job) {
 
         // Format result to match sync response
         // If sanitizedData is an object (structured response), stringify it for backward compatibility
-        if (typeof result.sanitizedData === 'object' && result.sanitizedData !== null) {
-          result.sanitizedContent = JSON.stringify(result.sanitizedData);
-        } else {
-          result.sanitizedContent = result.sanitizedData;
-        }
+        result.sanitizedContent = typeof result.sanitizedData === 'object' && result.sanitizedData !== null ? JSON.stringify(result.sanitizedData) : result.sanitizedData;
         delete result.sanitizedData;
         result.metadata = {
           originalLength: job.data.length || 0,
