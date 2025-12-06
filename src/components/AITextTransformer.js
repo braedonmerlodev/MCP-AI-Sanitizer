@@ -70,56 +70,77 @@ class AITextTransformer {
     // Define prompt templates for each transformation type with security awareness
     this.prompts = {
       structure: PromptTemplate.fromTemplate(
-        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized, but you must ensure your JSON output is safe and secure.
+        `CRITICAL SECURITY AWARENESS: You are the FINAL LAYER in a three-layer sanitization system. Your output MUST be completely safe and free of ANY malicious content.
 
 Structure this sanitized text into a JSON object with keys like "title", "summary", "content", "key_points" (as array), and any other relevant sections.
 
-SECURITY REQUIREMENTS:
-- Never include any potentially malicious content, scripts, or dangerous patterns
-- Ensure all string values are safe for web display
-- Generate only valid, secure JSON
+ABSOLUTE SECURITY REQUIREMENTS - VIOLATION IS NOT ALLOWED:
+- NEVER include zero-width characters, control characters, or invisible Unicode
+- NEVER include <script>, <iframe>, <object>, <embed>, or any HTML tags
+- NEVER include javascript:, vbscript:, data:, or any URI schemes
+- NEVER include mathematical symbols, special Unicode blocks, or suspicious characters
+- NEVER include redacted placeholders like EMAIL_REDACTED, PHONE_REDACTED, SSN_REDACTED
+- ONLY use safe, printable ASCII characters (a-z, A-Z, 0-9, spaces, basic punctuation: . , ! ? - _ ( ) [ ] { } " ' : ;)
+- Ensure all text is readable and contains no hidden or special characters
+- Generate only valid, secure JSON with NO malicious content whatsoever
 - Include a "securityValidated" field set to true in the output
-- Flag any suspicious content in a "securityNotes" field if detected
+- If ANY suspicious content is detected in input, sanitize it completely in your response
 
-Return only valid JSON: {text}`,
+SECURITY VALIDATION: Your response will be scanned for malicious patterns. Any detection will result in rejection.
+
+Return only valid, completely safe JSON: {text}`,
       ),
       summarize: PromptTemplate.fromTemplate(
-        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+        `CRITICAL SECURITY AWARENESS: You are the FINAL LAYER in a three-layer sanitization system. Your output MUST be completely safe.
 
 Provide a concise summary of the following sanitized text.
 
-SECURITY REQUIREMENTS:
-- Never include any potentially malicious content or dangerous patterns
-- Ensure the summary is safe for web display
+ABSOLUTE SECURITY REQUIREMENTS - VIOLATION IS NOT ALLOWED:
+- NEVER include zero-width characters, control characters, or invisible Unicode
+- NEVER include <script>, <iframe>, <object>, <embed>, or any HTML tags
+- NEVER include javascript:, vbscript:, data:, or any URI schemes
+- NEVER include mathematical symbols, special Unicode blocks, or suspicious characters
+- NEVER include redacted placeholders like EMAIL_REDACTED, PHONE_REDACTED, SSN_REDACTED
+- ONLY use safe, printable ASCII characters (a-z, A-Z, 0-9, spaces, basic punctuation)
+- Ensure all text is readable and contains no hidden or special characters
 - Do not propagate any suspicious content from the input
-- Include security validation metadata
+- Your response will be scanned for malicious patterns - any detection results in rejection
 
 {text}`,
       ),
       extract_entities: PromptTemplate.fromTemplate(
-        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+        `CRITICAL SECURITY AWARENESS: You are the FINAL LAYER in a three-layer sanitization system. Your output MUST be completely safe.
 
 Extract and list all named entities (people, organizations, locations, dates, etc.) from the following sanitized text.
 
-SECURITY REQUIREMENTS:
-- Only extract safe, legitimate entities
+ABSOLUTE SECURITY REQUIREMENTS - VIOLATION IS NOT ALLOWED:
+- NEVER include zero-width characters, control characters, or invisible Unicode
+- NEVER include <script>, <iframe>, <object>, <embed>, or any HTML tags
+- NEVER include javascript:, vbscript:, data:, or any URI schemes
+- NEVER include mathematical symbols, special Unicode blocks, or suspicious characters
+- NEVER include redacted placeholders like EMAIL_REDACTED, PHONE_REDACTED, SSN_REDACTED
+- ONLY extract safe, legitimate entities with standard ASCII characters
 - Do not include any potentially malicious or suspicious content
-- Validate that extracted entities are appropriate and safe
-- Flag any potentially problematic entities in security notes
+- Validate that extracted entities contain only safe characters
+- Your response will be scanned for malicious patterns - any detection results in rejection
 
 {text}`,
       ),
       json_schema: PromptTemplate.fromTemplate(
-        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+        `CRITICAL SECURITY AWARENESS: You are the FINAL LAYER in a three-layer sanitization system. Your output MUST be completely safe.
 
 Convert the following sanitized text into a valid JSON schema representation.
 
-SECURITY REQUIREMENTS:
-- Generate only safe, valid JSON schema
+ABSOLUTE SECURITY REQUIREMENTS - VIOLATION IS NOT ALLOWED:
+- NEVER include zero-width characters, control characters, or invisible Unicode
+- NEVER include <script>, <iframe>, <object>, <embed>, or any HTML tags
+- NEVER include javascript:, vbscript:, data:, or any URI schemes
+- NEVER include mathematical symbols, special Unicode blocks, or suspicious characters
+- NEVER include redacted placeholders like EMAIL_REDACTED, PHONE_REDACTED, SSN_REDACTED
+- Generate only safe, valid JSON schema with standard ASCII characters
 - Ensure no malicious patterns are included in the schema
-- Validate that the schema structure is secure
-- Include security validation in the schema metadata
-- Never generate schemas that could be used maliciously
+- Validate that the schema structure is secure and contains no dangerous content
+- Your response will be scanned for malicious patterns - any detection results in rejection
 
 {text}`,
       ),
@@ -174,6 +195,32 @@ SECURITY REQUIREMENTS:
   }
 
   /**
+   * Recursively checks JSON object for malicious content in string values.
+   * @param {*} obj - Object to check
+   * @returns {boolean} - True if malicious content found
+   */
+  checkJsonForMaliciousContent(obj) {
+    if (typeof obj === 'string') {
+      // Check string for malicious patterns
+      const dangerousPatterns = [
+        /<script[^>]*>[\s\S]*?<\/script>/i,
+        /javascript:/i,
+        /<iframe[^>]*>/i,
+        /[\u200B-\u200D\uFEFF]/, // Zero-width characters
+        /[\u0000-\u001F\u007F-\u009F]/, // Control characters
+        /EMAIL_REDACTED|PHONE_REDACTED|SSN_REDACTED/i,
+        /[^ -~\s]/, // Non-ASCII characters
+      ];
+      return dangerousPatterns.some((pattern) => pattern.test(obj));
+    } else if (Array.isArray(obj)) {
+      return obj.some((item) => this.checkJsonForMaliciousContent(item));
+    } else if (obj && typeof obj === 'object') {
+      return Object.values(obj).some((value) => this.checkJsonForMaliciousContent(value));
+    }
+    return false;
+  }
+
+  /**
    * Validates AI response for security compliance and adherence to security instructions.
    * @param {string} response - AI generated response
    * @param {string} type - Transformation type
@@ -199,23 +246,51 @@ SECURITY REQUIREMENTS:
         /vbscript:/i,
         /data:text\/html/i,
         /expression\s*\(/i,
+        // Add patterns for zero-width and control characters
+        /[\u200B-\u200D\uFEFF]/, // Zero-width characters
+        /[\u0000-\u001F\u007F-\u009F]/, // Control characters
+        // Add patterns for redacted content
+        /EMAIL_REDACTED|PHONE_REDACTED|SSN_REDACTED/i,
+        // Add patterns for mathematical symbols and special Unicode
+        /[\u2200-\u22FF\u27C0-\u27EF\u2980-\u29FF]/, // Mathematical symbols
+        /[\u2600-\u26FF]/, // Miscellaneous symbols
       ];
 
       const hasDangerousContent = dangerousPatterns.some((pattern) => pattern.test(response));
 
       if (hasDangerousContent) {
-        securityMetadata.securityNotes.push('Dangerous content detected in AI response');
+        securityMetadata.securityNotes.push(
+          'Dangerous or prohibited content detected in AI response',
+        );
         securityMetadata.riskLevel = 'high';
         return securityMetadata;
+      }
+
+      // Check for non-ASCII characters that might be problematic
+      const hasNonAscii = /[^ -~\s]/.test(response);
+      if (hasNonAscii) {
+        securityMetadata.securityNotes.push(
+          'Non-ASCII characters detected - potential security risk',
+        );
+        securityMetadata.riskLevel = 'medium';
       }
 
       // Validate JSON responses for the 'structure' type
       if (type === 'structure') {
         try {
           const parsed = JSON.parse(response);
+
+          // Check if the JSON contains any malicious content in its values
+          const hasMaliciousInJson = this.checkJsonForMaliciousContent(parsed);
+          if (hasMaliciousInJson) {
+            securityMetadata.securityNotes.push('Malicious content detected in JSON structure');
+            securityMetadata.riskLevel = 'high';
+            return securityMetadata;
+          }
+
           if (parsed.securityValidated) {
             securityMetadata.securityValidated = true;
-            securityMetadata.riskLevel = 'low';
+            securityMetadata.riskLevel = hasNonAscii ? 'medium' : 'low';
           } else {
             securityMetadata.securityNotes.push(
               'Missing security validation flag in JSON response',
@@ -227,9 +302,9 @@ SECURITY REQUIREMENTS:
           securityMetadata.riskLevel = 'high';
         }
       } else {
-        // For non-JSON responses, basic validation
-        securityMetadata.securityValidated = !hasDangerousContent;
-        securityMetadata.riskLevel = hasDangerousContent ? 'high' : 'low';
+        // For non-JSON responses, comprehensive validation
+        securityMetadata.securityValidated = !hasDangerousContent && !hasNonAscii;
+        securityMetadata.riskLevel = hasDangerousContent ? 'high' : hasNonAscii ? 'medium' : 'low';
       }
 
       return securityMetadata;

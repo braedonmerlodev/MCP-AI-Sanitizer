@@ -249,7 +249,7 @@ describe('AITextTransformer', () => {
     // For this test, we'll mock the config to have low limit and simulate
     const result = await transformer.transform('raw text', 'structure');
 
-    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(1); // Only input sanitization
+    expect(mockSanitizer.sanitize).toHaveBeenCalledTimes(2); // Input and output sanitization
     expect(result.text).toBe('sanitized text');
     expect(result.metadata).toEqual({ fallback: true, reason: 'rate_limit_exceeded' });
 
@@ -323,7 +323,9 @@ describe('AITextTransformer', () => {
 
       expect(validation.securityValidated).toBe(false);
       expect(validation.riskLevel).toBe('high');
-      expect(validation.securityNotes).toContain('Dangerous content detected in AI response');
+      expect(validation.securityNotes).toContain(
+        'Dangerous or prohibited content detected in AI response',
+      );
     });
 
     test('should validate JSON structure security for structure type', () => {
@@ -391,7 +393,9 @@ describe('AITextTransformer', () => {
         'AI response failed security validation',
         expect.objectContaining({
           riskLevel: 'high',
-          securityNotes: expect.arrayContaining(['Dangerous content detected in AI response']),
+          securityNotes: expect.arrayContaining([
+            'Dangerous or prohibited content detected in AI response',
+          ]),
         }),
       );
     });
