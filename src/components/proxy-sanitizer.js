@@ -24,6 +24,9 @@ class ProxySanitizer {
       maxLatency: 0,
       minLatency: Infinity,
     };
+
+    // Load final sanitization configuration
+    this.finalConfig = sanitizationConfig.getFinalSanitizationConfig();
   }
 
   /**
@@ -111,10 +114,11 @@ class ProxySanitizer {
   }
 
   /**
-   * Handles n8n webhook requests.
+   * Handles n8n webhook requests with enhanced final sanitization for AI responses.
    * @param {object} payload - The webhook payload from n8n.
    * @param {Object} options - Sanitization options
    * @param {string} options.classification - Destination classification
+   * @param {boolean} options.useFinalSanitization - Override final sanitization mode
    * @returns {object} - The response to send back to n8n.
    */
   async handleN8nWebhook(payload, options = {}) {
@@ -131,11 +135,53 @@ class ProxySanitizer {
     // Forward to LLMs/MCP - for now, mock response
     const llmResponse = this.forwardToLLM(sanitizedData);
 
-    // Apply output sanitization (response sanitization)
-    const outputSanitized = await this.sanitize(llmResponse, { ...options, operation: 'response' });
+    // Apply output sanitization with final mode for enhanced AI content security
+    const useFinalMode = this.determineFinalMode(options);
+    const outputSanitized = await this.sanitize(llmResponse, {
+      ...options,
+      operation: 'response',
+      mode: useFinalMode ? 'final' : 'standard',
+    });
 
     logger.info('n8n webhook processed');
     return { result: { sanitizedData: outputSanitized } };
+  }
+
+  /**
+   * Determines whether to use final sanitization mode based on configuration and options.
+   * @param {Object} options - Request options
+   * @returns {boolean} Whether to use final mode
+   */
+  determineFinalMode(options = {}) {
+    // Check if explicitly overridden in options
+    if (options.useFinalSanitization !== undefined) {
+      return options.useFinalSanitization;
+    }
+
+    // Use configuration default
+    return this.finalConfig.enabled && this.finalConfig.defaultMode === 'final';
+  }
+
+  /**
+   * Updates final sanitization configuration at runtime.
+   * @param {Object} newConfig - New configuration
+   * @returns {boolean} Success status
+   */
+  updateFinalConfig(newConfig) {
+    const success = sanitizationConfig.updateFinalSanitizationConfig(newConfig);
+    if (success) {
+      // Reload configuration
+      this.finalConfig = sanitizationConfig.getFinalSanitizationConfig();
+    }
+    return success;
+  }
+
+  /**
+   * Gets current final sanitization configuration.
+   * @returns {Object} Current configuration
+   */
+  getFinalConfig() {
+    return { ...this.finalConfig };
   }
 
   /**
@@ -153,6 +199,15 @@ class ProxySanitizer {
     };
   }
 
+  /**
+   * Forwards sanitized data to LLMs/MCP servers.
+   * @param {string} data - The sanitized data.
+   * @returns {string} - The response from LLM.
+   */
+  forwardToLLM(data) {
+    // Mock implementation - in real scenario, call actual LLM API
+    return `Processed: ${data}`;
+  }
   /**
    * Forwards sanitized data to LLMs/MCP servers.
    * @param {string} data - The sanitized data.

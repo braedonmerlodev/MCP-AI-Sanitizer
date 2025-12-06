@@ -17,12 +17,17 @@ class PatternRedaction {
     // Aggressive HTML tag stripping causing data loss - relying on symbol stripping instead
     // result = result.replaceAll(/<[^>]*>/g, '');
 
-    // Remove potential XSS vectors
-    result = result.replaceAll(/javascript:/gi, '');
-    result = result.replaceAll(/on\w+\s*=/gi, '');
+    // Remove potential XSS vectors - complete removal of dangerous URLs and handlers
+    result = result.replaceAll(/javascript:[^'"\s]*/gi, '');
+    result = result.replaceAll(/vbscript:[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:text\/html[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:text\/javascript[^'"\s]*/gi, '');
+    result = result.replaceAll(/on\w+\s*=\s*[^'">\s]*/gi, '');
 
-    // Remove data URLs that might contain scripts
-    result = result.replaceAll(/data:\s*text\/html[^,]+,/gi, '');
+    // Remove data URLs that might contain scripts - comprehensive removal
+    result = result.replaceAll(/data:\s*text\/html[^'"\s,]*,[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:\s*text\/javascript[^'"\s,]*,[^'"\s]*/gi, '');
+    result = result.replaceAll(/data:\s*application\/javascript[^'"\s,]*,[^'"\s]*/gi, '');
 
     // Remove email addresses
     result = result.replaceAll(
@@ -52,8 +57,8 @@ class PatternRedaction {
     result = result.replaceAll(/&(lt|gt|quot|apos|amp);/gi, '');
 
     // Remove suspicious symbol sequences and special characters that might be obfuscation
-    // Includes: < > ( ) { } [ ] \ | ~ ` " ' ; : = ? ! @ # $ % ^ & * + ,
-    result = result.replaceAll(/[<>(){}[\]\\|~`"';:=?!@#$%^&*+,]/g, '');
+    // Includes: < > ( ) { } [ ] \ | ~ ` " ' ; : = ? ! @ # $ % ^ & * + , - . /
+    result = result.replaceAll(/[<>(){}[\]\\|~`"';:=?!@#$%^&*+,\-./]/g, '');
 
     return result;
   }
