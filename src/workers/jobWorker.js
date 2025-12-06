@@ -8,7 +8,7 @@ const JSONRepair = require('../utils/jsonRepair');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const pdfParse = require('pdf-parse');
 const { performance } = require('node:perf_hooks');
-const { recordPipelinePerformance, updateConcurrencyMetrics } = require('../utils/monitoring');
+const { recordPipelinePerformance } = require('../utils/monitoring');
 
 /**
  * Recursively sanitizes string values in an object or array
@@ -260,8 +260,10 @@ async function processJob(job) {
         jobId,
         jobType: job.data.type,
         aiTransformType: job.options?.aiTransformType || 'none',
-        inputSize: processedText.length,
-        outputSize: result?.sanitizedData?.length || processedText.length,
+        inputSize: Math.max(processedText.length, 0),
+        outputSize:
+          (result?.sanitizedData?.length > 0 ? result.sanitizedData.length : 0) ||
+          Math.max(processedText.length, 0),
       });
 
       // Handle trust token generation - sanitized may be string or {sanitizedData, trustToken}
@@ -520,7 +522,10 @@ async function processJob(job) {
 
         // Format result to match sync response
         // If sanitizedData is an object (structured response), stringify it for backward compatibility
-        result.sanitizedContent = typeof result.sanitizedData === 'object' && result.sanitizedData !== null ? JSON.stringify(result.sanitizedData) : result.sanitizedData;
+        result.sanitizedContent =
+          typeof result.sanitizedData === 'object' && result.sanitizedData !== null
+            ? JSON.stringify(result.sanitizedData)
+            : result.sanitizedData;
         delete result.sanitizedData;
         result.metadata = {
           originalLength: job.data.length || 0,

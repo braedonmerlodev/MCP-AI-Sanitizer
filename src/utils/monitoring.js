@@ -136,22 +136,22 @@ const recordAIInputSanitization = (eventType, details = {}) => {
   metrics.security.aiInputSanitization.totalProcessed++;
 
   switch (eventType) {
-  case 'sanitizationFailure': {
-    metrics.security.aiInputSanitization.sanitizationFailures++;
-  
-  break;
-  }
-  case 'validationFailure': {
-    metrics.security.aiInputSanitization.validationFailures++;
-  
-  break;
-  }
-  case 'dangerousContentBlocked': {
-    metrics.security.aiInputSanitization.dangerousContentBlocked++;
-  
-  break;
-  }
-  // No default
+    case 'sanitizationFailure': {
+      metrics.security.aiInputSanitization.sanitizationFailures++;
+
+      break;
+    }
+    case 'validationFailure': {
+      metrics.security.aiInputSanitization.validationFailures++;
+
+      break;
+    }
+    case 'dangerousContentBlocked': {
+      metrics.security.aiInputSanitization.dangerousContentBlocked++;
+
+      break;
+    }
+    // No default
   }
 
   // Log the event for monitoring

@@ -1,14 +1,6 @@
 // Bleach-Node.js Sanitization Library Comparison Utility
 const DOMPurify = require('dompurify');
 const sanitizeHtml = require('sanitize-html');
-const winston = require('winston');
-
-// Initialize logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [new winston.transports.Console()],
-});
 
 /**
  * BleachNodeComparison provides comprehensive comparison between
@@ -247,10 +239,19 @@ class BleachNodeComparison {
     // Calculate accuracy scores
     results.accuracy = {};
     for (const [libName, libResult] of Object.entries(results.libraries)) {
-      results.accuracy[libName] = libResult.success ? this.calculateAccuracy(libResult.output, testCase.expected) : 0;
+      results.accuracy[libName] = libResult.success
+        ? this.calculateAccuracy(libResult.output, testCase.expected)
+        : 0;
     }
 
     return results;
+  }
+
+  /**
+   * Normalizes strings for comparison
+   */
+  normalize(str) {
+    return str.replaceAll(/\s+/g, ' ').trim().toLowerCase();
   }
 
   /**
@@ -258,10 +259,9 @@ class BleachNodeComparison {
    */
   calculateAccuracy(output, expected) {
     // Normalize strings for comparison
-    const normalize = (str) => str.replaceAll(/\s+/g, ' ').trim().toLowerCase();
 
-    const normalizedOutput = normalize(output);
-    const normalizedExpected = normalize(expected);
+    const normalizedOutput = this.normalize(output);
+    const normalizedExpected = this.normalize(expected);
 
     if (normalizedOutput === normalizedExpected) {
       return 100;

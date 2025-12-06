@@ -1,4 +1,3 @@
-const crypto = require('node:crypto');
 const UnicodeNormalization = require('./SanitizationPipeline/unicode-normalization.js');
 const SymbolStripping = require('./SanitizationPipeline/symbol-stripping.js');
 const EscapeNeutralization = require('./SanitizationPipeline/escape-neutralization.js');
@@ -6,16 +5,6 @@ const PatternRedaction = require('./SanitizationPipeline/pattern-redaction.js');
 const DataIntegrityValidator = require('./DataIntegrityValidator');
 const TrustTokenGenerator = require('./TrustTokenGenerator');
 const AuditLogger = require('./data-integrity/AuditLogger');
-const winston = require('winston');
-const config = require('../config');
-const { recordTokenGeneration } = require('../utils/monitoring');
-
-// Initialize logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [new winston.transports.Console()],
-});
 
 /**
  * SanitizationPipeline orchestrates the sanitization steps with data integrity validation.
@@ -73,13 +62,15 @@ class SanitizationPipeline {
       const sanitized = {};
       for (const [key, value] of Object.entries(data)) {
         // Skip sanitizing certain metadata fields that should remain intact
-        if (
-          ['trustToken', 'timestamp', 'requestId', 'correlationId', 'validationId'].includes(key)
-        ) {
-          sanitized[key] = value;
-        } else {
-          sanitized[key] = this.sanitizeObject(value);
-        }
+        sanitized[key] = [
+          'trustToken',
+          'timestamp',
+          'requestId',
+          'correlationId',
+          'validationId',
+        ].includes(key)
+          ? value
+          : this.sanitizeObject(value);
       }
       return sanitized;
     }
@@ -95,14 +86,7 @@ class SanitizationPipeline {
    */
   async sanitize(data, options = {}) {
     const startTime = Date.now();
-    const {
-      classification = 'unclear',
-      riskLevel,
-      skipValidation = false,
-      validationOptions = {},
-      trustToken,
-      mode = 'standard',
-    } = options;
+    const { classification = 'unclear', riskLevel, mode = 'standard' } = options;
     let generateTrustToken = options.generateTrustToken || false;
 
     let result = data;

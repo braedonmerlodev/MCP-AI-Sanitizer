@@ -90,7 +90,6 @@ describe('Pipeline Performance Regression Tests', () => {
           operationsPerLevel: 25, // Reduced for test
         });
         const results = await concurrencyBenchmark.runComprehensiveBenchmark();
-        const lowConcurrency = results.concurrency['1conc-light'];
         const highConcurrency = results.concurrency['5conc-light'];
 
         // High concurrency should maintain reasonable efficiency

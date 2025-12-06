@@ -97,7 +97,7 @@ describe('Audit Logging Comprehensive Integration Tests', () => {
 
       const processJob = require('../../workers/jobWorker');
 
-      const result = await processJob(mockJob);
+      await processJob(mockJob);
 
       // Verify audit logger was called
       expect(mockAuditLogger.logEscalationDecision).toHaveBeenCalledTimes(1);

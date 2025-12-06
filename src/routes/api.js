@@ -19,11 +19,7 @@ const TrustTokenGenerator = require('../components/TrustTokenGenerator');
 const AuditLog = require('../models/AuditLog');
 const AuditLogger = require('../components/data-integrity/AuditLogger');
 const DataExportManager = require('../components/data-integrity/DataExportManager');
-const {
-  getMetrics,
-  recordPipelinePerformance,
-  updateConcurrencyMetrics,
-} = require('../utils/monitoring');
+const { getMetrics } = require('../utils/monitoring');
 const SanitizationMonitor = require('../utils/sanitization-monitor');
 const SanitizationDashboard = require('../monitoring/sanitization-dashboard');
 const queueManager = require('../utils/queueManager');
@@ -34,9 +30,12 @@ const {
   applyPreset,
   createChain,
 } = require('../utils/jsonTransformer');
-// const AITextTransformer = require('../components/AITextTransformer');
+const AITextTransformer = require('../components/AITextTransformer');
 
 const router = express.Router();
+
+// Initialize AI transformer instance
+const aiTransformer = new AITextTransformer();
 
 /**
  * Response sanitization monitoring middleware.
@@ -1211,7 +1210,7 @@ router.get('/monitoring/sanitization-dashboard', accessValidationMiddleware, (re
     const dashboardData = sanitizationDashboard.getDashboardData(filters);
 
     // Create audit log for dashboard access
-    const auditLog = auditLogger.logEvent({
+    auditLogger.logEvent({
       eventType: 'SANITIZATION_DASHBOARD_ACCESS',
       userId: req.user?.id || 'anonymous',
       resourceType: 'sanitization_monitoring',

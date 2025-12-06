@@ -21,10 +21,10 @@ class SanitizationAdapter {
   /**
    * Sanitize content using the adapted library
    * @param {string} content - Content to sanitize
-   * @param {object} options - Sanitization options
+   * @param {object} _options - Sanitization options
    * @returns {string} - Sanitized content
    */
-  sanitize(content, options = {}) {
+  sanitize(content, _options = {}) {
     throw new Error('sanitize() must be implemented by subclass');
   }
 
@@ -341,7 +341,7 @@ class BleachAdapter extends SanitizationAdapter {
 /**
  * Factory function to create sanitization adapters
  */
-function createSanitizationAdapter(libraryName, options = {}) {
+function createSanitizationAdapter(libraryName, _options = {}) {
   switch (libraryName.toLowerCase()) {
     case 'dompurify': {
       return new DOMPurifyAdapter();

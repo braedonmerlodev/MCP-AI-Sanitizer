@@ -336,7 +336,7 @@ class PipelineReorderBenchmark {
     const aiDurations = runs.map((r) => r.aiDuration);
     const sanitizeDurations = runs.map((r) => r.sanitizeDuration);
 
-    const sortedDurations = [...durations].sort((a, b) => a - b);
+    const sortedDurations = [...durations].toSorted((a, b) => a - b);
 
     return {
       count: runs.length,

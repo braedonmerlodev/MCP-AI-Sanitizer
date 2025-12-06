@@ -1,4 +1,3 @@
-const rewire = require('rewire');
 // Mock external dependencies
 jest.mock('../../models/JobStatus');
 jest.mock('../../models/JobResult');

@@ -1,6 +1,5 @@
 // Sanitization Metadata Leakage Dashboard
 const winston = require('winston');
-const SanitizationMonitor = require('../utils/sanitization-monitor');
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -96,18 +95,18 @@ class SanitizationDashboard {
       // Update top patterns
       this.dashboardData.topPatterns = Object.entries(stats.byPattern)
         .map(([pattern, count]) => ({ pattern, count }))
-        .sort((a, b) => b.count - a.count)
+        .toSorted((a, b) => b.count - a.count)
         .slice(0, 10);
 
       // Update top endpoints
       this.dashboardData.topEndpoints = Object.entries(stats.byEndpoint)
         .map(([endpoint, count]) => ({ endpoint, count }))
-        .sort((a, b) => b.count - a.count)
+        .toSorted((a, b) => b.count - a.count)
         .slice(0, 10);
 
       // Update recent incidents
       this.dashboardData.recentIncidents = [...incidents]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .toSorted((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 20);
 
       // Update performance metrics
@@ -327,7 +326,7 @@ class SanitizationDashboard {
         bySeverity: weekSeverity,
         topPatterns: [...weekPatterns.entries()]
           .map(([pattern, count]) => ({ pattern, count }))
-          .sort((a, b) => b.count - a.count)
+          .toSorted((a, b) => b.count - a.count)
           .slice(0, 5),
       });
     }
