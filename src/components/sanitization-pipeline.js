@@ -30,6 +30,12 @@ class SanitizationPipeline {
       new PatternRedaction(),
     ];
 
+    // Configure sanitization modes
+    this.modes = {
+      standard: [...this.steps],
+      final: [...this.steps], // Start with same steps, can add final validation later
+    };
+
     // Initialize data integrity validator
     this.integrityValidator = new DataIntegrityValidator(options.integrityOptions || {});
     this.enableValidation = options.enableValidation !== false;
@@ -84,25 +90,21 @@ class SanitizationPipeline {
    * Sanitizes the input data by running it through all pipeline steps with integrity validation.
    * Handles both string and structured JSON data.
    * @param {string|Object} data - The input data to sanitize.
-   * @param {Object} options - Sanitization options
-   * @param {string} options.classification - Destination classification ('llm', 'non-llm', 'unclear')
-   * @param {string} options.riskLevel - Risk level ('low', 'medium', 'high')
-   * @param {boolean} options.skipValidation - Skip integrity validation
-   * @param {Object} options.validationOptions - Options for integrity validation
    * @param {boolean} options.generateTrustToken - Generate trust token for sanitized content
-   * @param {Object} options.trustToken - Trust token to validate for caching
+   * @param {string} options.mode - Sanitization mode ('standard' or 'final')
    * @returns {string|Object} - The sanitized result or {sanitizedData, trustToken} if generateTrustToken is true
    */
   async sanitize(data, options = {}) {
     const startTime = Date.now();
-    let {
+    const {
       classification = 'unclear',
       riskLevel,
       skipValidation = false,
       validationOptions = {},
-      generateTrustToken = false,
       trustToken,
+      mode = 'standard',
     } = options;
+    let generateTrustToken = options.generateTrustToken || false;
 
     const trustTokensEnabled = config.features.trustTokens.enabled;
     generateTrustToken = generateTrustToken && trustTokensEnabled;
@@ -251,11 +253,11 @@ class SanitizationPipeline {
     // Track applied rules for trust token
     const appliedRules = [];
 
-    // Apply sanitization steps (skip for already sanitized JSON data)
-    if (!isJsonData) {
-      for (const step of this.steps) {
+    // Apply sanitization steps based on mode (skip for already sanitized JSON data)
+    if (typeof result === 'string') {
+      const activeSteps = this.modes[mode] || this.modes.standard;
+      for (const step of activeSteps) {
         result = step.sanitize(result);
-        appliedRules.push(step.constructor.name);
       }
     } else {
       // For JSON data, we've already applied sanitization via sanitizeObject

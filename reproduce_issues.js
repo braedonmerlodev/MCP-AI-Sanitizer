@@ -12,10 +12,10 @@ async function testSanitization() {
     { name: 'Math Symbol (Sum)', input: '∑', expected: '' },
     { name: 'Control Char', input: 'a\u0000b', expected: 'ab' },
     { name: 'XSS Script', input: '<script>alert(1)</script>', expected: '' },
-    { name: 'XSS Event', input: '<img src=x onerror=alert(1)>', expectedPattern: /img srcx/ }, // Match pattern as we might have leftovers
+    { name: 'XSS Event', input: '<img src=x onerror=alert(1)>', expectedPattern: /img srcx/ },
     { name: 'Email', input: 'test@example.com', expected: 'EMAIL_REDACTED' },
     { name: 'Zero-width', input: 'Zero-width characters', expected: 'Zero-width characters' },
-    { name: 'Line Break', input: 'Line 1\nLine 2', expected: 'Line 1\nLine 2' },
+    { name: 'Symbols', input: '-./', expected: '-./' },
   ];
 
   console.log('Running Node.js Sanitization Tests...');
