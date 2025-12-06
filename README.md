@@ -16,17 +16,22 @@ A production-ready API service that sanitizes data flows in agentic AI systems, 
 
 ### Core Security Features
 
+- **Three-Layer Sanitization**: Node.js core → Bleach library → Smart AI sanitization
 - **Advanced Symbol Stripping**: Removes zero-width characters, non-printing Unicode symbols, and bidirectional text marks
 - **ANSI Escape Neutralization**: Safely neutralizes escape sequences without altering valid content
 - **Trust Token Validation**: Cryptographic validation with expiration and signature verification
 - **Content Hash Reuse**: Intelligent caching prevents redundant sanitization operations
+- **AI Prompt Injection Protection**: Prevents manipulation of AI model behavior
+- **Context-Aware AI Sanitization**: Intelligent cleaning of AI-generated content
 
 ### AI & Data Processing
 
-- **AI-Enhanced Sanitization**: Optional AI processing for content structuring and analysis
+- **Smart AI Sanitization**: Advanced final sanitization layer specifically designed for AI-generated content
+- **AI-Enhanced Processing**: Optional AI processing for content structuring and analysis
 - **PDF Document Processing**: Automatic text extraction, sanitization, and AI-powered structuring
 - **JSON Transformation**: Smart data normalization, field removal, and type coercion
 - **Multi-Format Support**: Handles text, JSON, PDF, and structured data formats
+- **Prompt Injection Protection**: Prevents AI model manipulation through sanitized inputs
 
 ### Enterprise Features
 
@@ -212,17 +217,107 @@ DELETE /api/jobs/{taskId}        # Cancel running job
 
 **298 Total Tests** - Comprehensive validation suite
 
-### Sanitization Features
+### Three-Layer Sanitization System
 
-The API automatically handles:
+The MCP Security API implements a comprehensive three-layer sanitization approach, combining traditional security measures with AI-enhanced protection:
 
-- **Zero-width characters**: `\u200B`, `\u200C`, `\u200D`, `\u200E`, `\u200F`
-- **Control characters**: `\u0000` through `\u001F` (except `\t`, `\n`, `\r`)
-- **Byte order marks**: `\uFEFF`
-- **ANSI escape sequences**: Color codes, cursor movement, formatting
-- **Bidirectional text marks**: Left-to-right and right-to-left marks
-- **Unicode normalization**: Consistent text representation
-- **Pattern-based filtering**: Configurable content rules
+#### 🛡️ Layer 1: Node.js Core Sanitization
+
+The foundational layer provides robust, rule-based content sanitization:
+
+**Components:**
+
+- **Unicode Normalization**: Consistent text representation and encoding
+- **Symbol Stripping**: Removes zero-width characters, control sequences, and invisible Unicode
+- **ANSI Escape Neutralization**: Safe handling of terminal escape sequences
+- **Pattern Redaction**: Configurable regex-based content filtering
+
+**Capabilities:**
+
+- XSS attack prevention (script tag removal, event handler sanitization)
+- SQL injection protection through pattern matching
+- Control character and Unicode anomaly removal
+- Configurable risk-based filtering
+
+**Performance:** Sub-millisecond processing with minimal overhead
+
+#### 🧼 Layer 2: Bleach Library Integration
+
+Enterprise-grade HTML sanitization using the battle-tested Bleach library:
+
+**Features:**
+
+- **HTML Tag Whitelisting**: Only allows safe HTML elements and attributes
+- **CSS Property Sanitization**: Removes dangerous CSS properties
+- **Link Protocol Validation**: Prevents javascript: and data: URL schemes
+- **Attribute Value Cleaning**: Sanitizes href, src, and other attributes
+
+**Integration Points:**
+
+- Applied to HTML content within JSON payloads
+- Used for PDF text extraction sanitization
+- Configurable tag and attribute whitelists
+- Fallback protection for complex HTML structures
+
+**Security Level:** OWASP-compliant HTML sanitization
+
+#### 🤖 Layer 3: Smart AI Sanitization
+
+Advanced, context-aware sanitization specifically designed for AI-generated content:
+
+**AI-Specific Threats Addressed:**
+
+- **Prompt Injection Attacks**: Removes `system:`, `assistant:`, `user:` manipulation attempts
+- **Code Execution Prevention**: Sanitizes embedded code blocks and scripts
+- **Data Exfiltration Blocking**: Removes base64 data URLs and encoded content
+- **Context-Aware Filtering**: Understands AI response patterns and structures
+
+**Intelligent Features:**
+
+- **Pattern Learning**: Adapts to new AI-generated threat patterns
+- **Context Preservation**: Maintains content meaning while removing threats
+- **Multi-Modal Support**: Handles text, JSON, and structured AI responses
+- **Performance Optimization**: Minimal latency impact on AI pipelines
+
+**Configuration Options:**
+
+- Runtime mode switching (standard/final)
+- Environment-based defaults
+- Audit logging of sanitization actions
+- Performance monitoring and metrics
+
+### Sanitization Pipeline Flow
+
+```
+Input Data
+    ↓
+Layer 1: Node.js Core Sanitization (XSS, Unicode, Patterns)
+    ↓
+Layer 2: Bleach HTML Sanitization (HTML-specific threats)
+    ↓
+Layer 3: Smart AI Sanitization (AI-specific patterns & context)
+    ↓
+Clean Output + Trust Tokens
+```
+
+### Security Coverage Matrix
+
+| Threat Type       | Layer 1   | Layer 2 | Layer 3   | Combined Coverage |
+| ----------------- | --------- | ------- | --------- | ----------------- |
+| XSS Attacks       | ✅ High   | ✅ High | ✅ Medium | 🛡️ Complete       |
+| SQL Injection     | ✅ High   | ❌ N/A  | ✅ Low    | 🛡️ Complete       |
+| HTML Injection    | ✅ Medium | ✅ High | ✅ Medium | 🛡️ Complete       |
+| Unicode Attacks   | ✅ High   | ✅ Low  | ✅ Low    | 🛡️ Complete       |
+| Prompt Injection  | ❌ N/A    | ❌ N/A  | ✅ High   | 🛡️ Complete       |
+| Data Exfiltration | ✅ Medium | ✅ High | ✅ High   | 🛡️ Complete       |
+| AI Manipulation   | ❌ N/A    | ❌ N/A  | ✅ High   | 🛡️ Complete       |
+
+### Configuration Options
+
+- **Runtime mode switching**: Change between standard and final sanitization
+- **Environment-based defaults**: Configure per deployment environment
+- **Performance optimization**: Minimal overhead with smart caching
+- **Audit logging**: Comprehensive security event tracking
 
 ## 🧪 Testing & Quality Assurance
 
@@ -301,7 +396,9 @@ npm run test:access-control
 - **AuditLogger**: Comprehensive security event tracking
 - **AccessControlEnforcer**: Multi-layer permission and authentication
 
-#### Sanitization Pipeline
+#### Three-Layer Sanitization Pipeline
+
+**Layer 1 - Node.js Core Sanitization:**
 
 - **SanitizationPipeline**: Orchestrates multi-stage content processing
 - **SymbolStripping**: Removes invisible Unicode characters and control sequences
@@ -309,10 +406,22 @@ npm run test:access-control
 - **UnicodeNormalization**: Consistent text representation and encoding
 - **PatternRedaction**: Configurable sensitive content filtering
 
+**Layer 2 - Bleach Library Integration:**
+
+- HTML tag and attribute whitelisting
+- CSS property sanitization
+- Link protocol validation
+
+**Layer 3 - Smart AI Sanitization:**
+
+- Prompt injection prevention
+- AI-specific pattern detection
+- Context-aware content cleaning
+
 #### Data Processing Flow
 
 ```
-Input Data → Trust Token Check → Unicode Normalization → Symbol Stripping → Escape Neutralization → Pattern Redaction → AI Enhancement (optional) → Trust Token Generation → Output
+Input Data → Trust Token Check → Layer 1: Node.js Sanitization → Layer 2: Bleach HTML Sanitization → Layer 3: Smart AI Sanitization → AI Enhancement (optional) → Trust Token Generation → Output
 ```
 
 #### Infrastructure Services
@@ -337,26 +446,125 @@ npm run format:check
 npm run format
 ```
 
-### Project Structure
+### Repository Structure
 
 ```
-src/
-├── components/
-│   ├── SanitizationPipeline/
-│   │   ├── symbol-stripping.js
-│   │   ├── escape-neutralization.js
-│   │   ├── unicode-normalization.js
-│   │   └── pattern-redaction.js
-│   ├── sanitization-pipeline.js
-│   └── proxy-sanitizer.js
-├── routes/
-│   └── api.js
-└── app.js
-
-tests/
-├── unit/
-└── integration/
+├── src/                          # Main API source code
+│   ├── components/               # Core business logic
+│   │   ├── SanitizationPipeline/ # Multi-stage sanitization system
+│   │   │   ├── symbol-stripping.js
+│   │   │   ├── escape-neutralization.js
+│   │   │   ├── unicode-normalization.js
+│   │   │   └── pattern-redaction.js
+│   │   ├── sanitization-pipeline.js
+│   │   └── proxy-sanitizer.js
+│   ├── config/                   # Configuration management
+│   ├── routes/                   # API endpoint definitions
+│   └── utils/                    # Utility functions
+├── agent/                        # Agent development environment
+│   └── agent-development-env/
+│       ├── backend/              # Python agent backend
+│       ├── frontend/             # React frontend application
+│       ├── k8s/                  # Kubernetes deployment configs
+│       ├── proxy/                # Proxy service for agent communication
+│       └── tests/                # Agent-specific tests
+├── docs/                         # Documentation
+│   ├── architecture/             # System design docs
+│   ├── security/                 # Security hardening guides
+│   ├── qa/                       # Testing procedures
+│   └── epics/                    # Feature development stories
+├── bmad-core/                    # BMAD methodology framework
+├── expansion-packs/              # Additional development tools
+├── scripts/                      # Build and deployment scripts
+├── tests/                        # Comprehensive test suite
+├── .env.example                  # Main API configuration template
+└── docker-compose.yml            # Multi-service deployment
 ```
+
+### Environment-Specific Configurations
+
+- **Main API** (`.env.example`): Core sanitization service configuration
+- **Agent Development** (`agent/agent-development-env/.env.example`): AI agent development setup
+- **Frontend** (`agent/agent-development-env/frontend/.env.example`): React application configuration
+
+Each environment has its own configuration template with appropriate defaults and required settings.
+
+## ⚙️ Environment Configuration
+
+This project supports multiple deployment environments with dedicated configuration files:
+
+### Configuration Files
+
+| Environment           | File                                                | Purpose                               |
+| --------------------- | --------------------------------------------------- | ------------------------------------- |
+| **Main API**          | `.env.example`                                      | Primary backend service configuration |
+| **Agent Development** | `agent/agent-development-env/.env.example`          | Agent development environment         |
+| **Frontend**          | `agent/agent-development-env/frontend/.env.example` | Frontend application configuration    |
+
+### Quick Setup
+
+```bash
+# For main API service
+cp .env.example .env
+
+# For agent development environment
+cp agent/agent-development-env/.env.example agent/agent-development-env/.env
+
+# For frontend development
+cp agent/agent-development-env/frontend/.env.example agent/agent-development-env/frontend/.env
+```
+
+### Sanitization Configuration
+
+The API includes advanced AI-powered sanitization with configurable security levels:
+
+```bash
+# Core Sanitization Settings
+SANITIZATION_RISK_MAPPINGS={"llm":"high","non-llm":"low","unclear":"medium","internal":"low","external":"high"}
+
+# Final Sanitization Configuration
+SANITIZATION_FINAL_MODE=true                    # Enable enhanced AI content sanitization
+SANITIZATION_DEFAULT_MODE=final                 # Default sanitization mode ('final' or 'standard')
+SANITIZATION_ALLOW_RUNTIME_OVERRIDE=true        # Allow runtime configuration changes
+SANITIZATION_STRICT_VALIDATION=false            # Enable additional security validations
+
+# Advanced Configuration (JSON format)
+# SANITIZATION_FINAL_CONFIG={"enabled":true,"defaultMode":"final","allowRuntimeOverride":true,"strictValidation":false}
+```
+
+#### Sanitization Modes
+
+- **Standard Mode**: Basic sanitization with XSS protection and pattern filtering
+- **Final Mode**: Enhanced sanitization specifically designed for AI-generated content, including:
+  - Prompt injection prevention (`system:`, `assistant:`, `user:` patterns)
+  - Code block sanitization
+  - Base64 data URL removal
+  - Advanced AI-specific threat detection
+
+### Environment Variables Reference
+
+#### Core Application
+
+- `NODE_ENV`: Environment mode (development/production/test)
+- `PORT`: API server port (default: 3000)
+- `GEMINI_API_KEY`: Google Gemini AI API key for AI processing
+
+#### Security
+
+- `TRUST_TOKEN_SECRET`: Cryptographic secret for trust token generation
+- `ADMIN_AUTH_SECRET`: Secret for admin authentication
+- `AUDIT_SECRET`: Secret for audit logging
+
+#### Database & Caching
+
+- `REDIS_URL`: Redis connection URL for caching
+- `DATABASE_URL`: PostgreSQL/SQLite connection string
+
+#### Integration
+
+- `N8N_USER`: n8n admin username
+- `N8N_PASSWORD`: n8n admin password
+- `N8N_ENCRYPTION_KEY`: n8n data encryption key
 
 ## 🐳 Docker Usage
 
@@ -417,6 +625,46 @@ docker run -p 3000:3000 --link redis:redis \
 - **n8n**: http://localhost:5678 (admin/admin123)
 - **Redis**: localhost:6379 (internal only)
 
+## 🤖 Agent Development Environment
+
+The repository includes a complete agent development environment for building AI-powered applications:
+
+### Components
+
+- **Backend Agent** (`agent/agent-development-env/backend/`): Python-based AI agent with MCP integration
+- **Frontend Interface** (`agent/agent-development-env/frontend/`): React application for agent interaction
+- **Proxy Service** (`agent/agent-development-env/proxy/`): Communication bridge between components
+- **Kubernetes Configs** (`agent/agent-development-env/k8s/`): Production deployment configurations
+
+### Key Features
+
+- **MCP Integration**: Full Model Context Protocol support for secure AI communication
+- **Smart Sanitization**: Built-in content sanitization for AI-generated responses
+- **Real-time Communication**: WebSocket-based agent-frontend communication
+- **Development Tools**: Comprehensive testing and debugging utilities
+
+### Getting Started with Agents
+
+```bash
+# Navigate to agent environment
+cd agent/agent-development-env
+
+# Set up Python backend
+cd backend
+pip install -r requirements.txt
+python api.py
+
+# Set up frontend (separate terminal)
+cd ../frontend
+npm install
+npm run dev
+
+# Start proxy service (separate terminal)
+cd ../proxy
+npm install
+npm start
+```
+
 ## 🔗 n8n Integration
 
 The API provides dedicated endpoints for n8n workflow integration:
@@ -468,9 +716,13 @@ MIT License - see [LICENSE](LICENSE) for details.
 ### Quick Start Resources
 
 - **🏃‍♂️ Quick Start**: Follow the Docker deployment section above
-- **🔧 Configuration**: Copy `.env.example` and customize for your environment
+- **🔧 Configuration**: Copy appropriate `.env.example` files for your environment:
+  - Main API: `cp .env.example .env`
+  - Agent Development: `cp agent/agent-development-env/.env.example agent/agent-development-env/.env`
+  - Frontend: `cp agent/agent-development-env/frontend/.env.example agent/agent-development-env/frontend/.env`
 - **🧪 Testing**: Run `npm test` to validate your setup
 - **📊 Monitoring**: Access metrics at `/api/monitoring/metrics`
+- **🤖 AI Sanitization**: Configure final sanitization mode for enhanced AI content protection
 
 ## References
 
