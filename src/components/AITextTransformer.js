@@ -43,7 +43,16 @@ const logger = winston.createLogger({
 });
 
 /**
- * AITextTransformer handles AI-powered text transformations using Gemini models with double sanitization.
+ * AITextTransformer handles AI-powered text transformations using Gemini models with double sanitization
+ * and security-aware processing. The AI agent is aware of its role in the three-layer sanitization system
+ * and includes security validation in all responses.
+ *
+ * Security Features:
+ * - Security-aware prompts that instruct AI to avoid malicious content
+ * - AI response validation for dangerous patterns
+ * - Security metadata included in all transformation results
+ * - Risk level assessment for AI-generated content
+ *
  * Supports multiple transformation types: structure, summarize, extract_entities, json_schema.
  */
 class AITextTransformer {
@@ -58,19 +67,61 @@ class AITextTransformer {
     this.sanitizer = new SanitizationPipeline(options.sanitizerOptions || {});
     this.logger = logger;
 
-    // Define prompt templates for each transformation type
+    // Define prompt templates for each transformation type with security awareness
     this.prompts = {
       structure: PromptTemplate.fromTemplate(
-        'Structure this raw text into a JSON object with keys like "title", "summary", "content", "key_points" (as array), and any other relevant sections. Return only valid JSON: {text}',
+        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized, but you must ensure your JSON output is safe and secure.
+
+Structure this sanitized text into a JSON object with keys like "title", "summary", "content", "key_points" (as array), and any other relevant sections.
+
+SECURITY REQUIREMENTS:
+- Never include any potentially malicious content, scripts, or dangerous patterns
+- Ensure all string values are safe for web display
+- Generate only valid, secure JSON
+- Include a "securityValidated" field set to true in the output
+- Flag any suspicious content in a "securityNotes" field if detected
+
+Return only valid JSON: {text}`,
       ),
       summarize: PromptTemplate.fromTemplate(
-        'Provide a concise summary of the following text: {text}',
+        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+
+Provide a concise summary of the following sanitized text.
+
+SECURITY REQUIREMENTS:
+- Never include any potentially malicious content or dangerous patterns
+- Ensure the summary is safe for web display
+- Do not propagate any suspicious content from the input
+- Include security validation metadata
+
+{text}`,
       ),
       extract_entities: PromptTemplate.fromTemplate(
-        'Extract and list all named entities (people, organizations, locations, dates, etc.) from the following text: {text}',
+        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+
+Extract and list all named entities (people, organizations, locations, dates, etc.) from the following sanitized text.
+
+SECURITY REQUIREMENTS:
+- Only extract safe, legitimate entities
+- Do not include any potentially malicious or suspicious content
+- Validate that extracted entities are appropriate and safe
+- Flag any potentially problematic entities in security notes
+
+{text}`,
       ),
       json_schema: PromptTemplate.fromTemplate(
-        'Convert the following text into a valid JSON schema representation: {text}',
+        `SECURITY AWARENESS: You are part of a three-layer sanitization system. The input has already been sanitized.
+
+Convert the following sanitized text into a valid JSON schema representation.
+
+SECURITY REQUIREMENTS:
+- Generate only safe, valid JSON schema
+- Ensure no malicious patterns are included in the schema
+- Validate that the schema structure is secure
+- Include security validation in the schema metadata
+- Never generate schemas that could be used maliciously
+
+{text}`,
       ),
     };
   }
@@ -123,11 +174,88 @@ class AITextTransformer {
   }
 
   /**
-   * Transforms text using AI with double sanitization.
+   * Validates AI response for security compliance and adherence to security instructions.
+   * @param {string} response - AI generated response
+   * @param {string} type - Transformation type
+   * @returns {Object} - Validation result with security metadata
+   */
+  validateAIResponse(response, type) {
+    const securityMetadata = {
+      securityValidated: false,
+      securityNotes: [],
+      riskLevel: 'unknown',
+      validationTimestamp: new Date().toISOString(),
+    };
+
+    try {
+      // Check for dangerous patterns that should never appear in AI responses
+      const dangerousPatterns = [
+        /<script[^>]*>[\s\S]*?<\/script>/i,
+        /javascript:/i,
+        /on\w+\s*=/i,
+        /<iframe[^>]*>/i,
+        /<object[^>]*>/i,
+        /<embed[^>]*>/i,
+        /vbscript:/i,
+        /data:text\/html/i,
+        /expression\s*\(/i,
+      ];
+
+      const hasDangerousContent = dangerousPatterns.some((pattern) => pattern.test(response));
+
+      if (hasDangerousContent) {
+        securityMetadata.securityNotes.push('Dangerous content detected in AI response');
+        securityMetadata.riskLevel = 'high';
+        return securityMetadata;
+      }
+
+      // Validate JSON responses for the 'structure' type
+      if (type === 'structure') {
+        try {
+          const parsed = JSON.parse(response);
+          if (parsed.securityValidated) {
+            securityMetadata.securityValidated = true;
+            securityMetadata.riskLevel = 'low';
+          } else {
+            securityMetadata.securityNotes.push(
+              'Missing security validation flag in JSON response',
+            );
+            securityMetadata.riskLevel = 'medium';
+          }
+        } catch (jsonError) {
+          securityMetadata.securityNotes.push('Invalid JSON structure in response');
+          securityMetadata.riskLevel = 'high';
+        }
+      } else {
+        // For non-JSON responses, basic validation
+        securityMetadata.securityValidated = !hasDangerousContent;
+        securityMetadata.riskLevel = hasDangerousContent ? 'high' : 'low';
+      }
+
+      return securityMetadata;
+    } catch (error) {
+      this.logger.error('AI response validation failed', {
+        error: error.message,
+        responseLength: response.length,
+        type,
+      });
+      securityMetadata.securityNotes.push('Validation error occurred');
+      securityMetadata.riskLevel = 'high';
+      return securityMetadata;
+    }
+  }
+
+  /**
+   * Transforms text using AI with double sanitization and security validation.
+   * The AI agent includes security awareness and response validation.
+   *
    * @param {string} text - The input text to transform
    * @param {string} type - Transformation type: 'structure', 'summarize', 'extract_entities', 'json_schema'
    * @param {Object} options - Transformation options
-   * @returns {string} - The transformed and sanitized text
+   * @returns {Object} - Result object with text and metadata including security validation
+   * @returns {string} result.text - The transformed and sanitized text
+   * @returns {Object} result.metadata - Processing metadata including security validation
+   * @returns {Object} result.metadata.security - Security validation results
    */
   async transform(text, type, options = {}) {
     const startTime = Date.now();
@@ -182,6 +310,18 @@ class AITextTransformer {
       const result = await chain.invoke({ text: sanitizedInput });
       const aiOutput = result.content;
 
+      // Validate AI response for security compliance
+      const securityValidation = this.validateAIResponse(aiOutput, type);
+      if (securityValidation.riskLevel === 'high') {
+        this.logger.warn('AI response failed security validation', {
+          type,
+          riskLevel: securityValidation.riskLevel,
+          securityNotes: securityValidation.securityNotes,
+          responseLength: aiOutput.length,
+        });
+        // Continue processing but log the security concern
+      }
+
       // Sanitize output after AI processing
       const sanitizedOutput = await this.sanitizer.sanitize(
         aiOutput,
@@ -228,6 +368,7 @@ class AITextTransformer {
             completion: completionTokens,
             total: totalTokens,
           },
+          security: securityValidation,
         },
       };
     } catch (error) {

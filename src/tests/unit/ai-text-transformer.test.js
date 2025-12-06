@@ -297,4 +297,103 @@ describe('AITextTransformer', () => {
 
     expect(() => new AITextTransformer()).toThrow('Sanitizer initialization failed');
   });
+
+  describe('AI Security Awareness and Response Validation', () => {
+    beforeEach(() => {
+      transformer = new AITextTransformer({
+        model: 'gemini-pro',
+        temperature: 0.1,
+        maxTokens: 2000,
+      });
+    });
+
+    test('should validate AI response security for safe content', () => {
+      const safeResponse = 'This is a safe response with normal content.';
+      const validation = transformer.validateAIResponse(safeResponse, 'summarize');
+
+      expect(validation.securityValidated).toBe(true);
+      expect(validation.riskLevel).toBe('low');
+      expect(validation.securityNotes).toEqual([]);
+      expect(validation.validationTimestamp).toBeDefined();
+    });
+
+    test('should detect dangerous content in AI response', () => {
+      const dangerousResponse = 'Safe content <script>alert("xss")</script> more safe content';
+      const validation = transformer.validateAIResponse(dangerousResponse, 'summarize');
+
+      expect(validation.securityValidated).toBe(false);
+      expect(validation.riskLevel).toBe('high');
+      expect(validation.securityNotes).toContain('Dangerous content detected in AI response');
+    });
+
+    test('should validate JSON structure security for structure type', () => {
+      const secureJsonResponse = JSON.stringify({
+        title: 'Safe Title',
+        summary: 'Safe summary',
+        securityValidated: true,
+      });
+      const validation = transformer.validateAIResponse(secureJsonResponse, 'structure');
+
+      expect(validation.securityValidated).toBe(true);
+      expect(validation.riskLevel).toBe('low');
+    });
+
+    test('should flag JSON without security validation', () => {
+      const insecureJsonResponse = JSON.stringify({
+        title: 'Title',
+        summary: 'Summary',
+        // Missing securityValidated flag
+      });
+      const validation = transformer.validateAIResponse(insecureJsonResponse, 'structure');
+
+      expect(validation.securityValidated).toBe(false);
+      expect(validation.riskLevel).toBe('medium');
+      expect(validation.securityNotes).toContain(
+        'Missing security validation flag in JSON response',
+      );
+    });
+
+    test('should include security metadata in transformation response', async () => {
+      const input = 'Test input for transformation';
+      const mockAIResponse = 'Safe AI generated response';
+
+      // Mock the chain and AI response
+      mockInvoke.mockResolvedValueOnce({
+        content: mockAIResponse,
+        response_metadata: { usage: { total_tokens: 100 } },
+      });
+
+      const result = await transformer.transform(input, 'summarize');
+
+      expect(result.metadata.security).toBeDefined();
+      expect(result.metadata.security.securityValidated).toBeDefined();
+      expect(result.metadata.security.riskLevel).toBeDefined();
+      expect(result.metadata.security.securityNotes).toEqual([]);
+      expect(result.metadata.security.validationTimestamp).toBeDefined();
+    });
+
+    test('should log security warnings for high-risk AI responses', async () => {
+      const input = 'Test input';
+      const dangerousAIResponse = 'Response with <iframe src="malicious.com"></iframe> content';
+
+      // Mock the chain and dangerous AI response
+      mockInvoke.mockResolvedValueOnce({
+        content: dangerousAIResponse,
+        response_metadata: { usage: { total_tokens: 100 } },
+      });
+
+      // Mock logger to capture warnings
+      const loggerSpy = jest.spyOn(transformer.logger, 'warn');
+
+      await transformer.transform(input, 'summarize');
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'AI response failed security validation',
+        expect.objectContaining({
+          riskLevel: 'high',
+          securityNotes: expect.arrayContaining(['Dangerous content detected in AI response']),
+        }),
+      );
+    });
+  });
 });
